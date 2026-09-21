@@ -1,0 +1,111 @@
+# Messages en français. Une ligne par message : la clé, des blancs, le modèle.
+# `{champ}` est rempli par le code ; le reste est laissé tel quel, accolades de
+# LaTeX comprises. Une clé absente est reprise de messages-en.txt.
+#
+# Les codes de diagnostic, eux, ne sont pas ici : ils sont en anglais dans le
+# code, stables, et c'est par eux qu'on filtre (voir `diagnostics.CATALOGUE`).
+
+# Gravités, telles qu'on les affiche
+severity.error                                  erreur
+severity.errors                                 erreurs
+severity.warning                                avertissement
+severity.warnings                               avertissements
+severity.info                                   info
+severity.infos                                  infos
+
+# Ligne de commande
+cli.unreadable                                  {path} : illisible : {error}
+cli.hidden                                      ({count} masquées, voir --infos)
+
+# Structure : ce qui n'a pas été fermé
+unclosed-brace                                  « { » jamais fermée
+unclosed-brace.of                               « { » de « {command} » jamais fermée
+unclosed-brace.fix                              fermer par « } »
+unclosed-bracket                                « [ » jamais fermé
+unclosed-bracket.of                             « [ » de « {command} » jamais fermé
+unclosed-bracket.fix                            fermer par « ] », ou écrire « {[} » pour un crochet de texte
+unclosed-math                                   « {opening} » jamais fermé
+unclosed-math.fix                               fermer par « {closing} »
+unclosed-math.fix.blank-line                    fermer par « {closing} » avant la ligne blanche
+unclosed-environment                            « {opening} » jamais fermé
+unclosed-environment.fix                        fermer par « {closing} »
+unclosed-verbatim                               « {opening} » jamais fermé : lu jusqu'à la fin du fichier
+unclosed-verbatim.fix                           fermer par « {closing} »
+verb-across-lines                               « {opening} » non fermé sur sa ligne
+verb-across-lines.fix                           fermer par « {closing} » avant la fin de la ligne
+verbatim-braces                                 accolades non appariées dans « {opening} » : fermé à la première « } »
+
+# Structure : ce qui ferme mal
+extra-brace                                     « } » sans « { » ouvrante
+extra-brace.fix                                 retirer cette « } », ou la « } » qui ferme trop tôt le groupe précédent
+extra-brace.previous                            la « { » précédente ({where}) est déjà fermée ici
+extra-brace.previous.same-line                  ligne {line}
+extra-brace.previous.opened                     ouverte ligne {line}
+end-without-begin                               « {closing} » sans « {opening} »
+crossed-environment                             « {opening} » fermé par « {closing} »
+crossed-environment.fix                         « {end} », ou « {begin} »
+crossed-environments                            « {closer} » arrive avant « {closing} » : environnements croisés
+crossed-environments.fix                        placer « {closing} » avant « {closer} »
+
+# Structure : les maths
+dollar-in-math                                  « {dollars} » dans des maths ouvertes par « {opening} »
+dollar-in-math.fix                              fermer ces maths par « {closing} »
+math-in-math                                    « {control} » dans des maths déjà ouvertes par « {opening} »
+stray-math-close                                « {control} » sans « {opening} » ouvrant
+
+# Endroits liés
+related.math-opened-here                        maths ouvertes ici
+related.opened-here                             ouvert ici
+related.opened-here.named                       « {opening} » ouvert ici
+related.closed-too-late                         fermé ici, trop tard
+related.end-before-closing                      « {closing} » arrive avant sa fermeture
+related.cut-by.environment                      « {closer} » ferme l'environnement qui l'entoure
+related.cut-by.math                             « {closer} » ferme les maths qui l'entoure
+related.cut-by.group                            « {closer} » ferme le groupe qui l'entoure
+related.blank-line-cuts-group                   la ligne blanche coupe le groupe
+related.blank-line-cuts-math                    la ligne blanche coupe les maths
+related.brace-in-comment                        une « } » dans ce commentaire, ligne {line}
+related.first-blank-line                        première ligne blanche du groupe, ligne {line} : l'accolade manque sans doute avant
+related.written-by                              écrit par « {command} »
+related.written-by.inside                       écrit par « {command} » dans « {outer} »
+message.with-origin                             {message}, {origin}
+
+# Sens : ce qui est bien apparié mais n'a pas sa place là
+item-outside-list                               « \item » hors de toute liste
+item-outside-list.fix                           ouvrir une liste : « \begin{itemize} » … « \end{itemize} »
+item-outside-list.related                       dans « {opening} », qui n'est pas une liste
+ampersand-outside-alignment                     « & » hors d'un tableau ou d'un alignement
+ampersand-outside-alignment.fix.math            un alignement (« aligned », « cases »…)
+ampersand-outside-alignment.fix.text            « \& » pour le caractère
+ampersand-outside-alignment.related             dans « {opening} », qui n'aligne rien
+script-outside-math                             « {character} » hors des maths
+script-outside-math.fix                         des maths (« $x{character}2$ »), ou « {written} » pour le caractère
+math-command-in-text                            « {command} » hors des maths
+math-command-in-text.fix                        « {math} »
+missing-argument                                « {command} » : il manque {count} sur {mandatory}
+missing-argument.count.one                      {count} argument obligatoire
+missing-argument.count.many                     {count} arguments obligatoires
+missing-argument.fix                            signature « {spec} »
+missing-argument.related.blank-line             la ligne blanche arrête la lecture des arguments
+missing-argument.related.environment            un environnement ne peut pas être un argument
+missing-argument.related.instead                lu à la place de l'argument
+missing-argument.related.closing                « {closing} » arrive avant l'argument
+left-without-right                              « \left » sans « \right » dans le même groupe
+left-without-right.fix                          fermer par « \right », ou « \right. » sans délimiteur
+left-without-right.related                      « {closing} » ferme le groupe avant
+left-without-right.related.end-of-group         la fin du groupe
+right-without-left                              « \right » sans « \left » dans le même groupe
+right-without-left.fix                          ouvrir par « \left », ou « \left. » sans délimiteur
+left-across-cells                               « \left » ouvert avant « {separator} » : chaque cellule d'un alignement est un groupe
+left-across-cells.fix                           fermer par « \right. » avant, et rouvrir par « \left. » après
+left-across-cells.related                       « \left » ouvert ici
+line-break-without-line                         « \\ » sans ligne à terminer
+line-break-without-line.fix                     retirer « \\ », ou espacer par « \medskip » ou « \vspace{…} »
+line-break-without-line.related.blank-line      après la ligne blanche, aucun paragraphe n'est commencé
+line-break-without-line.related.environment     « {closing} » finit entre deux paragraphes
+line-break-without-line.related.none            aucun paragraphe n'est commencé
+file-not-found                                  « {command} » : fichier introuvable
+file-not-found.fix                              cherché dans le dossier du document, puis par kpsewhich
+file-not-found.fix.include                      LaTeX n'en avertit que (« No file »), et le chapitre manque au document
+unknown-command                                 « {command} » inconnue : « {match} » ?
+unknown-environment                             environnement « {name} » inconnu : « {match} » ?

@@ -1,0 +1,376 @@
+# Signatures of the common packages, written by hand. Format of kernel.txt:
+# name, mode (text, math, any), ltcmd signature; `{name}` for an environment.
+#
+# Why by hand. The files of the distribution are found but never read: this was
+# tried and measured (see the header of `resolution`) — it invents thousands of
+# names, loses kernel signatures and renders `\dfrac` with no argument. The
+# packages that matter declare their interface through code (`\@ifnextchar`,
+# expl3, `\DeclareMathSymbol`), not through a readable declaration.
+#
+# What belongs here: whatever changes the reading or the diagnostics — a command
+# whose arguments must be bound, a mode that makes an error visible (`\dfrac`
+# outside math), an environment one must know to be a list, an alignment or
+# math. Not the symbols without arguments, except the most used ones: the kernel
+# already gives 700 of them.
+#
+# What does not belong here: what a signature cannot state. TikZ paths end with
+# `;`, `\titleformat*` does not have the arity of `\titleformat`,
+# `\mintinline{py}{code}` reads its second argument verbatim. Better unknown
+# than wrong: an unknown command keeps the heuristics, a wrong signature moves
+# arguments around.
+#
+# The definitions of the document win over this table, which wins over the
+# kernel: a `\renewcommand` of the user's always has the last word.
+
+# amsmath, amssymb, amsthm
+\dfrac                      math  m m
+\tfrac                      math  m m
+\cfrac                      math  o m m
+\binom                      math  m m
+\dbinom                     math  m m
+\tbinom                     math  m m
+\genfrac                    math  m m m m m m
+\overset                    math  m m
+\underset                   math  m m
+\substack                   math  m
+\sideset                    math  m m m
+\boxed                      math  m
+\operatorname               math  s m
+\DeclareMathOperator        any   s m m
+\text                       any   m
+\intertext                  any   m
+\tag                        math  s m
+\notag                      math  -
+\eqref                      any   m
+\numberwithin               any   m m
+\xleftarrow                 math  o m
+\xrightarrow                math  o m
+\overleftrightarrow         math  m
+\underleftarrow             math  m
+\underrightarrow            math  m
+\underleftrightarrow        math  m
+\iint                       math  -
+\iiint                      math  -
+\iiiint                     math  -
+\idotsint                   math  -
+\implies                    math  -
+\impliedby                  math  -
+\iff                        math  -
+\varnothing                 math  -
+\leqslant                   math  -
+\geqslant                   math  -
+\mathbb                     math  m
+\mathfrak                   math  m
+\mathscr                    math  m
+\bm                         math  m
+\smash                      any   o m
+\theoremstyle               any   m
+\newtheorem                 any   s m o m o
+{align}                     text  -
+{align*}                    text  -
+{alignat}                   text  m
+{alignat*}                  text  m
+{flalign}                   text  -
+{flalign*}                  text  -
+{gather}                    text  -
+{gather*}                   text  -
+{multline}                  text  -
+{multline*}                 text  -
+{aligned}                   math  o
+{alignedat}                 math  o m
+{gathered}                  math  o
+{split}                     math  -
+{cases}                     math  -
+{matrix}                    math  -
+{pmatrix}                   math  -
+{bmatrix}                   math  -
+{Bmatrix}                   math  -
+{vmatrix}                   math  -
+{Vmatrix}                   math  -
+{smallmatrix}               math  -
+{subarray}                  math  m
+{subequations}              text  -
+{proof}                     text  o
+{theorem}                   text  o
+{lemma}                     text  o
+{definition}                text  o
+{remark}                    text  o
+{example}                   text  o
+
+# mathtools
+\coloneqq                   math  -
+\eqqcolon                   math  -
+\prescript                  math  m m m
+\mathclap                   math  m
+\mathllap                   math  m
+\mathrlap                   math  m
+\shortintertext             any   m
+\DeclarePairedDelimiter     any   m m m
+\adjustlimits               math  -
+{dcases}                    math  -
+{dcases*}                   math  -
+{rcases}                    math  -
+{drcases}                   math  -
+{multlined}                 math  o o
+{psmallmatrix}              math  -
+{bsmallmatrix}              math  -
+{vsmallmatrix}              math  -
+{Bsmallmatrix}              math  -
+{Vsmallmatrix}              math  -
+
+# graphicx
+\includegraphics            any   s o o m
+\graphicspath               any   m
+\DeclareGraphicsExtensions  any   m
+\rotatebox                  any   o m m
+\scalebox                   any   m o m
+\resizebox                  any   s m m m
+\reflectbox                 any   m
+
+# xcolor
+\textcolor                  any   o m m
+\color                      any   o m
+\colorbox                   any   o m m
+\fcolorbox                  any   o m m m
+\definecolor                any   o m m m
+\colorlet                   any   o m o m
+\pagecolor                  any   o m
+\rowcolor                   any   o m o o
+\cellcolor                  any   o m o o
+\columncolor                any   o m o o
+
+# hyperref, cleveref
+\hyperref                   any   o m
+\autoref                    any   s m
+\nameref                    any   m
+\hypertarget                any   m m
+\hyperlink                  any   m m
+\texorpdfstring             any   m m
+\hypersetup                 any   m
+\phantomsection             any   -
+\cref                       any   m
+\Cref                       any   m
+\cpageref                   any   m
+\crefrange                  any   m m
+\labelcref                  any   m
+
+# booktabs, array, tabularx, longtable, multirow, makecell
+\toprule                    text  o
+\midrule                    text  o
+\bottomrule                 text  o
+\cmidrule                   text  o d()
+\addlinespace               text  o
+\morecmidrules              text  -
+\specialrule                text  m m m
+\newcolumntype              any   m o m
+\multirow                   text  o m o m o m
+\makecell                   text  o m
+\thead                      text  o m
+\endhead                    text  -
+\endfirsthead               text  -
+\endfoot                    text  -
+\endlastfoot                text  -
+{tabularx}                  text  m o m
+{tabulary}                  text  m o m
+{longtable}                 text  o m
+{supertabular}              text  m
+{xtabular}                  text  m
+
+# enumitem: the kernel lists take an optional argument there
+{itemize}                   text  o
+{enumerate}                 text  o
+{description}               text  o
+{itemize*}                  text  o
+{enumerate*}                text  o
+{description*}              text  o
+\setlist                    any   s o m
+\newlist                    any   m m m
+\setlistdepth               any   m
+\restartlist                any   m
+
+# siunitx (v2 and v3): arguments of numbers and units, never typeset as they stand
+\SI                         any   o m m
+\si                         any   o m
+\num                        any   o m
+\ang                        any   o m
+\numlist                    any   o m
+\numrange                   any   o m m
+\SIlist                     any   o m m
+\SIrange                    any   o m m m
+\qty                        any   o m m
+\unit                       any   o m
+\qtylist                    any   o m m
+\qtyrange                   any   o m m m
+\tablenum                   any   o m
+\sisetup                    any   m
+
+# mhchem, chemfig
+\ce                         any   m
+\cee                        any   m
+\cf                         any   m
+\chemfig                    any   o m
+
+# cancel, esvect, derivative
+\cancel                     math  m
+\bcancel                    math  m
+\xcancel                    math  m
+\cancelto                   math  o m m
+\vv                         math  s m
+\odv                        math  s o m m
+\pdv                        math  s o m m
+\fdv                        math  s o m m
+\mdv                        math  s o m m
+\odif                       math  o m
+\pdif                       math  o m
+
+# beamer
+{frame}                     text  d<> o
+{block}                     text  d<> m
+{alertblock}                text  d<> m
+{exampleblock}              text  d<> m
+{columns}                   text  d<> o
+{column}                    text  d<> o m
+{onlyenv}                   text  d<>
+{overlayarea}               text  m m
+{overprint}                 text  o
+\alert                      any   d<> m
+\only                       any   d<> m
+\onslide                    any   d<> o
+\uncover                    any   d<> m
+\visible                    any   d<> m
+\invisible                  any   d<> m
+\pause                      any   o
+\frametitle                 text  d<> o m
+\framesubtitle              text  d<> m
+\setbeamertemplate          any   m o m
+\setbeamercolor             any   m m
+\setbeamerfont              any   m m
+\usetheme                   any   o m
+\usecolortheme              any   o m
+\titlepage                  text  o
+\movie                      any   o m m
+
+# caption, subcaption, sidecap, wrapfig, multicol, float
+\captionof                  text  s m o m
+\subcaption                 text  o m
+\captionsetup               any   o m
+{subfigure}                 text  o m
+{subtable}                  text  o m
+{SCfigure}                  text  o o
+{SCtable}                   text  o o
+{wrapfigure}                text  o m o m
+{wraptable}                 text  o m o m
+{multicols}                 text  m o
+{multicols*}                text  m o
+\floatstyle                 any   m
+\newfloat                   any   m m m o
+\restylefloat               any   m
+
+# tcolorbox, mdframed, framed
+{tcolorbox}                 text  o
+{mdframed}                  text  o
+\tcbset                     any   m
+\newtcolorbox               any   o m o o m
+\newtcbox                   any   o m o o m
+\tcblower                   text  -
+
+# ulem, soul, csquotes, todonotes, marginnote
+\uline                      text  m
+\uwave                      text  m
+\sout                       text  m
+\xout                       text  m
+\dashuline                  text  m
+\dotuline                   text  m
+\hl                         text  m
+\enquote                    any   s m
+\foreignquote               any   m m
+\todo                       any   o m
+\missingfigure              any   o m
+\listoftodos                any   o
+\marginnote                 any   o m o
+
+# etoolbox, xstring, environ, xspace
+\ifstrempty                 any   m m m
+\ifblank                    any   m m m
+\ifdefempty                 any   m m m
+\ifboolexpr                 any   m m m
+\iftoggle                   any   m m m
+\newtoggle                  any   m
+\toggletrue                 any   m
+\togglefalse                any   m
+\AtBeginEnvironment         any   m +m
+\AtEndEnvironment           any   m +m
+\apptocmd                   any   m +m +m +m
+\pretocmd                   any   m +m +m +m
+\patchcmd                   any   o m +m +m +m +m
+\robustify                  any   m
+\IfStrEq                    any   s m m +m +m
+\IfSubStr                   any   s m m +m +m
+\IfEq                       any   s m m +m +m
+\StrSubstitute              any   s m m m o
+\NewEnviron                 any   m o o +m
+\RenewEnviron               any   m o o +m
+\xspace                     any   -
+
+# babel-french, pifont, numprint, calc, fp
+\og                         text  -
+\fg                         text  -
+\ier                        text  -
+\ieme                       text  -
+\ding                       text  m
+\numprint                   any   o m
+\np                         any   o m
+\widthof                    any   m
+\heightof                   any   m
+\depthof                    any   m
+\totalheightof              any   m
+\maxof                      any   m m
+\minof                      any   m m
+\FPeval                     any   m m
+
+# geometry, fancyhdr, setspace, listings, biblatex and natbib
+\geometry                   any   m
+\newgeometry                any   m
+\restoregeometry            any   -
+\fancyhead                  any   o m
+\fancyfoot                  any   o m
+\fancyhf                    any   o m
+\fancypagestyle             any   m m
+\lhead                      any   m
+\chead                      any   m
+\rhead                      any   m
+\lfoot                      any   m
+\cfoot                      any   m
+\rfoot                      any   m
+\setstretch                 any   m
+\onehalfspacing             any   -
+\doublespacing              any   -
+{spacing}                   text  m
+{onehalfspace}              text  -
+{doublespace}               text  -
+\lstset                     any   m
+\lstinputlisting            any   o m
+\lstdefinestyle             any   m m
+\inputminted                any   o m m
+\citep                      any   o o m
+\citet                      any   o o m
+\citealt                    any   o o m
+\parencite                  any   o o m
+\textcite                   any   o o m
+\autocite                   any   o o m
+\addbibresource             any   o m
+\printbibliography          any   o
+
+# tabularray, nicematrix
+{tblr}                      text  o m
+{longtblr}                  text  o m
+{talltblr}                  text  o m
+\SetCell                    text  o m
+\SetRow                     text  o m
+\SetColumn                  text  o m
+{NiceTabular}               text  o m o
+{NiceArray}                 math  o m o
+{NiceMatrix}                math  o
+{pNiceMatrix}               math  o
+{bNiceMatrix}               math  o
+{vNiceMatrix}               math  o

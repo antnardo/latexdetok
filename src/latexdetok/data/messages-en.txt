@@ -1,0 +1,111 @@
+# Messages in English, the fallback for every other language. One message per
+# line: the key, blanks, the template. `{field}` is filled in by the code; the
+# rest is left alone, LaTeX braces included.
+#
+# Diagnostic codes are not here: they live in the code, in English, stable, and
+# they are what one filters on (see `diagnostics.CATALOGUE`).
+
+# Severities, as displayed
+severity.error                                  error
+severity.errors                                 errors
+severity.warning                                warning
+severity.warnings                               warnings
+severity.info                                   info
+severity.infos                                  infos
+
+# Command line
+cli.unreadable                                  {path}: unreadable: {error}
+cli.hidden                                      ({count} hidden, see --infos)
+
+# Structure: what was never closed
+unclosed-brace                                  “{” never closed
+unclosed-brace.of                               “{” of “{command}” never closed
+unclosed-brace.fix                              close it with “}”
+unclosed-bracket                                “[” never closed
+unclosed-bracket.of                             “[” of “{command}” never closed
+unclosed-bracket.fix                            close it with “]”, or write “{[}” for a bracket in the text
+unclosed-math                                   “{opening}” never closed
+unclosed-math.fix                               close it with “{closing}”
+unclosed-math.fix.blank-line                    close it with “{closing}” before the blank line
+unclosed-environment                            “{opening}” never closed
+unclosed-environment.fix                        close it with “{closing}”
+unclosed-verbatim                               “{opening}” never closed: read to the end of the file
+unclosed-verbatim.fix                           close it with “{closing}”
+verb-across-lines                               “{opening}” not closed on its line
+verb-across-lines.fix                           close it with “{closing}” before the end of the line
+verbatim-braces                                 unbalanced braces in “{opening}”: closed at the first “}”
+
+# Structure: what closes badly
+extra-brace                                     “}” with no “{” to open
+extra-brace.fix                                 remove this “}”, or the “}” that closes the previous group too early
+extra-brace.previous                            the previous “{” ({where}) is already closed here
+extra-brace.previous.same-line                  line {line}
+extra-brace.previous.opened                     opened line {line}
+end-without-begin                               “{closing}” without “{opening}”
+crossed-environment                             “{opening}” closed by “{closing}”
+crossed-environment.fix                         “{end}”, or “{begin}”
+crossed-environments                            “{closer}” comes before “{closing}”: crossed environments
+crossed-environments.fix                        put “{closing}” before “{closer}”
+
+# Structure: math
+dollar-in-math                                  “{dollars}” inside math opened by “{opening}”
+dollar-in-math.fix                              close this math with “{closing}”
+math-in-math                                    “{control}” inside math already opened by “{opening}”
+stray-math-close                                “{control}” without “{opening}” to open it
+
+# Related places
+related.math-opened-here                        math opened here
+related.opened-here                             opened here
+related.opened-here.named                       “{opening}” opened here
+related.closed-too-late                         closed here, too late
+related.end-before-closing                      “{closing}” comes before it is closed
+related.cut-by.environment                      “{closer}” closes the environment around it
+related.cut-by.math                             “{closer}” closes the math around it
+related.cut-by.group                            “{closer}” closes the group around it
+related.blank-line-cuts-group                   the blank line cuts the group
+related.blank-line-cuts-math                    the blank line cuts the math
+related.brace-in-comment                        a “}” in this comment, line {line}
+related.first-blank-line                        first blank line of the group, line {line}: the brace is probably missing before it
+related.written-by                              written by “{command}”
+related.written-by.inside                       written by “{command}” inside “{outer}”
+message.with-origin                             {message}, {origin}
+
+# Meaning: what is matched, but has no business being there
+item-outside-list                               “\item” outside any list
+item-outside-list.fix                           open a list: “\begin{itemize}” … “\end{itemize}”
+item-outside-list.related                       inside “{opening}”, which is not a list
+ampersand-outside-alignment                     “&” outside a table or an alignment
+ampersand-outside-alignment.fix.math            an alignment (“aligned”, “cases”…)
+ampersand-outside-alignment.fix.text            “\&” for the character
+ampersand-outside-alignment.related             inside “{opening}”, which aligns nothing
+script-outside-math                             “{character}” outside math
+script-outside-math.fix                         math (“$x{character}2$”), or “{written}” for the character
+math-command-in-text                            “{command}” outside math
+math-command-in-text.fix                        “{math}”
+missing-argument                                “{command}”: {count} missing out of {mandatory}
+missing-argument.count.one                      {count} mandatory argument
+missing-argument.count.many                     {count} mandatory arguments
+missing-argument.fix                            signature “{spec}”
+missing-argument.related.blank-line             the blank line stops the reading of arguments
+missing-argument.related.environment            an environment cannot be an argument
+missing-argument.related.instead                read in place of the argument
+missing-argument.related.closing                “{closing}” comes before the argument
+left-without-right                              “\left” without “\right” in the same group
+left-without-right.fix                          close it with “\right”, or “\right.” with no delimiter
+left-without-right.related                      “{closing}” closes the group first
+left-without-right.related.end-of-group         the end of the group
+right-without-left                              “\right” without “\left” in the same group
+right-without-left.fix                          open it with “\left”, or “\left.” with no delimiter
+left-across-cells                               “\left” opened before “{separator}”: every cell of an alignment is a group
+left-across-cells.fix                           close with “\right.” before it, and open again with “\left.” after
+left-across-cells.related                       “\left” opened here
+line-break-without-line                         “\\” with no line to end
+line-break-without-line.fix                     remove “\\”, or space it out with “\medskip” or “\vspace{…}”
+line-break-without-line.related.blank-line      after the blank line, no paragraph has begun
+line-break-without-line.related.environment     “{closing}” ends between two paragraphs
+line-break-without-line.related.none            no paragraph has begun
+file-not-found                                  “{command}”: file not found
+file-not-found.fix                              looked for in the document's folder, then through kpsewhich
+file-not-found.fix.include                      LaTeX only warns (“No file”), and the chapter is missing from the document
+unknown-command                                 “{command}” unknown: “{match}”?
+unknown-environment                             environment “{name}” unknown: “{match}”?

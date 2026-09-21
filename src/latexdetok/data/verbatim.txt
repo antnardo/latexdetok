@@ -1,0 +1,27 @@
+# Outside the kernel: commands and environments of packages whose content is read
+# without analysis. This is not an extension of the signature scope: without them,
+# one `%`, one `$` or one `{` of code breaks the structure of everything after.
+
+# Commands: first argument verbatim
+\url                        any   v
+\href                       any   v m
+\lstinline                  any   v
+\pyb                        any   v
+\pyc                        any   v
+\pyv                        any   v
+
+# Environments
+{Verbatim}                  text  verbatim
+{BVerbatim}                 text  verbatim
+{LVerbatim}                 text  verbatim
+{spverbatim}                text  verbatim
+{lstlisting}                text  verbatim
+{minted}                    text  verbatim
+{tcblisting}                text  verbatim
+{comment}                   text  verbatim
+{luacode}                   text  verbatim
+{luacode*}                  text  verbatim
+{pycode}                    text  verbatim
+{pyblock}                   text  verbatim
+{pyconsole}                 text  verbatim
+{pyverbatim}                text  verbatim

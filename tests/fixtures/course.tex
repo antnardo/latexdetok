@@ -1,0 +1,65 @@
+% !TEX TS-program = lualatex
+\documentclass{book}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\input{shorthands}
+
+\newcommand{\vect}[1]{\overrightarrow{#1}}
+\newcommand{\unit}[2]{#1\,\mathrm{#2}}
+\newenvironment{remark}{\par\medskip\noindent\textbf{Remark.}\ }{\par\medskip}
+
+\begin{document}
+
+\chapter{Point mechanics}
+
+\section{Positions and velocities}
+
+A point is given by $\vect{r}(t)$, its velocity by $\vect{v} = \dot{\vect{r}}$.
+The speed of a free fall after $t = \unit{2}{s}$ is about $\unit{20}{m.s^{-1}}$.
+
+\begin{itemize}
+\item the position, $\vect{r}$;
+\item the velocity, $\vect{v}$;
+\item the acceleration, $\vect{a}$.
+\end{itemize}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.6\textwidth]{figures/trajectory}
+\caption{A trajectory in the plane.}
+\end{figure}
+
+\section{Energy}
+
+The kinetic energy of a point of mass $m$ is
+\[
+    E_c = \frac{1}{2} m v^2 .
+\]
+
+\begin{center}
+Energy is conserved when no non-conservative force does any work.
+\end{center}
+
+\begin{remark}
+The radius runs over $r\in\[0;\infty\[$, written with escaped brackets: inside
+$\dots$ those are commands, not the display math of \verb|\[ \]|.
+\end{remark}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.5\textwidth]{figures/energy}
+\caption{Potential energy against the radius.}
+\end{figure}
+
+\section{Exercises}
+
+\begin{enumerate}
+\item Show that $\vect{a}$ is normal to $\vect{v}$ for a uniform circular motion.
+\item Give $E_c$ for $v = \unit{3}{m.s^{-1}}$ and $m = \unit{2}{kg}$.
+\end{enumerate}
+
+\begin{center}
+\includegraphics[width=0.3\textwidth]{figures/circle}
+\end{center}
+
+\end{document}

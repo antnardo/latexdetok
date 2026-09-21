@@ -1,0 +1,394 @@
+# Signatures of the LaTeX2e kernel and of the standard classes, written by hand.
+# They win over kernel-harvested.txt. Format: name, mode (text, math, any), signature.
+# Signatures follow the kernel's usage: \@ifstar gives `s`, \@ifnextchar[ gives `o`.
+# `\begin`, `\end`, `\[`, `\]`, `\(` and `\)` are read apart by the tokeniser.
+
+# Structure of the document
+\documentclass              any   o m o
+\usepackage                 any   o m o
+\RequirePackage             any   o m o
+\RequirePackageWithOptions  any   m o
+\LoadClass                  any   o m o
+\LoadClassWithOptions       any   m o
+\NeedsTeXFormat             any   m o
+\ProvidesPackage            any   m o
+\ProvidesClass              any   m o
+\ProvidesFile               any   m o
+\PassOptionsToPackage       any   m m
+\PassOptionsToClass         any   m m
+\DeclareOption              any   s m
+\ExecuteOptions             any   m
+\ProcessOptions             any   s
+\AtBeginDocument            any   +m
+\AtEndDocument              any   +m
+\AtEndOfPackage             any   +m
+\AtEndOfClass               any   +m
+\input                      any   m
+\include                    any   m
+\includeonly                any   m
+\InputIfFileExists          any   m +m +m
+\IfFileExists               any   m +m +m
+\listfiles                  any   -
+\makeatletter               any   -
+\makeatother                any   -
+\title                      text  o m
+\author                     text  o m
+\date                       text  m
+\thanks                     text  m
+\maketitle                  text  -
+\tableofcontents            text  -
+\listoffigures              text  -
+\listoftables               text  -
+\appendix                   text  -
+\frontmatter                text  -
+\mainmatter                 text  -
+\backmatter                 text  -
+
+# Sectioning
+\part                       text  s o m
+\chapter                    text  s o m
+\section                    text  s o m
+\subsection                 text  s o m
+\subsubsection              text  s o m
+\paragraph                  text  s o m
+\subparagraph               text  s o m
+\addcontentsline            any   m m m
+\addtocontents              any   m m
+\numberline                 any   m
+
+# Definitions
+\newcommand                 any   s m O{0} o +m
+\renewcommand               any   s m O{0} o +m
+\providecommand             any   s m O{0} o +m
+\DeclareRobustCommand       any   s m O{0} o +m
+\newenvironment             any   s m O{0} o +m +m
+\renewenvironment           any   s m O{0} o +m +m
+\NewDocumentCommand         any   m m +m
+\RenewDocumentCommand       any   m m +m
+\ProvideDocumentCommand     any   m m +m
+\DeclareDocumentCommand     any   m m +m
+\NewExpandableDocumentCommand any m m +m
+\NewDocumentEnvironment     any   m m +m +m
+\RenewDocumentEnvironment   any   m m +m +m
+\ProvideDocumentEnvironment any   m m +m +m
+\DeclareDocumentEnvironment any   m m +m +m
+\NewCommandCopy             any   m m
+\RenewCommandCopy           any   m m
+\DeclareCommandCopy         any   m m
+\NewEnvironmentCopy         any   m m
+\newtheorem                 any   s m o m o
+\newcounter                 any   m o
+\newlength                  any   m
+\newsavebox                 any   m
+\newif                      any   m
+\def                        any   m l +m
+\gdef                       any   m l +m
+\edef                       any   m l +m
+\xdef                       any   m l +m
+\let                        any   m t= m
+\futurelet                  any   m m m
+\IfBooleanTF                any   m +m +m
+\IfBooleanT                 any   m +m
+\IfBooleanF                 any   m +m
+\IfNoValueTF                any   m +m +m
+\IfNoValueT                 any   m +m
+\IfNoValueF                 any   m +m
+\IfValueTF                  any   m +m +m
+\IfValueT                   any   m +m
+\IfValueF                   any   m +m
+\UseName                    any   m
+\protect                    any   -
+\typeout                    any   m
+\typein                     any   o m
+\PackageError               any   m m m
+\PackageWarning             any   m m
+\PackageWarningNoLine       any   m m
+\PackageInfo                any   m m
+\ClassError                 any   m m m
+\ClassWarning               any   m m
+\ClassWarningNoLine         any   m m
+\ClassInfo                  any   m m
+# Kernel internals used in definitions (read when `@` is a letter)
+\@ifnextchar                any   m m m
+\kernel@ifnextchar          any   m m m
+\@ifstar                    any   m m
+\@testopt                   any   m m
+\@dblarg                    any   m
+\@ifundefined               any   m m m
+\@ifpackageloaded           any   m m m
+\@ifclassloaded             any   m m m
+
+# Counters and lengths
+\setcounter                 any   m m
+\addtocounter               any   m m
+\stepcounter                any   m
+\refstepcounter             any   m
+\value                      any   m
+\arabic                     any   m
+\roman                      any   m
+\Roman                      any   m
+\alph                       any   m
+\Alph                       any   m
+\fnsymbol                   any   m
+\setlength                  any   m m
+\addtolength                any   m m
+\settowidth                 any   m m
+\settoheight                any   m m
+\settodepth                 any   m m
+\stretch                    any   m
+
+# Boxes
+\mbox                       any   m
+\makebox                    any   o o m
+\fbox                       any   m
+\framebox                   any   o o m
+\sbox                       any   m m
+\savebox                    any   m o o m
+\usebox                     any   m
+\parbox                     any   o o o m +m
+\raisebox                   any   m o o m
+\rule                       any   o m m
+\phantom                    any   m
+\hphantom                   any   m
+\vphantom                   any   m
+\smash                      any   m
+
+# Spacing and breaks
+\\                          any   s o
+\newline                    text  -
+\linebreak                  text  o
+\nolinebreak                text  o
+\pagebreak                  text  o
+\nopagebreak                text  o
+\newpage                    text  -
+\clearpage                  text  -
+\cleardoublepage            text  -
+\enlargethispage            text  s m
+\samepage                   text  -
+\hspace                     any   s m
+\vspace                     any   s m
+\addvspace                  any   m
+\smallskip                  text  -
+\medskip                    text  -
+\bigskip                    text  -
+\quad                       any   -
+\qquad                      any   -
+\hfill                      any   -
+\vfill                      any   -
+\hrulefill                  any   -
+\dotfill                    any   -
+\enspace                    any   -
+\thinspace                  any   -
+\noindent                   text  -
+\indent                     text  -
+\par                        any   -
+\centering                  text  -
+\raggedright                text  -
+\raggedleft                 text  -
+\sloppy                     text  -
+\fussy                      text  -
+\hyphenation                any   m
+\,                          any   -
+\;                          any   -
+\:                          any   -
+\!                          any   -
+\/                          any   -
+\-                          text  -
+\@                          text  -
+
+# Fonts
+\textrm                     any   m
+\textsf                     any   m
+\texttt                     any   m
+\textmd                     any   m
+\textbf                     any   m
+\textup                     any   m
+\textit                     any   m
+\textsl                     any   m
+\textsc                     any   m
+\textnormal                 any   m
+\emph                       any   m
+\textsuperscript            text  m
+\textsubscript              text  m
+\em                         any   -
+\rmfamily                   any   -
+\sffamily                   any   -
+\ttfamily                   any   -
+\mdseries                   any   -
+\bfseries                   any   -
+\upshape                    any   -
+\itshape                    any   -
+\slshape                    any   -
+\scshape                    any   -
+\normalfont                 any   -
+\tiny                       text  -
+\scriptsize                 text  -
+\footnotesize               text  -
+\small                      text  -
+\normalsize                 text  -
+\large                      text  -
+\Large                      text  -
+\LARGE                      text  -
+\huge                       text  -
+\Huge                       text  -
+\fontsize                   any   m m
+\selectfont                 any   -
+\usefont                    any   m m m m
+\fontfamily                 any   m
+\fontseries                 any   m
+\fontshape                  any   m
+\fontencoding               any   m
+\linespread                 any   m
+
+# Logos: the harvest files \LaTeXe under math, where it means no more than in text
+\LaTeXe                     any   -
+
+# Mathematics
+\ensuremath                 any   m
+\mathrm                     math  m
+\mathbf                     math  m
+\mathsf                     math  m
+\mathtt                     math  m
+\mathit                     math  m
+\mathnormal                 math  m
+\mathcal                    math  m
+\boldmath                   text  -
+\unboldmath                 text  -
+\frac                       math  m m
+\sqrt                       math  o m
+\left                       math  m
+\right                      math  m
+\middle                     math  m
+\big                        math  m
+\Big                        math  m
+\bigg                       math  m
+\Bigg                       math  m
+\bigl                       math  m
+\bigr                       math  m
+\bigm                       math  m
+\Bigl                       math  m
+\Bigr                       math  m
+\Bigm                       math  m
+\biggl                      math  m
+\biggr                      math  m
+\biggm                      math  m
+\Biggl                      math  m
+\Biggr                      math  m
+\Biggm                      math  m
+\overline                   math  m
+\underline                  any   m
+\overbrace                  math  m
+\underbrace                 math  m
+\overrightarrow             math  m
+\overleftarrow              math  m
+\stackrel                   math  m m
+\mathop                     math  m
+\mathrel                    math  m
+\mathbin                    math  m
+\mathord                    math  m
+\mathpunct                  math  m
+\mathinner                  math  m
+\mathopen                   math  m
+\mathclose                  math  m
+\limits                     math  -
+\nolimits                   math  -
+\displaystyle               math  -
+\textstyle                  math  -
+\scriptstyle                math  -
+\scriptscriptstyle          math  -
+\pmod                       math  m
+\bmod                       math  -
+\neq                        math  -
+\ne                         math  -
+\ldots                      any   -
+\cdots                      math  -
+\vdots                      math  -
+\ddots                      math  -
+\dots                       any   -
+
+# References, notes, floats
+\label                      any   m
+\ref                        any   m
+\pageref                    any   m
+\cite                       text  o m
+\nocite                     text  m
+\bibitem                    text  o m
+\bibliography               text  m
+\bibliographystyle          text  m
+\footnote                   text  o m
+\footnotemark               text  o
+\footnotetext               text  o m
+\marginpar                  text  o m
+\index                      any   m
+\glossary                   any   m
+\makeindex                  text  -
+\makeglossary               text  -
+\caption                    text  o m
+\suppressfloats             text  o
+\item                       text  o
+\pagestyle                  text  m
+\thispagestyle              text  m
+\pagenumbering              text  m
+\markboth                   text  m m
+\markright                  text  m
+\twocolumn                  text  o
+\onecolumn                  text  -
+\today                      text  -
+\verb                       any   s v
+
+# Tables and images
+\hline                      text  -
+\cline                      text  m
+\multicolumn                text  m m m
+\tabularnewline             text  o
+\put                        text  r() m
+\multiput                   text  r() r() m m
+\line                       text  r() m
+\vector                     text  r() m
+\circle                     text  s m
+\oval                       text  o r() o
+\qbezier                    text  o r() r() r()
+\dashbox                    text  m r() o m
+\thicklines                 text  -
+\thinlines                  text  -
+\linethickness              text  m
+
+# Environments
+{document}                  text  -
+{itemize}                   text  -
+{enumerate}                 text  -
+{description}               text  -
+{list}                      text  m m
+{trivlist}                  text  -
+{center}                    text  -
+{flushleft}                 text  -
+{flushright}                text  -
+{quote}                     text  -
+{quotation}                 text  -
+{verse}                     text  -
+{abstract}                  text  -
+{titlepage}                 text  -
+{figure}                    text  o
+{figure*}                   text  o
+{table}                     text  o
+{table*}                    text  o
+{tabular}                   text  o m
+{tabular*}                  text  m o m
+{array}                     math  o m
+{minipage}                  text  o o o m
+{picture}                   text  r() d()
+{tabbing}                   text  -
+{thebibliography}           text  m
+{theindex}                  text  -
+{math}                      text  -
+{displaymath}               text  -
+{equation}                  text  -
+{equation*}                 text  -
+{eqnarray}                  text  -
+{eqnarray*}                 text  -
+{lrbox}                     text  m
+{sloppypar}                 text  -
+{verbatim}                  text  verbatim
+{verbatim*}                 text  verbatim
+{filecontents}              text  verbatim
+{filecontents*}             text  verbatim

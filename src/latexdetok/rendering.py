@@ -99,6 +99,16 @@ MATH = "$…$"
 DISPLAY_MATH = "\\[…\\]"
 WORDS = "words"
 SKIPPED = "discarded branches"
+# The singular of the counted keys. Cutting the final “s” would give “branche”;
+# anything absent here is a command name, which keeps its spelling.
+SINGULARS = {
+    WORDS: "word",
+    SKIPPED: "discarded branch",
+    "lines": "line",
+    "macro uses": "macro use",
+    "decided conditionals": "decided conditional",
+    "diagnostics": "diagnostic",
+}
 LABEL_WIDTH = 48
 STATS_SHOWN = 4
 
@@ -280,10 +290,8 @@ def _stats(stats: Counter[str], limit: int = STATS_SHOWN) -> str:
 
 
 def _counted(count: int, key: str) -> str:
-    """`1 word`, `2 words`: the plain keys take a plural; command names stay as they are."""
-    if count == 1 and key in (WORDS, SKIPPED):
-        key = " ".join(word.removesuffix("s") for word in key.split())
-    return f"{count} {key}"
+    """`1 word`, `2 words`: the keys of `SINGULARS` agree; command names stay as they are."""
+    return f"{count} {SINGULARS[key] if count == 1 and key in SINGULARS else key}"
 
 
 # Outline in text
@@ -615,8 +623,10 @@ def html_page(tex: TexFile, view: ExpandedFile | None = None) -> str:
         f"<header><h1>{html.escape(tex.name)}</h1>"
         '<span class="switch"><button data-mode="source">Compact</button>'
         '<button data-mode="view">Expanded</button></span>'
-        f'<span class="meta">{len(tex.lines)} lines · {expanded} macro uses · '
-        f"{len(view.conditions)} decided conditionals · {len(_problems(tex))} diagnostics</span>"
+        f'<span class="meta">{_counted(len(tex.lines), "lines")}'
+        f" · {_counted(expanded, 'macro uses')}"
+        f" · {_counted(len(view.conditions), 'decided conditionals')}"
+        f" · {_counted(len(_problems(tex)), 'diagnostics')}</span>"
         f'<span class="legend">{legend}</span>'
         '<span class="hint">click a use to expand or fold it</span></header>\n'
         '<main><nav id="outline"></nav>'

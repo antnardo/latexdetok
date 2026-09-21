@@ -1,0 +1,246 @@
+<meta charset="utf-8">
+<title>course.tex — frame</title>
+<style>
+:root { --ground:#fbfaf7; --ink:#23221f; --muted:#7c776d; --rule:#e3dfd6; --hover:#efe9dc; --flash:#fff1b8;
+  --developed:hsla(172,45%,45%,.13); --accent:hsl(172,40%,38%);
+  --section:hsl(222,62%,72%); --environment:hsl(190,40%,70%); --math:hsl(38,85%,68%);
+  --command:hsl(172,38%,62%); --branch:hsl(130,42%,58%); --skipped:#b9b4ab; --verbatim:hsl(25,25%,65%);
+  --root:#b9b4ab; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ground:#1c1b19; --ink:#e9e6df;
+  --muted:#9b958a; --rule:#34322e; --hover:#2b2926; --flash:#4a4221; --developed:hsla(172,45%,55%,.16);
+  --accent:hsl(172,45%,62%); } }
+:root[data-theme="dark"] { --ground:#1c1b19; --ink:#e9e6df; --muted:#9b958a; --rule:#34322e; --hover:#2b2926;
+  --flash:#4a4221; --developed:hsla(172,45%,55%,.16); --accent:hsl(172,45%,62%); }
+body { background:var(--ground); color:var(--ink); font:13px/1.45 ui-sans-serif,system-ui,sans-serif; }
+header { padding:8px 16px; border-bottom:1px solid var(--rule); display:flex; gap:16px; align-items:center;
+  flex-wrap:wrap; }
+header h1 { font-size:15px; margin:0; }
+.meta, .legend, .hint { color:var(--muted); }
+.switch { display:inline-flex; border:1px solid var(--rule); border-radius:6px; overflow:hidden; }
+.switch button { font:inherit; color:inherit; background:none; border:0; padding:4px 10px; cursor:pointer; }
+.switch button[aria-pressed="true"] { background:var(--accent); color:var(--ground); }
+.legend span { display:inline-flex; align-items:center; gap:4px; margin-right:8px; }
+.legend i, .kind { width:9px; height:9px; border-radius:2px; display:inline-block; flex:none; }
+main { display:grid; grid-template-columns:minmax(280px,1.1fr) minmax(340px,2fr);
+  height:calc(100vh - 50px); }
+main > * { overflow:auto; min-width:0; }
+#outline { padding:8px 8px 40px; border-right:1px solid var(--rule); }
+.blk .kids { margin-left:14px; }
+.row { display:flex; align-items:center; gap:5px; padding:1px 4px; border-radius:3px; white-space:nowrap; }
+.row:hover { background:var(--hover); }
+.row .open { width:12px; flex:none; color:var(--muted); cursor:pointer; user-select:none; text-align:center; }
+.row .label { cursor:pointer; overflow:hidden; text-overflow:ellipsis; }
+.row .span, .row .stats { color:var(--muted); font-size:11px; }
+.row .stats { overflow:hidden; text-overflow:ellipsis; }
+.row .flip { font:inherit; font-size:11px; border:1px solid var(--rule); background:none; color:var(--muted);
+  border-radius:4px; padding:0 5px; cursor:pointer; }
+.row .flip:hover { color:var(--accent); border-color:var(--accent); }
+.blk.flipped > .row .flip { background:var(--accent); color:var(--ground); border-color:var(--accent); }
+.blk.flipped > .kids { border-left:2px solid var(--accent); padding-left:4px; }
+#text { margin:0; padding:8px 12px 40px 0; font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+  white-space:pre; tab-size:4; }
+#text .n { display:inline-block; width:4.2em; padding-right:10px; text-align:right; color:var(--muted);
+  font-style:normal; user-select:none; }
+#text .n.warn { color:#d6453d; font-weight:700; }
+#text .flash { background:var(--flash); }
+#text .skip { opacity:.42; }
+.u > .x { display:none; }
+.u > .s { cursor:pointer; border-bottom:1px dotted var(--rule); }
+.u > .x { cursor:pointer; background:var(--developed); border-radius:2px; }
+.u.open > .s { display:none; } .u.open > .x { display:inline; }
+body.dev .u:not(.closed) > .s { display:none; } body.dev .u:not(.closed) > .x { display:inline; }
+body.dev .u.closed > .s { display:inline; } body.dev .u.closed > .x { display:none; }
+.u.hot > .s, .u.hot > .x { outline:1px solid var(--accent); outline-offset:1px; }
+.x:empty::after { content:"∅"; color:var(--muted); }
+</style>
+<header><h1>course.tex</h1><span class="switch"><button data-mode="source">Compact</button><button data-mode="view">Expanded</button></span><span class="meta">65 lines · 14 macro uses · 0 decided conditionals · 2 diagnostics</span><span class="legend"><span><i style="background:var(--section)"></i>section</span><span><i style="background:var(--environment)"></i>environment</span><span><i style="background:var(--math)"></i>math</span><span><i style="background:var(--command)"></i>box or definition</span><span><i style="background:var(--branch)"></i>discarded branch (block)</span><span><i style="background:var(--verbatim)"></i>verbatim</span></span><span class="hint">click a use to expand or fold it</span></header>
+<main><nav id="outline"></nav><pre id="text"><i class="n" id="L1">1</i>% !TEX TS-program = lualatex
+<i class="n" id="L2">2</i>\documentclass{book}
+<i class="n" id="L3">3</i>\usepackage{amsmath}
+<i class="n" id="L4">4</i>\usepackage{graphicx}
+<i class="n" id="L5">5</i>\input{shorthands}
+<i class="n" id="L6">6</i>
+<i class="n" id="L7">7</i>\newcommand{\vect}[1]{\overrightarrow{#1}}
+<i class="n" id="L8">8</i>\newcommand{\unit}[2]{#1\,\mathrm{#2}}
+<i class="n" id="L9">9</i>\newenvironment{remark}{\par\medskip\noindent\textbf{Remark.}\ }{\par\medskip}
+<i class="n" id="L10">10</i>
+<i class="n" id="L11">11</i>\begin{document}
+<i class="n" id="L12">12</i>
+<i class="n" id="L13">13</i>\chapter{Point mechanics}
+<i class="n" id="L14">14</i>
+<i class="n" id="L15">15</i>\section{Positions and velocities}
+<i class="n" id="L16">16</i>
+<i class="n" id="L17">17</i>A point is given by $<span class="u" data-a="17" data-b="17" title="\vect"><span class="s">\vect{r}</span><span class="x">\overrightarrow{r}</span></span>(t)$, its velocity by $<span class="u" data-a="17" data-b="17" title="\vect"><span class="s">\vect{v}</span><span class="x">\overrightarrow{v}</span></span> = \dot{<span class="u" data-a="17" data-b="17" title="\vect"><span class="s">\vect{r}</span><span class="x">\overrightarrow{r}</span></span>}$.
+<i class="n" id="L18">18</i>The speed of a free fall after $t = <span class="u" data-a="18" data-b="18" title="\unit"><span class="s">\unit{2}{s}</span><span class="x">2\,\mathrm{s}</span></span>$ is about $<span class="u" data-a="18" data-b="18" title="\unit"><span class="s">\unit{20}{m.s^{-1}}</span><span class="x">20\,\mathrm{m.s^{-1}}</span></span>$.
+<i class="n" id="L19">19</i>
+<i class="n" id="L20">20</i>\begin{itemize}
+<i class="n" id="L21">21</i>\item the position, $<span class="u" data-a="21" data-b="21" title="\vect"><span class="s">\vect{r}</span><span class="x">\overrightarrow{r}</span></span>$;
+<i class="n" id="L22">22</i>\item the velocity, $<span class="u" data-a="22" data-b="22" title="\vect"><span class="s">\vect{v}</span><span class="x">\overrightarrow{v}</span></span>$;
+<i class="n" id="L23">23</i>\item the acceleration, $<span class="u" data-a="23" data-b="23" title="\vect"><span class="s">\vect{a}</span><span class="x">\overrightarrow{a}</span></span>$.
+<i class="n" id="L24">24</i>\end{itemize}
+<i class="n" id="L25">25</i>
+<i class="n" id="L26">26</i>\begin{figure}
+<i class="n" id="L27">27</i>\centering
+<i class="n" id="L28">28</i>\includegraphics[width=0.6\textwidth]{figures/trajectory}
+<i class="n" id="L29">29</i>\caption{A trajectory in the plane.}
+<i class="n" id="L30">30</i>\end{figure}
+<i class="n" id="L31">31</i>
+<i class="n" id="L32">32</i>\section{Energy}
+<i class="n" id="L33">33</i>
+<i class="n" id="L34">34</i>The kinetic energy of a point of mass $m$ is
+<i class="n" id="L35">35</i>\[
+<i class="n" id="L36">36</i>    E_c = \frac{1}{2} m v^2 .
+<i class="n" id="L37">37</i>\]
+<i class="n" id="L38">38</i>
+<i class="n" id="L39">39</i>\begin{center}
+<i class="n" id="L40">40</i>Energy is conserved when no non-conservative force does any work.
+<i class="n" id="L41">41</i>\end{center}
+<i class="n" id="L42">42</i>
+<span class="u" data-a="43" data-b="43" title="\remark"><span class="s"><i class="n" id="L43">43</i>\begin{remark}</span><span class="x"><i class="n"></i>\begin{remark}\par\medskip\noindent\textbf{Remark.}\ </span></span>
+<i class="n warn" id="L44">44</i>The radius runs over $r\in\[0;\infty\[$, written with escaped brackets: inside
+<i class="n" id="L45">45</i>$\dots$ those are commands, not the display math of \verb|\[ \]|.
+<span class="u" data-a="46" data-b="46" title="\remark"><span class="s"><i class="n" id="L46">46</i>\end{remark}</span><span class="x"><i class="n"></i>\par\medskip\end{remark}</span></span>
+<i class="n" id="L47">47</i>
+<i class="n" id="L48">48</i>\begin{figure}
+<i class="n" id="L49">49</i>\centering
+<i class="n" id="L50">50</i>\includegraphics[width=0.5\textwidth]{figures/energy}
+<i class="n" id="L51">51</i>\caption{Potential energy against the radius.}
+<i class="n" id="L52">52</i>\end{figure}
+<i class="n" id="L53">53</i>
+<i class="n" id="L54">54</i>\section{Exercises}
+<i class="n" id="L55">55</i>
+<i class="n" id="L56">56</i>\begin{enumerate}
+<i class="n" id="L57">57</i>\item Show that $<span class="u" data-a="57" data-b="57" title="\vect"><span class="s">\vect{a}</span><span class="x">\overrightarrow{a}</span></span>$ is normal to $<span class="u" data-a="57" data-b="57" title="\vect"><span class="s">\vect{v}</span><span class="x">\overrightarrow{v}</span></span>$ for a uniform circular motion.
+<i class="n" id="L58">58</i>\item Give $E_c$ for $v = <span class="u" data-a="58" data-b="58" title="\unit"><span class="s">\unit{3}{m.s^{-1}}</span><span class="x">3\,\mathrm{m.s^{-1}}</span></span>$ and $m = <span class="u" data-a="58" data-b="58" title="\unit"><span class="s">\unit{2}{kg}</span><span class="x">2\,\mathrm{kg}</span></span>$.
+<i class="n" id="L59">59</i>\end{enumerate}
+<i class="n" id="L60">60</i>
+<i class="n" id="L61">61</i>\begin{center}
+<i class="n" id="L62">62</i>\includegraphics[width=0.3\textwidth]{figures/circle}
+<i class="n" id="L63">63</i>\end{center}
+<i class="n" id="L64">64</i>
+<i class="n" id="L65">65</i>\end{document}
+</pre></main>
+<script type="application/json" id="data">{"source":{"k":"root","l":"course.tex","a":1,"b":65,"t":"11 words · 2 \\usepackage · 2 \\newcommand · 1 \\documentclass","c":[{"k":"environment","l":"document","a":11,"b":65,"t":"","c":[{"k":"section","l":"chapter · Point mechanics","a":13,"b":65,"t":"","c":[{"k":"section","l":"section · Positions and velocities","a":15,"b":31,"t":"20 words · 4 $…$","c":[{"k":"environment","l":"itemize","a":20,"b":24,"t":"9 words · 3 \\item · 3 $…$","c":[]},{"k":"environment","l":"figure","a":26,"b":30,"t":"7 words · 1 \\includegraphics · 1 \\textwidth · 1 \\caption","c":[]}]},{"k":"section","l":"section · Energy","a":32,"b":53,"t":"9 words · 1 $…$ · 1 \\[…\\]","c":[{"k":"environment","l":"center","a":39,"b":41,"t":"10 words","c":[]},{"k":"environment","l":"remark","a":43,"b":46,"t":"19 words · 2 $…$ · 1 \\verb","c":[]},{"k":"environment","l":"figure","a":48,"b":52,"t":"7 words · 1 \\includegraphics · 1 \\textwidth · 1 \\caption","c":[]}]},{"k":"section","l":"section · Exercises","a":54,"b":65,"t":"","c":[{"k":"environment","l":"enumerate","a":56,"b":59,"t":"14 words · 5 $…$ · 2 \\item","c":[]},{"k":"environment","l":"center","a":61,"b":63,"t":"2 words · 1 \\includegraphics · 1 \\textwidth","c":[]}]}]}]}]},"view":{"k":"root","l":"course.tex","a":1,"b":65,"t":"11 words · 2 \\usepackage · 2 \\newcommand · 1 \\documentclass","c":[{"k":"environment","l":"document","a":11,"b":65,"t":"","c":[{"k":"section","l":"chapter · Point mechanics","a":13,"b":65,"t":"","c":[{"k":"section","l":"section · Positions and velocities","a":15,"b":31,"t":"20 words · 4 $…$","c":[{"k":"environment","l":"itemize","a":20,"b":24,"t":"9 words · 3 \\item · 3 $…$","c":[]},{"k":"environment","l":"figure","a":26,"b":30,"t":"7 words · 1 \\includegraphics · 1 \\textwidth · 1 \\caption","c":[]}]},{"k":"section","l":"section · Energy","a":32,"b":53,"t":"9 words · 1 $…$ · 1 \\[…\\]","c":[{"k":"environment","l":"center","a":39,"b":41,"t":"10 words","c":[]},{"k":"environment","l":"remark","a":43,"b":46,"t":"20 words · 2 $…$ · 1 \\textbf · 1 \\verb","c":[]},{"k":"environment","l":"figure","a":48,"b":52,"t":"7 words · 1 \\includegraphics · 1 \\textwidth · 1 \\caption","c":[]}]},{"k":"section","l":"section · Exercises","a":54,"b":65,"t":"","c":[{"k":"environment","l":"enumerate","a":56,"b":59,"t":"14 words · 5 $…$ · 2 \\item","c":[]},{"k":"environment","l":"center","a":61,"b":63,"t":"2 words · 1 \\includegraphics · 1 \\textwidth","c":[]}]}]}]}]}}</script>
+<script>
+const DATA = JSON.parse(document.getElementById('data').textContent);
+const body = document.body;
+const text = document.getElementById('text');
+const outline = document.getElementById('outline');
+const uses = [...text.querySelectorAll('.u')].map(n => ({n, a: +n.dataset.a, b: +n.dataset.b}));
+const KINDS = {section: 1, environment: 1, math: 1, command: 1, branch: 1, skipped: 1, verbatim: 1};
+
+function range(block) { return [block.a, block.b]; }
+function hasUses(a, b) { return uses.some(u => u.a >= a && u.b <= b); }
+// The largest blocks of `root` within lines a–b; the block itself, found again in the other view,
+// opens onto its sub-blocks.
+function within(root, a, b, label) {
+  const found = [];
+  (function visit(block) {
+    for (const child of block.c) {
+      const [ca, cb] = range(child);
+      if (cb < a || ca > b) continue;
+      const same = ca === a && cb === b && child.l === label;
+      if (ca >= a && cb <= b && !same) found.push(child);
+      else visit(child);
+    }
+  })(root);
+  return found;
+}
+function developUses(a, b, developed) {
+  for (const u of uses) {
+    if (u.a < a || u.b > b) continue;
+    if (body.classList.contains('dev')) u.n.classList.toggle('closed', !developed);
+    else u.n.classList.toggle('open', developed);
+  }
+}
+function show(line) {
+  const marker = document.getElementById('L' + line);
+  if (!marker) return;
+  // A line folded inside an expanded use: we show the use.
+  let target = marker;
+  while (target && !target.getClientRects().length) target = target.parentElement.closest('.u');
+  target = target || marker;
+  target.scrollIntoView({block: 'center'});
+  target.classList.add('flash');
+  setTimeout(() => target.classList.remove('flash'), 1200);
+}
+function row(block, side, depth) {
+  const element = document.createElement('div');
+  element.className = 'blk';
+  const head = document.createElement('div');
+  head.className = 'row';
+  const kids = document.createElement('div');
+  kids.className = 'kids';
+  let opened = depth < 2, flipped = false;
+  const other = side === 'source' ? 'view' : 'source';
+  const children = () => flipped ? within(DATA[other], block.a, block.b, block.l) : block.c;
+  const toggle = document.createElement('span');
+  toggle.className = 'open';
+  const fill = () => {
+    kids.replaceChildren();
+    const list = children();
+    toggle.textContent = list.length ? (opened ? '▾' : '▸') : '';
+    if (opened) for (const child of list) kids.appendChild(row(child, flipped ? other : side, depth + 1));
+  };
+  toggle.onclick = () => { opened = !opened; fill(); };
+  const swatch = document.createElement('i');
+  swatch.className = 'kind';
+  swatch.style.background = 'var(--' + (KINDS[block.k] ? block.k : 'root') + ')';
+  const label = document.createElement('span');
+  label.className = 'label';
+  label.textContent = block.l;
+  label.onclick = () => show(block.a);
+  const span = document.createElement('span');
+  span.className = 'span';
+  span.textContent = block.a === block.b ? block.a : block.a + '–' + block.b;
+  const stats = document.createElement('span');
+  stats.className = 'stats';
+  stats.textContent = block.t;
+  head.append(toggle, swatch, label, span);
+  if (hasUses(block.a, block.b)) {
+    const flip = document.createElement('button');
+    flip.className = 'flip';
+    flip.title = side === 'source' ? 'Expand this block' : 'Back to the source of this block';
+    flip.textContent = '⇄';
+    flip.onclick = () => {
+      flipped = !flipped;
+      element.classList.toggle('flipped', flipped);
+      developUses(block.a, block.b, (flipped ? other : side) === 'view');
+      opened = true;
+      fill();
+    };
+    head.append(flip);
+  }
+  head.append(stats);
+  element.append(head, kids);
+  fill();
+  return element;
+}
+function setMode(mode) {
+  body.classList.toggle('dev', mode === 'view');
+  for (const u of uses) u.n.classList.remove('open', 'closed');
+  for (const button of document.querySelectorAll('.switch button'))
+    button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
+  outline.replaceChildren(...DATA[mode].c.map(block => row(block, mode, 0)));
+  if (location.hash !== '#' + mode) history.replaceState(null, '', '#' + mode);
+}
+document.querySelector('.switch').addEventListener('click', event => {
+  const button = event.target.closest('button');
+  if (button) setMode(button.dataset.mode);
+});
+text.addEventListener('click', event => {
+  if (String(window.getSelection())) return;
+  const use = event.target.closest('.u');
+  if (!use) return;
+  use.classList.toggle(body.classList.contains('dev') ? 'closed' : 'open');
+});
+let hot = null;
+text.addEventListener('mouseover', event => {
+  const use = event.target.closest('.u');
+  if (use === hot) return;
+  if (hot) hot.classList.remove('hot');
+  hot = use;
+  if (hot) hot.classList.add('hot');
+});
+setMode(location.hash === '#view' ? 'view' : 'source');
+</script>

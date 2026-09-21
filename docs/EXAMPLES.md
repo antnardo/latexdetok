@@ -655,17 +655,45 @@ cours.tex · 10 lines · 51 nodes · 0 diagnostic
      3  └ document  3–10
      4    └ section · Le titre long 5 words · 2 $…$  4–10
      6      └ itemize 2 words · 2 \item  6–9
->>> _ = (folder / "cours.html").write_text(html_page(course), encoding="utf-8")
->>> import shutil
->>> shutil.rmtree(folder)  # les fichiers d'exemple ne servent plus
+>>> page = html_page(course)
+>>> _ = (folder / "cours.html").write_text(page, encoding="utf-8")
 
 ```
+
+The page stands alone: one file, its style and its script inside, nothing to
+serve and nothing to install. At the top, the counts and a switch between the
+two views; on the left, the outline, drawn by the script from the JSON the page
+carries; on the right, the source with its line numbers.
+
+```pycon
+>>> import re
+>>> print(re.search(r'<span class="meta">(.*?)</span>', page)[1])
+5 lines · 1 macro use · 1 decided conditional · 0 diagnostics
+
+```
+
+Every use of a macro is a `<span class="u">` that holds both sides: the source
+(`.s`) and what it expands to (`.x`). A click folds or unfolds it; the switch
+unfolds them all. A discarded branch stays in the text, dimmed (`.skip`).
+
+```pycon
+>>> print(page[page.index('<i class="n" id="L3">') : page.index('<i class="n" id="L5">')], end="")
+<i class="n" id="L3">3</i>$x\in<span class="u" data-a="3" data-b="3" title="\R"><span class="s">\R</span><span class="x">\mathbb{R}</span></span>$
+<i class="n" id="L4">4</i>\ifprof Corrigé.\else<span class="skip"> Énoncé.</span>\fi
+>>> import shutil
+>>> shutil.rmtree(folder)  # the example files are no longer needed
+
+```
+
+A whole page, drawn from `tests/fixtures/course.tex`, is in
+[frame-example.html](frame-example.html): download it and open it in a browser
+(GitHub shows its source, not the page). A test keeps it in step with the code.
 
 The same thing on the command line:
 
 ```bash
-python3 latexdetok/scripts/render.py cours.tex                               # the outline
-python3 latexdetok/scripts/render.py cours.tex --format html -o cours.html --inputs
+python3 scripts/render.py cours.tex                               # the outline
+python3 scripts/render.py cours.tex --format html -o cours.html --inputs
 ```
 
 ## Writing a node by hand

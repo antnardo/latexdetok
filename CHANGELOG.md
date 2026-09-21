@@ -8,8 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 ## [0.1.0] — 2026-09-20
 
 First public release. The tokeniser was rewritten from a private 2018 module,
-keeping the tree model and the public API; what it fixed on the way is in
-[docs/AUDIT.md](docs/AUDIT.md).
+keeping the tree model and the public API.
 
 ### Added
 

@@ -1,6 +1,7 @@
 """`python -m latexdetok check`: compiler-style or JSON output, exit code."""
 
 import json
+from pathlib import Path
 
 from latexdetok.__main__ import ERRORS, OK, UNREADABLE, main
 
@@ -62,7 +63,8 @@ def test_a_folder_is_walked(tmp_path, capsys):
     write(tmp_path, "a.tex", FAUTIF)
     write(tmp_path, "b.tex", FAUTIF)
     main(["check", str(tmp_path), "--json"])
-    assert sorted(entry["file"].rsplit("/", 1)[-1] for entry in json.loads(capsys.readouterr().out)) == [
+    # `file` carries the path as the system writes it: cut it with `Path`, not on “/”.
+    assert sorted(Path(entry["file"]).name for entry in json.loads(capsys.readouterr().out)) == [
         "a.tex",
         "b.tex",
     ]

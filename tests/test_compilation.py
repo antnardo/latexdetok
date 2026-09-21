@@ -79,7 +79,9 @@ class TestUse:
         assert not use_compiled([str(package)], package, build)
 
     def test_another_python_version(self, package, build):
-        rewrite_manifest(build, suffix=".cpython-313-darwin.so")
+        # A suffix no interpreter has: a real one would be the running interpreter's
+        # on the machine that writes it, and would rightly be accepted.
+        rewrite_manifest(build, suffix=".cpython-000-nowhere.so")
         assert not use_compiled([str(package)], package, build)
 
     def test_another_list_of_modules(self, package, build):

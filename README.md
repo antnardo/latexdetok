@@ -54,9 +54,175 @@ Soit $x\in\mathbb{R}$.
 pip install latexdetok
 ```
 
+Until the first release reaches PyPI, from GitHub:
+`pip install git+https://github.com/antnardo/latexdetok`.
+
 Python 3.13 or newer, the standard library alone. To look for inclusions in the
 texmf trees, TeX Live (`kpsewhich`); without it, only the files of the
 document's folder are found.
+
+## A longer example
+
+A longer course, made up for the example: twelve chapters, 96 sections, a
+figure and a list in each, and one mistake.
+
+```pycon
+>>> import tempfile
+>>> from pathlib import Path
+>>> from latexdetok import Edit, TexFile, check, rewrite
+>>> lines = ["\\documentclass{book}\n", "\\usepackage{graphicx}\n", "\\begin{document}\n"]
+>>> for chapter in range(1, 13):
+...     lines.append(f"\\chapter{{Chapter {chapter}}}\n")
+...     for section in range(1, 9):
+...         lines += [
+...             f"\\section{{Part {chapter}.{section}}}\n",
+...             f"\\includegraphics[width=6cm]{{fig/{chapter}-{section}}}\n",
+...             "\\begin{itemize}\n", "\\item $E = mc^2$\n", "\\item $F = ma$\n", "\\end{itemize}\n",
+...         ]
+>>> lines.insert(300, "\\item a stray item\n")
+>>> lines.append("\\end{document}\n")
+>>> folder = Path(tempfile.mkdtemp())
+>>> _ = (folder / "course.tex").write_text("".join(lines), encoding="utf-8")
+
+```
+
+Reading it, then the questions one asks of a course: its sections and where
+they start, its chapters cut apart, its figures, what is wrong in it.
+
+```pycon
+>>> tex = TexFile(folder / "course.tex")
+>>> _ = tex.analyse()
+>>> len(tex.lines)
+593
+>>> sections = tex.get_sections()
+>>> len(sections), [(found[-1].arg(), found[0].start_position[0]) for found in sections[:3]]
+(96, [('Part 1.1', 5), ('Part 1.2', 11), ('Part 1.3', 17)])
+>>> chapters = tex.get_lines_to_next("chapter")
+>>> len(chapters), [len(chapter) for chapter in chapters[:3]]
+(12, [49, 49, 49])
+>>> len(tex.get_graphics()), len(tex.get_envs("itemize")), len(tex.get_envs("$"))
+(96, 96, 192)
+>>> for diagnostic in check(tex):
+...     print(diagnostic)
+301:1: error [item-outside-list] “\item” outside any list
+
+```
+
+Targeted changes: every figure to the width of the text, and the sections of
+the third chapter unnumbered. The rest of the file comes out byte for byte, so
+those lines are the only ones that differ.
+
+```pycon
+>>> edits = [
+...     Edit.inside(found[1], "width=0.8\\textwidth") for found in tex.get_commands_arguments("includegraphics")
+... ]
+>>> starts = [found[0].start_position[0] for found in tex.get_commands_arguments("chapter")]
+>>> edits += [
+...     Edit.of(found[0], "\\section*") for found in sections if starts[2] < found[0].start_position[0] < starts[3]
+... ]
+>>> edited = rewrite(tex, edits)
+>>> edited.splitlines()[5]
+'\\includegraphics[width=0.8\\textwidth]{fig/1-1}'
+>>> pairs = zip(tex.lines, edited.splitlines(keepends=True), strict=True)
+>>> changed = [number for number, (before, after) in enumerate(pairs, start=1) if before != after]
+>>> len(changed), changed[:4]
+(104, [6, 12, 18, 24])
+>>> _ = (folder / "course-edited.tex").write_text(edited, encoding=tex.encoding)
+
+```
+
+## How it compares
+
+Written from a survey of September 2026: the code, the documentation or the
+issues of each project were read, and pandoc, ChkTeX and lacheck were run. The
+Python packages were not installed: their speed comes from their own published
+benchmarks. The inputs differ from one figure to the next, so only the orders of
+magnitude mean something.
+
+### What the others do better
+
+- **pylatexenc 3** is the serious Python alternative: MIT, no dependency, exact
+  positions, tolerant parsing with recovery nodes. Above all, it is made to be
+  extended from the outside — a specification brings its own parser, a construct
+  can change the parsing state, the context database is filtered and composed by
+  category. Describing a package latexdetok does not know means editing its
+  `data/packages.txt`, that is, the package itself; and in compiled mode,
+  latexdetok's classes cannot be subclassed. pylatexenc also converts, both ways
+  (`latex_to_text`, `latexencode`), where `to_text` only renders prose to search
+  in. Version 3 is still a beta.
+- **pandoc** is the most complete expander among the tolerant tools: delimited
+  `\def`, `\edef`, `\let`, `\newif`, `\newenvironment`, and xparse on its main
+  branch, with years of use on every kind of document. It is not a Python
+  library.
+- **ChkTeX and lacheck** have decades of use behind them. lacheck runs an order
+  of magnitude faster (57 MB/s), ChkTeX about as fast (6 MB/s), against some
+  3.5 million characters per second here, 7 compiled — for less work, but a
+  quick check needs no more. ChkTeX has 49 warnings; latexdetok has 26
+  diagnostic codes, and TeXiFy-IDEA 75 inspections.
+- **texlab and TeXiFy-IDEA** live in the editor, with a language server or
+  IntelliJ's incremental analysis. latexdetok is a command, and a VS Code task
+  that runs it.
+- **Overleaf's Code Check** has the most readable catalogue of messages, and
+  recovery heuristics worth copying: a precedence between delimiters, a look
+  back at the previous `\begin`.
+- **plasTeX, LaTeXML and Texcraft** are engines: real catcodes, real expansion,
+  real `.sty` files executed. Where latexdetok guesses, they know — at the price
+  of stopping on what does not run.
+- **digestif** builds its signatures from the `.sty` and `.ltx` files actually
+  installed. latexdetok describes about thirty packages by hand and falls back
+  on heuristics for the rest. Reading the distribution was tried and measured:
+  23 times slower, thousands of names invented, kernel signatures lost.
+- **TexSoup** is simpler, and enough for a well-formed file.
+
+And latexdetok is young: version 0.1, one author, tried on one corpus — about
+960 physics course files written by the same hand. Its rule that nothing valid
+is an error was checked there, on the 107 files that compile (a recent log, with
+no error); on other packages and other habits, expect infos and warnings it has
+not yet learnt to hold back. It needs Python 3.13, knows nothing of incremental
+analysis, and its outline and HTML page speak only English.
+
+### Where it differs
+
+Nothing like the following was found elsewhere — which proves nothing about
+private tools:
+
+1. **A map from the expanded view back to the source, through nested
+   expansions.** pandoc and YaLafi give every expanded token the position of the
+   use, a point; flachtex gives each character an origin, without the chain of
+   expansions.
+2. **Conditionals decided, both branches kept.** pandoc and arxiv-latex-cleaner
+   decide, but delete the branch not taken.
+3. **Catcodes followed group by group, in a reader that refuses nothing.** The
+   other tolerant tools have a global flag (pandoc), one table per kind of file
+   (digestif), re-parsed regions (unified-latex) or hard-coded values (texlab).
+   Only the engines have the real table, and they tolerate nothing.
+4. **A signature deduced from the body of a macro**: a `\@ifstar` in it makes
+   the user's command take a star.
+
+### At a glance
+
+| Project | Language | Tolerance | Catcodes | The document's own macros | Diagnostics |
+| --- | --- | --- | --- | --- | --- |
+| latexdetok | Python, stdlib | never raises, reports | a table per group | learned, expanded, mapped back | 26 codes, with the fix |
+| [pylatexenc 3](https://github.com/phfaist/pylatexenc) | Python, stdlib | recovery nodes | `@` settable | a parser to write oneself | exceptions |
+| [TexSoup](https://github.com/alvinwan/TexSoup) | Python | unclosed groups | `@` in names | no | no |
+| [plasTeX](https://github.com/plastex/plastex) | Python | little | real | executed | the engine's |
+| [pandoc](https://github.com/jgm/pandoc) | Haskell | skips and logs | a global `@` flag | expanded, one branch, the position of the use | a log of what was skipped |
+| [unified-latex](https://github.com/siefkenj/unified-latex) | TypeScript | permissive grammar | re-parsed regions | `\newcommand`, not `\def`; no link to the use | 9 lint rules |
+| [texlab](https://github.com/latex-lsp/texlab) | Rust | error nodes | hard-coded | for completion | 3 syntax errors, labels, plus ChkTeX and the log |
+| [ChkTeX](https://ctan.org/pkg/chktex), lacheck | C | no tree | no | no | 49 warnings; unmatched pairs |
+| [LaTeXML](https://github.com/brucemiller/LaTeXML) | Perl | little | real | executed | located messages |
+
+### When to use something else
+
+- To **convert** LaTeX into text or back, or to extend the parser from your own
+  code: pylatexenc.
+- To **convert** a document into another format: pandoc.
+- To **run** arbitrary `.sty` files faithfully: plasTeX or LaTeXML.
+- For **squiggles while typing**: texlab, with ChkTeX.
+- To **query and edit** sources full of personal macros, where the answer must
+  point at the right line of the right file, and the edit must leave the rest
+  untouched: that is what latexdetok is for.
 
 ## Documentation
 
@@ -64,7 +230,6 @@ document's folder are found.
 | --- | --- |
 | [docs/EXAMPLES.md](docs/EXAMPLES.md) | recipes, from analysing a file to the HTML page; every one checked as a doctest |
 | [docs/API.md](docs/API.md) | the full reference: classes, functions, attributes, constants, scripts |
-| [docs/AUDIT.md](docs/AUDIT.md) | defects fixed, API changes, known limits |
 | [CHANGELOG.md](CHANGELOG.md) | what changed, release by release |
 
 ## Diagnosing a document

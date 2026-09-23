@@ -228,9 +228,9 @@ private tools:
 
 | Document | Contents |
 | --- | --- |
-| [docs/EXAMPLES.md](docs/EXAMPLES.md) | recipes, from analysing a file to the HTML page; every one checked as a doctest |
-| [docs/API.md](docs/API.md) | the full reference: classes, functions, attributes, constants, scripts |
-| [CHANGELOG.md](CHANGELOG.md) | what changed, release by release |
+| [docs/EXAMPLES.md](https://github.com/antnardo/latexdetok/blob/main/docs/EXAMPLES.md) | recipes, from analysing a file to the HTML page; every one checked as a doctest |
+| [docs/API.md](https://github.com/antnardo/latexdetok/blob/main/docs/API.md) | the full reference: classes, functions, attributes, constants, scripts |
+| [CHANGELOG.md](https://github.com/antnardo/latexdetok/blob/main/CHANGELOG.md) | what changed, release by release |
 
 ## Diagnosing a document
 
@@ -252,7 +252,7 @@ the user's `tasks.json` rather than a workspace's, they work in every folder:
 The first one keeps the terminal closed: only the Problems panel and the
 underlines in the editor. `LATEXDETOK_LANG` in the task picks the language of
 the messages; the problem matchers accept both, so switching it changes nothing
-else. The file itself is in [docs/EXAMPLES.md](docs/EXAMPLES.md).
+else. The file itself is in [docs/EXAMPLES.md](https://github.com/antnardo/latexdetok/blob/main/docs/EXAMPLES.md).
 
 ## Developing
 
@@ -305,4 +305,4 @@ the tests, including the examples of the documentation.
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/antnardo/latexdetok/blob/main/LICENSE).

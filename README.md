@@ -54,9 +54,6 @@ Soit $x\in\mathbb{R}$.
 pip install latexdetok
 ```
 
-Until the first release reaches PyPI, from GitHub:
-`pip install git+https://github.com/antnardo/latexdetok`.
-
 Python 3.13 or newer, the standard library alone. To look for inclusions in the
 texmf trees, TeX Live (`kpsewhich`); without it, only the files of the
 document's folder are found.

@@ -40,7 +40,9 @@ body is read again under the table of its definition (`\\@dd` of a package stays
 one command in the document), the rest under the table in force where it is.
 
 Positions. The view is a `TexFile` on the text produced: positions, `raw_text()`
-and `str()` read there as anywhere else, in its own coordinates. The
+and `str()` read there as anywhere else, in its own coordinates. It is a text
+the package writes, in `\\n` whatever the source's line endings (see `analyse`):
+a `\\r\\n` source gives the view of its `\\n` copy, piece for piece. The
 correspondence back to the source is kept by pieces of text: a piece copied from
 the source (outside the uses, and the arguments) keeps its exact positions; a
 piece written by a body points back to the `Expansion` that produced it, and
@@ -175,8 +177,9 @@ class _Offsets:
     """Going between `(line, column)` positions and indices in the text of a file."""
 
     def __init__(self, lines: Sequence[str]) -> None:
-        # A list of lines may come without line endings: put them back, as `TexFile.raw_text` does.
-        lines = [line if line.endswith("\n") else line + "\n" for line in lines]
+        # One line ending, `\n`, as in every text the tree writes: a `\r\n` source gives the same view
+        # as a `\n` one, and the columns do not move. A list of lines may come without them.
+        lines = [line.rstrip("\r\n") + "\n" for line in lines]
         self.text = "".join(lines)
         self._starts = list(accumulate((len(line) for line in lines), initial=0))
 

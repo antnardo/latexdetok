@@ -4,6 +4,26 @@ Reading goes without `txtfiles`: its `TextFile` subclasses `pathlib.Path` and
 calls `super().__init__()`, which has been broken since Python 3.12, and it
 pulls in `chardet` and `nltk` to detect a language nobody needs here. All that
 is left is a question of encoding, settled in `resolution.read_lines`.
+
+Line endings. `lines` holds the file as it is written, `\\r\\n` and a lone `\\r`
+included. The tokeniser reads the text of every line, whatever ends it, and a
+column counts in that text: a `\\r\\n` file gives the tree, the positions and the
+diagnostics of its `\\n` copy. What is copied from the source keeps its endings —
+`raw_text()`, and `rewrite`, which gives the file back byte for byte. What the
+package writes ends its lines in `\\n`, as Python does in memory: `str()` and
+`content()`, which rewrite an equivalent LaTeX, the content of a verbatim, the
+expanded view, `to_text`.
+
+The other way — reading in `\\n` as Python's text mode does, noting the endings
+and putting them back in `rewrite` — was measured against this one on 26
+September 2026, on the corpus and on copies of it in `\\r\\n`, in `\\r` and in
+mixed endings. Both give every file back and the same analysis, at the same
+speed save `rewrite`, which putting the endings back made two to three times
+slower on the copy in `\\r\\n`. Yet `lines` and `raw_text()` then no longer say
+what the file holds: set against the output of `rewrite`, as the README does,
+every line of a `\\r\\n` file counts as changed, and an edit writing a node's
+own `raw_text()` back changed 958 files out of 1,181 in mixed endings, whose
+line endings it can only guess.
 """
 
 from collections.abc import Sequence
@@ -11,7 +31,7 @@ from os import PathLike
 from pathlib import Path
 
 from latexdetok.catcodes import CatcodeChange, CatcodeTable
-from latexdetok.characters import ROOT_NAME
+from latexdetok.characters import ROOT_NAME, index_in_line
 from latexdetok.classes import TexContainer, TexGroup
 from latexdetok.diagnostics import TexDiagnostic
 from latexdetok.logger import verbose_logging
@@ -120,29 +140,34 @@ class TexFile:
         return self.container
 
     def content(self) -> str:
+        """The LaTeX the tree rewrites: blanks collapsed, lines ending in `\\n`; the file is `rewrite`'s."""
         return str(self.container)
 
     def repr_hierarchy(self, expand: bool = True) -> str:
         return self.container.repr_hierarchy(expand=expand)
 
     def raw_text(self, container: TexContainer) -> str:
-        """The exact source between the positions of `container`."""
+        """The exact source between the positions of `container`, line endings as written."""
         if container.rootfile is not self:
             raise ValueError("this element does not belong to this file")
         if container.start_position is None or container.end_position is None:
             return str(container)
         (start_line, start_col), (end_line, end_col) = container.start_position, container.end_position
         if start_line == end_line:
-            return self._line(start_line)[start_col:end_col]
+            line = self._line(start_line)
+            return line[index_in_line(line, start_col) : index_in_line(line, end_col)]
+        first, last = self._line(start_line, eol=True), self._line(end_line)
         middle = [self._line(lineno, eol=True) for lineno in range(start_line + 1, end_line)]
-        return self._line(start_line, eol=True)[start_col:] + "".join(middle) + self._line(end_line)[:end_col]
+        return (
+            first[index_in_line(first, start_col) :] + "".join(middle) + last[: index_in_line(last, end_col)]
+        )
 
     def _line(self, lineno: int, eol: bool = False) -> str:
         if not 1 <= lineno <= len(self.lines):
             return ""
         line = self.lines[lineno - 1]
         # A list of lines may come without line endings: put them back.
-        return line + "\n" if eol and not line.endswith("\n") else line
+        return line + "\n" if eol and not line.endswith(("\n", "\r")) else line
 
     def get_commands_arguments(self, *args, **kwargs) -> TexContainer:  # type: ignore[no-untyped-def]
         return self.container.get_commands_arguments(*args, **kwargs)

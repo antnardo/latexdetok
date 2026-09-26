@@ -366,6 +366,33 @@ class TestTextProduced:
     def test_a_long_argument_that_is_a_blank_line(self, view, shape):
         assert "PAR" in shape(view("\\newcommand\\x[1]{a#1b}\n\\x\n\n").container)[1]
 
+    @pytest.mark.parametrize("ending", ["\r\n", "\r"])
+    @pytest.mark.parametrize(
+        "source",
+        [
+            BEQ,
+            METHODE,
+            VNABLA,
+            "\\newcommand\\x[1]{#1%\n}\n\\[\n\\x{a}\n\\]\n",
+            "\\newif\\ifprof\n\\proftrue\n\\ifnum1<2 \\ifprof A\\else B\\fi\\fi\n",
+        ],
+        ids=["beq", "methode", "vnabla", "junction", "conditionals"],
+    )
+    def test_the_line_endings_of_the_source_do_not_change_the_view(self, parse, shape, source, ending):
+        # The view is a text the package writes, like `str()`: in `\n`, whatever the file.
+        def seen(tex):
+            developed = expand(tex)
+            return (
+                developed.source_map.target.text,
+                shape(developed.container),
+                [(item.name, item.start, item.end) for item in developed.expansions],
+                [str(diagnostic) for diagnostic in developed.diagnostics],
+            )
+
+        tex = TexFile(source.replace("\n", ending).splitlines(keepends=True))
+        tex.analyse()
+        assert seen(tex) == seen(parse(source))
+
 
 class TestWhatDoesNotExpand:
     @pytest.mark.parametrize(

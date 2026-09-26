@@ -104,6 +104,16 @@ class TestMap:
     def test_a_character_with_its_node(self, text):
         assert text("abc\n").at(1).position == (1, 1)
 
+    @pytest.mark.parametrize("ending", ["\r\n", "\r"])
+    def test_the_line_endings_of_the_file_change_nothing(self, text, ending):
+        def mapped(typeset):
+            return typeset.text, [
+                (mark.offset, mark.length, mark.node.start_position) for mark in typeset.marks
+            ]
+
+        source = "Une ligne\nUn  point mat\\'eriel.\n\\begin{verbatim}\nbrut\n\\end{verbatim}\n"
+        assert mapped(text(source.replace("\n", ending))) == mapped(text(source))
+
 
 class TestExpandedView:
     def test_the_discarded_branch_typesets_nothing(self, developed):

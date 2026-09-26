@@ -34,8 +34,9 @@ class TestText:
         tex = TexParser(["a", "b"]).parse()
         assert shape(tex)[1] == ["a", "b"]
 
-    def test_crlf_line_endings(self, shape):
-        tex = TexParser(["\\section{A}\r\n", "texte\r\n"]).parse()
+    @pytest.mark.parametrize("ending", ["\r\n", "\r"])
+    def test_crlf_and_cr_line_endings(self, shape, ending):
+        tex = TexParser([f"\\section{{A}}{ending}", f"texte{ending}"]).parse()
         assert shape(tex)[1] == ["\\section", ("{", ["A"]), "texte"]
 
     def test_an_empty_source(self, shape):
@@ -252,6 +253,13 @@ class TestVerbatim:
         tex = parse("\\begin{verbatim}\nmlkqsd\\mlksqdf}%$\n\\end{verbatim}\nafter\n")
         verbatim, after = tex.container.content
         assert (verbatim.content, str(after)) == ("\nmlkqsd\\mlksqdf}%$\n", "after")
+
+    @pytest.mark.parametrize("ending", ["\r\n", "\r"])
+    def test_its_line_endings_are_written_lf_and_kept_in_the_source(self, ending):
+        # The content is written like `str()`, whatever the file; `raw_text()` is the source.
+        source = "\\begin{verbatim}\nx\n\\end{verbatim}\n".replace("\n", ending)
+        (verbatim,) = TexFile(source.splitlines(keepends=True)).analyse().content
+        assert (verbatim.content, verbatim.raw_text()) == ("\nx\n", source.removesuffix(ending))
 
     def test_an_environment_closed_in_the_middle_of_a_line(self, tree):
         assert tree("\\begin{verbatim}x\\end{verbatim} suite\n") == [

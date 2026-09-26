@@ -115,7 +115,8 @@ are not there: they are part of the group of the environment.
 Positions are `(line, column)`: the line from 1, the column from 0, end
 excluded. They cover the whole element, delimiters included; the inside of a
 group lies between `inner_start` and `inner_end`. `raw_text()` gives the exact
-source.
+source, line endings as the file writes them; `str()` an equivalent LaTeX, whose
+lines end in `\n`.
 
 ```pycon
 >>> title.start_position, title.end_position, title.inner_start, title.inner_end
@@ -259,8 +260,11 @@ line 3, column 0: \makeatother: '@' letter (11) → other (12)
 
 ## A file on disk, and inclusions
 
-From a path, the encoding is found on its own (UTF-8, otherwise Latin-1). With
-`follow_inputs=True`, the loaded files (`\input`, `\usepackage`,
+From a path, the encoding is found on its own (UTF-8, otherwise Latin-1), and
+`encoding` is the one that writes the file back: `utf-8-sig` only if it starts
+with a byte order mark. The lines keep the file's line endings, `\r\n` included;
+the tree, its positions and its diagnostics are those of the same file in `\n`.
+With `follow_inputs=True`, the loaded files (`\input`, `\usepackage`,
 `\documentclass`…) are looked for the way TeX does: the document's folder, then
 the texmf trees through `kpsewhich`. Their definitions are learned; their
 content does not enter the tree.
@@ -562,7 +566,9 @@ it, or through the nodes one hands it. A trap: the name defined by
 
 ```
 
-From one file to another, with the diff as proof: one single line moves.
+From one file to another, with the diff as proof: one single line moves. With
+`newline=""`, Python writes the line endings `rewrite` gives, which are the
+source's, instead of the platform's.
 
 ```pycon
 >>> import difflib
@@ -570,7 +576,7 @@ From one file to another, with the diff as proof: one single line moves.
 ...     (node for node in course.container.iter() if node.is_command("R")), lambda node: "\\mathbb{R}"
 ... )
 >>> edited = rewrite(course, edits)
->>> _ = (folder / "cours-relu.tex").write_text(edited, encoding=course.encoding)
+>>> _ = (folder / "cours-relu.tex").write_text(edited, encoding=course.encoding, newline="")
 >>> print(
 ...     "".join(
 ...         difflib.unified_diff(course.lines, edited.splitlines(keepends=True), "cours.tex", "cours-relu.tex")

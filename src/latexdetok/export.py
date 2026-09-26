@@ -5,8 +5,16 @@ LaTeX — but equivalent is not identical: multiple blanks melt away, the
 indentation is derived from the positions, and the whole file changes when one
 wanted to change three arguments. A diff nobody can read is a diff nobody reads.
 An edit, on the other hand, replaces one span and nothing else: whatever none of
-them touches comes out of the file **byte for byte**, comments and layout
-included.
+them touches comes out of the file **byte for byte**, comments, layout and line
+endings included.
+
+On disk. `rewrite` returns the source as the file writes it, `\\r\\n` included
+(see `analyse`); written back with `encoding=tex.encoding`, which puts back a
+byte order mark if there was one, and `newline=""`, without which Python would
+turn every `\\n` into `\\r\\n` on Windows, the file only differs where an edit is.
+The text of an edit is written as it is given, its line endings no more
+translated than the file's: in a `\\r\\n` file, an added line ends in `\\r\\n` if
+it is written so.
 
 How. `Edit(start, end, text)` replaces the source between two positions;
 `start == end` inserts. The constructors start from the nodes, whose positions
@@ -33,6 +41,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 
 from latexdetok.analyse import TexFile
+from latexdetok.characters import index_in_line
 from latexdetok.classes import Position, TexContainer, TexGroup
 
 __all__ = ["Edit", "corrected", "rewrite"]
@@ -108,11 +117,12 @@ def corrected(nodes: Iterable[TexContainer], fix: Callable[[TexContainer], str |
 
 
 def rewrite(tex: TexFile, edits: Iterable[Edit]) -> str:
-    """The edited source, everything else identical byte for byte.
+    """The edited source, everything else identical byte for byte, line endings included.
 
     The edits apply in the order of the document, whatever order they arrive in.
     Two that overlap raise: better an error than a wrong source. Several
-    insertions at the same place are written in the order given.
+    insertions at the same place are written in the order given. To write the
+    result: `encoding=tex.encoding, newline=""` (see the module header).
     """
     source = "".join(tex.lines)
     starts = _line_starts(tex.lines)
@@ -173,7 +183,7 @@ def _offset(tex: TexFile, starts: Sequence[int], position: Position, edit: Edit)
         raise ValueError(f"line {line} is outside the file {tex.name} ({len(lines)} lines)")
     if not 0 <= column <= len(lines[line - 1]):
         raise ValueError(f"column {column} is outside line {line} of {tex.name}")
-    return starts[line - 1] + column
+    return starts[line - 1] + index_in_line(lines[line - 1], column)
 
 
 def _name(edit: Edit) -> str:

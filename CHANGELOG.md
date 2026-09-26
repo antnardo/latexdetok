@@ -11,10 +11,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   writing the source back with it, as the README does, added a byte order mark
   the file never had. They now say `utf-8`, and `utf-8-sig` only for a file that
   starts with the mark, whether UTF-8 was found or forced.
+- `\r\n` line endings came back as `\n`: `rewrite` gave a Windows file back with
+  Unix line endings. `TexFile.lines` and `read_lines` now keep the line endings
+  as written — `\r\n`, a lone `\r`, even mixed — so that `rewrite` and
+  `raw_text()` give the source byte for byte. The tree, the positions, the
+  diagnostics, `check`, `to_text` and the expanded view are those of the same
+  file in `\n`, checked on 1,181 files and their copies in each ending.
+- Lines given as a list with `\r\n` endings: a verbatim kept its `\r`, and the
+  expanded view could differ from that of the same lines in `\n`.
+- A column beyond the text of a line no longer cuts a `\r\n` in two in `rewrite`
+  and `raw_text()`: it designates the end of the line.
+- The README and the examples write the edited source with `newline=""`, without
+  which Windows turns every `\n` into `\r\n`.
 
 ### Changed
 
-- `FALLBACK_ENCODINGS` is `("utf-8", "latin-1")`.
+- `str()`, `content()`, the content of a verbatim and the expanded view end
+  their lines in `\n` whatever the file's: they are what the package writes,
+  where `lines`, `raw_text()` and `rewrite` are what the file holds.
+- `FALLBACK_ENCODINGS` is `("utf-8", "latin-1")`; `characters.index_in_line`
+  places a column in a line whatever its ending.
 
 ## [0.1.1] — 2026-09-26
 

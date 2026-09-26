@@ -10,8 +10,11 @@ Positions
     between its delimiters, is in `inner_start` and `inner_end`.
 
 `str()` and `raw_text()`
-    `raw_text()` gives the exact source between the positions; `str()` rewrites
-    an equivalent LaTeX, with multiple blanks collapsed. Blanks are not nodes:
+    `raw_text()` gives the exact source between the positions, line endings as
+    the file writes them; `str()` rewrites an equivalent LaTeX, with multiple
+    blanks collapsed and its lines ending in `\\n`, whatever the file's (see
+    `analyse`). A column that goes beyond the text of its line designates the
+    end of that line, never the middle of a `\\r\\n`. Blanks are not nodes:
     `str()` derives them from the gap between two neighbouring positions —
     nothing if they touch, a line break if the line changes, a space otherwise.
     That is what keeps `\\foreach \\x in` apart, separates the words of two
@@ -675,7 +678,8 @@ class TexComment(TexContainer):
 class TexVerbatim(TexContainer):
     """Content read without analysis: `\\verb|...|`, `\\url{...}` or `\\begin{verbatim}`.
 
-    `content` is the exact source between the delimiters, line endings included.
+    `content` is the source between the delimiters, its line endings written
+    `\\n` like everything the tree writes; `raw_text()` has them as the file does.
     `closed` is false for a verbatim that nothing closed (end of file, end of the
     line of a `\\verb`): its rewriting invents no end for it.
     """

@@ -50,6 +50,12 @@ class TestExpandedView:
         path = write(tmp_path, "cours.tex", BEQ)
         assert [d.code for d in check(path) if d.severity is Severity.ERROR] == ["unclosed-environment"]
 
+    @pytest.mark.parametrize("ending", ["\r\n", "\r"])
+    def test_the_line_endings_of_the_file_change_nothing(self, tmp_path, ending):
+        (tmp_path / "lf.tex").write_bytes(BEQ.encode())
+        (tmp_path / "other.tex").write_bytes(BEQ.replace("\n", ending).encode())
+        assert described(check(tmp_path / "other.tex")) == described(check(tmp_path / "lf.tex"))
+
 
 class TestLoadedFiles:
     def test_an_input_that_is_missing(self, tmp_path):

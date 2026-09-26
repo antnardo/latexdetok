@@ -48,11 +48,12 @@ package). An included `.tex` is read with the table in force where it is
 included, and the table it leaves applies to the includer: `\\input` opens no
 group.
 
-Encoding. `read_lines` reads UTF-8, else the Latin-1 of old sources, which
-reads any byte; the encoding it gives back is the one that writes the file
-identically. Python's `utf-8-sig` also reads a file with no byte order mark, and
-writing with it adds the three bytes of one: the mark is therefore looked for,
-and a file without one says `utf-8`.
+Encoding and line endings. `read_lines` reads UTF-8, else the Latin-1 of old
+sources, which reads any byte; the encoding it gives back is the one that writes
+the file identically. Python's `utf-8-sig` also reads a file with no byte order
+mark, and writing with it adds the three bytes of one: the mark is therefore
+looked for, and a file without one says `utf-8`. The lines are cut where TeX
+cuts them, at `\\n`, `\\r\\n` or a lone `\\r`, and not translated (see `analyse`).
 """
 
 import atexit
@@ -96,7 +97,7 @@ _definitions: dict[DefinitionsKey, tuple[tuple[JournalEntry, ...], CatcodeTable]
 
 
 def read_lines(path: Path, encoding: str | None = None) -> tuple[str, list[str]]:
-    """The lines of the file, line endings included, and the encoding that writes them back.
+    """The lines of the file as written, line endings included, and the encoding that writes them back.
 
     With no encoding given: UTF-8, then the Latin-1 of old sources, which reads
     any byte at all and makes a safe fallback. A UTF-8 file, found or forced,
@@ -107,7 +108,7 @@ def read_lines(path: Path, encoding: str | None = None) -> tuple[str, list[str]]
     for candidate in encodings:
         utf8 = codecs.lookup(candidate).name in UTF8_CODECS
         try:
-            with path.open(encoding="utf-8" if utf8 else candidate) as file:
+            with path.open(encoding="utf-8" if utf8 else candidate, newline="") as file:
                 lines = file.readlines()
         except UnicodeDecodeError:
             if candidate == encodings[-1]:

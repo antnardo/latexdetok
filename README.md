@@ -95,7 +95,8 @@ intro.tex:8:1: error [crossed-environment] “\begin{itemize}” closed by “\e
 - **Translatable messages**: the diagnostics read in English or in French
   (`set_language`, `LATEXDETOK_LANG`); the codes, for their part, do not move.
 - **Edits**: a modified output drawn from the analysis, the rest of the source
-  identical byte for byte — for a minimal diff.
+  identical byte for byte, line endings and byte order mark included — for a
+  minimal diff.
 - **Frame**: an outline in text, an HTML page with two views.
 - **Speed**: the core compiles with mypyc, twice as fast.
 
@@ -179,7 +180,23 @@ those lines are the only ones that differ.
 >>> changed = [number for number, (before, after) in enumerate(pairs, start=1) if before != after]
 >>> len(changed), changed[:4]
 (104, [6, 12, 18, 24])
->>> _ = (folder / "course-edited.tex").write_text(edited, encoding=tex.encoding)
+
+```
+
+On disk, the same: written back with the encoding it was read with, and
+`newline=""` so that Python translates no line ending (Windows would turn every
+`\n` into `\r\n`), the edited file differs from the course by those lines alone.
+`tex.lines` keeps the line endings of the file, `\r\n` included, and
+`tex.encoding` says `utf-8-sig` only for a file that starts with a byte order
+mark.
+
+```pycon
+>>> tex.encoding
+'utf-8'
+>>> _ = (folder / "course-edited.tex").write_text(edited, encoding=tex.encoding, newline="")
+>>> before, after = ((folder / name).read_bytes().splitlines(keepends=True) for name in ("course.tex", "course-edited.tex"))
+>>> sum(old != new for old, new in zip(before, after, strict=True))
+104
 
 ```
 

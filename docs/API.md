@@ -132,7 +132,7 @@ Attributes:
 | --- | --- | --- |
 | `src_file` | `Path \| None` | the path of the source, `None` for lines |
 | `encoding` | `str \| None` | the encoding that was used to read, and that writes the file back: `utf-8-sig` only if it starts with a byte order mark |
-| `lines` | `list[str]` | the lines of the source, line endings included |
+| `lines` | `list[str]` | the lines of the source as written, line endings included: `\r\n` stays `\r\n` |
 | `name` | `str` | the name displayed |
 | `container` | `TexGroup` | the root of the tree, the environment `latexfile`; empty before `analyse()` |
 | `diagnostics` | `list[TexDiagnostic]` | what could not be matched, in the text as it is written (see `check` for a document) |
@@ -150,8 +150,8 @@ Methods:
 | Method | Returns | Role |
 | --- | --- | --- |
 | `analyse(verbose=None, follow_inputs=False)` | `TexGroup` | analyses (or re-analyses) the lines; the root is also in `container` |
-| `content()` | `str` | a rewriting of the source from the tree, multiple spaces collapsed |
-| `raw_text(container)` | `str` | the exact source between the positions of a node of this file; `ValueError` for a node of another file |
+| `content()` | `str` | a rewriting of the source from the tree, multiple spaces collapsed, lines ending in `\n` whatever the file's; for the file as it is written, `rewrite(tex, [])` |
+| `raw_text(container)` | `str` | the exact source between the positions of a node of this file, line endings as written; `ValueError` for a node of another file |
 | `repr_hierarchy(expand=True)` | `str` | the indented tree, for debugging |
 | `iter()` | an iterator | a flat walk of the root (see `TexContainer.iter`) |
 | `set_verbose(verbose)` | `None` | traces the analysis or not |
@@ -173,12 +173,13 @@ master, and its inclusions are looked for from the master's folder.
 read_lines(path: Path, encoding: str | None = None) -> tuple[str, list[str]]
 ```
 
-`(encoding, lines)` of a file, line endings included. With no encoding: `utf-8`,
-then `latin-1`, which reads any byte at all. The encoding returned writes the
-lines back identically: a UTF-8 file, found or forced, gives `utf-8-sig` if it
-starts with a byte order mark, which is then not part of the first line, and
-`utf-8` otherwise. A forced encoding that does not fit raises
-`UnicodeDecodeError`.
+`(encoding, lines)` of a file, line endings included and not translated: the
+lines are cut at `\n`, `\r\n` or a lone `\r`, as TeX cuts them, and keep their
+ending. With no encoding: `utf-8`, then `latin-1`, which reads any byte at all.
+The encoding returned writes the lines back identically: a UTF-8 file, found or
+forced, gives `utf-8-sig` if it starts with a byte order mark, which is then
+not part of the first line, and `utf-8` otherwise. A forced encoding that does
+not fit raises `UnicodeDecodeError`.
 
 ## `checks`: checking a document
 
@@ -361,7 +362,7 @@ The container protocol:
 | `len(x)` | the number of children; for a string, 1 if it is not empty, 0 otherwise |
 | `x[i]`, `x[a:b]` | a child or a slice (a character for a string) |
 | `for y in x` | the children (characters for a string) |
-| `str(x)` | the LaTeX rewriting; the blanks between elements come from their positions |
+| `str(x)` | the LaTeX rewriting; the blanks between elements come from their positions, and a line ending is written `\n`, whatever the file's |
 | `x + y` | a `TexContainer` of the elements of both (a string node counts for itself) |
 | `x += y` | adds the elements of `y`; `TypeError` on a string node |
 | `x.append(y)` | adds a node; `TypeError` on a string node or for a non-node |
@@ -372,7 +373,7 @@ Walking and text:
 | Method | Returns |
 | --- | --- |
 | `iter()` | a flat walk; a group adds its delimiters to it, as `TexContent` with no file |
-| `raw_text()` | the exact source of the element; with no file and no position, `str()` |
+| `raw_text()` | the exact source of the element, line endings as written; with no file and no position, `str()` |
 
 Predicates, all without arguments unless stated:
 
@@ -536,9 +537,10 @@ melts into the stream (see `ExpandedFile.branches`).
 TexVerbatim(name, env=False, car=None, content="", *, position=None, end_position=None, rootfile=None)
 ```
 
-Content read without analysis. `content` is the exact source between the
-delimiters, line endings included. An empty name, or a command form with no
-delimiter, raise `ValueError`.
+Content read without analysis. `content` is the source between the
+delimiters, line endings included and written `\n`, like everything the tree
+writes; `raw_text()` has them as the file does. An empty name, or a command
+form with no delimiter, raise `ValueError`.
 
 | Member | Contents |
 | --- | --- |
@@ -937,7 +939,8 @@ left, `MAX_PASSES` at most; an expansion deeper than `max_depth` does not
 happen. A text that goes beyond sixteen times the source (plus a margin of
 100,000 characters) stops the expansion, with a message in the log: the view
 keeps the previous pass. With nothing to expand, the view has the text of the
-source.
+source; otherwise its lines end in `\n`, whatever the source's, and a `\r\n`
+source gives the view of its `\n` copy.
 
 What expands: the `Macro` and `EnvironmentMacro` of the registry, at uses whose
 mandatory arguments are there. Nothing inside the arguments of a definition, nor
@@ -1063,13 +1066,19 @@ verbatim or math, where the position of the node is given.
 | Function | Returns |
 | --- | --- |
 | `corrected(nodes, fix)` | the `Edit` a function asks for: `fix(node)` returns the LaTeX that replaces the node, or `None` to leave it |
-| `rewrite(tex, edits)` | the edited source; whatever no edit touches comes out of it byte for byte |
+| `rewrite(tex, edits)` | the edited source; whatever no edit touches comes out of it byte for byte, line endings included |
 
 `rewrite` applies the edits in the order of the document, whatever order they
 arrive in; several insertions at the same place keep the order given. Raise: two
 edits that overlap, a position outside the file, a node with no position, a node
 that comes from another file — an expanded view (`expand`) has its own
 positions, to be brought back to the source by `checks.in_source`.
+
+The result is the source as the file writes it: to put it on disk, write it
+with `encoding=tex.encoding` and `newline=""`, without which Python would turn
+every `\n` into `\r\n` on Windows. The text of an edit is written as it is
+given, its line endings included; a column that goes beyond the text of its
+line designates the end of that line, line ending included.
 
 ### `Edit`
 
@@ -1123,6 +1132,7 @@ back to English.
 | `NOT_VERBATIM_DELIMITERS` | after a verbatim name, these characters make it a name being quoted, not a use |
 | `TEX_ROOT`, `TEX_ROOT_LINES` | the `% !TEX root = …` declaration, looked for in the first 20 lines |
 | `collapse_spaces(text)` | blanks collapsed the way TeX does, the non-breaking space kept |
+| `index_in_line(line, column)` | the index of a column in a line; beyond the text of the line, the index after its line ending, whatever its width |
 | `valid_command_name(name)` | letters (ASCII, `@`, `_`, `:`) or a single character, a trailing star allowed |
 | `valid_group_start(c)` | does `c` open a group? |
 

@@ -962,7 +962,9 @@ class TexParser:
                 self._report.verb_line_end(verbatim, context)
             return None
         if found < 0:
-            verbatim.content += line[col:]
+            # Its line ending is written `\n`, like every one the tree writes: `\r\n` stays in the source.
+            body = _body(line)
+            verbatim.content += body[col:] + ("\n" if len(body) < len(line) else "")
             return None
         verbatim.content += line[col:found]
         verbatim.end_position = (lineno, found + len(exit_phrase))

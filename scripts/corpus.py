@@ -33,6 +33,8 @@ IGNORED_PARTS = {"backup", ".sauvegardes"}
 EXAMPLES = 5
 # A TeX error in a log: `! Message`, or `file:line: message` with -file-line-error.
 TEX_ERROR = re.compile(r"^! |^[^:\n]+\.(?:tex|sty|cls):\d+: ", re.MULTILINE)
+# `raw_text()` keeps the file's line endings, the tree writes `\n`: they are compared in `\n`.
+LINE_ENDING = re.compile(r"\r\n?")
 
 
 def shape(node):
@@ -49,7 +51,7 @@ def walk(node):
 
 
 def rereads_source(node) -> bool:
-    raw = node.raw_text()
+    raw = LINE_ENDING.sub("\n", node.raw_text())
     if node.is_par():
         return not raw.strip()
     if node.is_pure_text():
@@ -71,7 +73,7 @@ def copied_text_matches(view: ExpandedFile, node) -> bool:
         return True
     source_start, source_end = view.source_span(node)
     written = TexContent("", position=source_start, end_position=source_end, rootfile=view.source)
-    return view.source.raw_text(written) == view.raw_text(node)
+    return LINE_ENDING.sub("\n", view.source.raw_text(written)) == LINE_ENDING.sub("\n", view.raw_text(node))
 
 
 def environments(tex: TexFile) -> Counter[str]:

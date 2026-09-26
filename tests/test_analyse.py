@@ -2,13 +2,15 @@
 
 import pytest
 
-from latexdetok import TexFile, read_lines
+from latexdetok import TexContent, TexFile, read_lines
 
 
 class TestReading:
+    # Files are written as bytes: `write_text` would end their lines in `\r\n` on Windows.
+
     def test_from_a_path(self, tmp_path):
         path = tmp_path / "cours.tex"
-        path.write_text("\\section{A}\n", encoding="utf-8")
+        path.write_bytes(b"\\section{A}\n")
         tex = TexFile(path)
         assert (tex.name, tex.src_file, tex.lines, tex.encoding) == (
             "cours.tex",
@@ -19,7 +21,7 @@ class TestReading:
 
     def test_from_a_path_string(self, tmp_path):
         path = tmp_path / "cours.tex"
-        path.write_text("a\n", encoding="utf-8")
+        path.write_bytes(b"a\n")
         assert TexFile(str(path)).lines == ["a\n"]
 
     @pytest.mark.parametrize(
@@ -48,10 +50,20 @@ class TestReading:
         with pytest.raises(UnicodeDecodeError):
             TexFile(path, encoding="utf-8")
 
-    def test_windows_line_endings_are_normalised(self, tmp_path):
-        path = tmp_path / "crlf.tex"
-        path.write_bytes(b"a\r\nb\r\n")
-        assert TexFile(path).lines == ["a\n", "b\n"]
+    @pytest.mark.parametrize(
+        ("data", "lines"),
+        [
+            (b"a\nb\n", ["a\n", "b\n"]),
+            (b"a\r\nb\r\n", ["a\r\n", "b\r\n"]),
+            (b"a\rb\r", ["a\r", "b\r"]),
+            (b"a\r\nb\nc\rd", ["a\r\n", "b\n", "c\r", "d"]),
+        ],
+        ids=["lf", "crlf", "cr", "mixed"],
+    )
+    def test_line_endings_are_kept_as_written(self, tmp_path, data, lines):
+        path = tmp_path / "fins.tex"
+        path.write_bytes(data)
+        assert TexFile(path).lines == lines
 
     def test_a_form_feed_does_not_cut_the_line(self, tmp_path):
         # `str.splitlines` would cut on \f and shift the line numbers.
@@ -96,6 +108,14 @@ class TestAnalysis:
     def test_content(self, parse):
         assert parse("\\section{A}\n\ntexte\n").content() == "\\section{A}\n\ntexte"
 
+    @pytest.mark.parametrize("ending", ["\r\n", "\r"])
+    def test_content_ends_its_lines_in_lf_whatever_the_file(self, parse, ending):
+        # A rewriting, like `str()`: the file's own line endings are in `lines`, and `rewrite` keeps them.
+        source = "\\section{A}\n\n\\begin{verbatim}\nx\n\\end{verbatim}\n"
+        tex = TexFile(source.replace("\n", ending).splitlines(keepends=True))
+        tex.analyse()
+        assert tex.content() == parse(source).content()
+
     def test_hierarchy(self, parse):
         assert parse("x\n").repr_hierarchy() == "<TexGroup latexfile><TexContent> : x"
 
@@ -109,6 +129,18 @@ class TestRawText:
         tex = TexFile(["\\begin{center}", "x", "\\end{center}"])
         tex.analyse()
         assert tex.container[0].raw_text() == "\\begin{center}\nx\n\\end{center}"
+
+    @pytest.mark.parametrize("ending", ["\n", "\r\n", "\r"])
+    def test_the_line_endings_are_those_of_the_file(self, ending):
+        tex = TexFile([f"\\begin{{center}}{ending}", f"x{ending}", f"\\end{{center}}{ending}"])
+        tex.analyse()
+        assert tex.container[0].raw_text() == f"\\begin{{center}}{ending}x{ending}\\end{{center}}"
+
+    @pytest.mark.parametrize("ending", ["\n", "\r\n", "\r"])
+    def test_a_column_beyond_the_text_takes_the_whole_line_ending(self, ending):
+        tex = TexFile([f"ab{ending}", "c\n"])
+        span = TexContent("", position=(1, 1), end_position=(1, 3), rootfile=tex)
+        assert tex.raw_text(span) == f"b{ending}"
 
     def test_the_root(self, parse):
         assert parse("a\nb\n").container.raw_text() == "a\nb"

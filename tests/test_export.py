@@ -15,6 +15,10 @@ SOURCE = """\\documentclass{article}
 \\end{itemize}
 \\end{document}
 """
+# The same lines, ending in turn in `\n`, `\r` and `\r\n`.
+MIXED = "".join(
+    line + ending for line, ending in zip(SOURCE.split("\n")[:-1], ["\n", "\r", "\r\n"] * 3, strict=True)
+)
 
 
 @pytest.fixture
@@ -99,6 +103,55 @@ class TestMinimalDiff:
     def test_an_edit_at_the_end_of_the_file(self, tex):
         end = (len(tex.lines) + 1, 0)
         assert rewrite(tex, [Edit(end, end, "% fin\n")]).endswith("\\end{document}\n% fin\n")
+
+
+class TestFileOnDisk:
+    """Written back with `tex.encoding` and `newline=""`, a file comes back byte for byte."""
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            SOURCE.encode(),
+            SOURCE.replace("\n", "\r\n").encode(),
+            SOURCE.replace("\n", "\r").encode(),
+            MIXED.encode(),
+            SOURCE.rstrip("\n").encode(),
+            "\ufeff".encode() + SOURCE.encode(),
+            SOURCE.encode("latin-1"),
+        ],
+        ids=["lf", "crlf", "cr", "mixed", "no-final-line-ending", "bom", "latin-1"],
+    )
+    def test_with_no_edit_the_file_comes_back_byte_for_byte(self, tmp_path, data):
+        source, copy = tmp_path / "source.tex", tmp_path / "copie.tex"
+        source.write_bytes(data)
+        tex = TexFile(source)
+        tex.analyse()
+        # Without `newline=""`, Windows would write every `\n` as `\r\n`.
+        copy.write_text(rewrite(tex, []), encoding=tex.encoding, newline="")
+        assert copy.read_bytes() == data
+
+    @pytest.mark.parametrize("ending", ["\r\n", "\r"])
+    def test_an_edit_leaves_the_line_endings_alone(self, ending):
+        tex = TexFile(SOURCE.replace("\n", ending).splitlines(keepends=True))
+        tex.analyse()
+        result = rewrite(tex, [Edit.of(command(tex, "section"), "\\subsection")])
+        assert result == SOURCE.replace("\\section", "\\subsection").replace("\n", ending)
+
+    def test_the_text_of_an_edit_is_written_as_given(self):
+        # No line ending is translated, the edit's no more than the file's: in a `\r\n` file,
+        # a line one adds ends in `\r\n` if one writes it so.
+        tex = TexFile(SOURCE.replace("\n", "\r\n").splitlines(keepends=True))
+        tex.analyse()
+        edits = [Edit.before(command(tex, "rmq"), "% a\r\n"), Edit.before(command(tex, "item"), "% b\n")]
+        result = rewrite(tex, edits)
+        assert "\r\n% a\r\n\\rmq[ancien]" in result
+        assert "\r\n% b\n\\item premier\r\n" in result
+
+    def test_a_column_beyond_the_text_does_not_cut_a_crlf_in_two(self):
+        tex = TexFile(SOURCE.replace("\n", "\r\n").splitlines(keepends=True))
+        width = len("\\documentclass{article}")
+        result = rewrite(tex, [Edit((1, width + 1), (1, width + 1), "%")])
+        assert result.startswith("\\documentclass{article}\r\n%\\begin{document}\r\n")
 
 
 class TestWhatRaises:

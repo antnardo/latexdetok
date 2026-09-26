@@ -26,6 +26,7 @@ __all__ = [
     "TEX_ROOT",
     "TEX_ROOT_LINES",
     "collapse_spaces",
+    "index_in_line",
     "valid_command_name",
     "valid_group_start",
 ]
@@ -65,6 +66,16 @@ def valid_command_name(name: str) -> bool:
 
 def valid_group_start(c: str) -> bool:
     return c in GROUP_CARS
+
+
+def index_in_line(line: str, column: int) -> int:
+    """Where a column falls in a line: beyond its text, after its line ending, whatever its width.
+
+    A column counts characters in the text of the line, the same whatever the
+    file's line endings; one that goes beyond the text designates the end of the
+    line, and never cuts a `\\r\\n` in two.
+    """
+    return column if column <= len(line.rstrip("\r\n")) else len(line)
 
 
 def collapse_spaces(text: str) -> str:

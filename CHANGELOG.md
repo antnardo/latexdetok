@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Added
+
+- The `latexdetok` command, installed with the package: `latexdetok check
+  cours.tex` does what `python -m latexdetok check` does, and `uvx latexdetok`
+  or `pipx install latexdetok` now work.
+- The README sets the message of `pdflatex` against the one of `latexdetok
+  check`, on the same faulty file; a test reruns the latter.
+
 ## [0.1.0] — 2026-09-23
 
 First public release. The tokeniser was rewritten from a private 2018 module,

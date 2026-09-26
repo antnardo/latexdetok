@@ -1,4 +1,8 @@
-"""Command line: `python -m latexdetok check file.tex…`.
+"""Command line: `latexdetok check file.tex…`, or `python -m latexdetok check file.tex…`.
+
+The `latexdetok` command is the one to document: it is what `uvx latexdetok` and
+`pipx install latexdetok` run, the two ways in for a TeX user who does not keep
+a Python environment. `-m` stays for scripts that must use a given interpreter.
 
 Renders the diagnostics of one or more documents (see `checks`), compiler-style
 or as JSON, and exits in error if there is at least one error: enough for a
@@ -25,7 +29,7 @@ OK, ERRORS, UNREADABLE = 0, 1, 2
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m latexdetok", description="Tolerant LaTeX tokeniser.")
+    parser = argparse.ArgumentParser(prog="latexdetok", description="Tolerant LaTeX tokeniser.")
     commands = parser.add_subparsers(dest="command", required=True)
     checking = commands.add_parser(
         "check",

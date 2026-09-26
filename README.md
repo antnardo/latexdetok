@@ -15,16 +15,67 @@ Soit $x\in\mathbb{R}$.
 
 ```
 
+## TeX's message, and latexdetok's
+
+A section title that lost its closing brace, and a list closed by the wrong
+environment:
+
+```latex
+\documentclass{article}
+\begin{document}
+\section{Introduction
+Energy is conserved.
+
+\begin{itemize}
+  \item $E = mc^2$
+\end{enumerate}
+\end{document}
+```
+
+`pdflatex` stops at the first mistake, gives no line, and names one of LaTeX's
+internal macros:
+
+```text
+! File ended while scanning use of \@xdblarg.
+<inserted text>
+                \par
+<*> intro.tex
+
+! Emergency stop.
+<*> intro.tex
+```
+
+`latexdetok check intro.tex` reports both, each where it is, with the fix:
+
+```text
+intro.tex:3:9: error [unclosed-brace] “{” of “\section” never closed
+     3 │ \section{Introduction
+       │         ^
+     5 │
+       │ ^ first blank line of the group, line 5: the brace is probably missing before it
+     9 │ \end{document}
+       │ ^~~~~~~~~~~~~~ “\end{document}” comes before it is closed
+       = close it with “}”
+
+intro.tex:8:1: error [crossed-environment] “\begin{itemize}” closed by “\end{enumerate}”
+     8 │ \end{enumerate}
+       │ ^~~~~~~~~~~~~~~
+     6 │ \begin{itemize}
+       │ ^~~~~~~~~~~~~~~ opened here
+
+2 errors, 0 warning, 0 info
+```
+
 ## What it does
 
 - **Tree**: groups, environments, math, verbatim, comments, with the exact
   position of every element; `str()` rewrites the source.
 - **Tolerance**: whatever does not match is read flat and reported
   (`diagnostics`), never refused.
-- **Diagnostics**: `check` and `python -m latexdetok check` say what is wrong,
-  better than TeX does: the cause rather than the place where TeX gave up, the
-  opening facing the closing, the fix, every mistake at once. Structure and
-  meaning (`\item` outside a list, `&` outside a table, `^` outside math, a
+- **Diagnostics**: `check` and the `latexdetok check` command say what is
+  wrong, better than TeX does: the cause rather than the place where TeX gave
+  up, the opening facing the closing, the fix, every mistake at once. Structure
+  and meaning (`\item` outside a list, `&` outside a table, `^` outside math, a
   missing argument…), macros expanded, and nothing that may be valid is an
   error.
 - **Signatures**: the commands of the LaTeX2e kernel bind their arguments
@@ -53,6 +104,10 @@ Soit $x\in\mathbb{R}$.
 ```bash
 pip install latexdetok
 ```
+
+The package installs the `latexdetok` command. For the command alone, with no
+Python project around it, `uvx latexdetok check cours.tex` runs it without
+installing anything, and `pipx install latexdetok` installs it for good.
 
 Python 3.13 or newer, the standard library alone. To look for inclusions in the
 texmf trees, TeX Live (`kpsewhich`); without it, only the files of the

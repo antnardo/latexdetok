@@ -1,6 +1,7 @@
-"""`python -m latexdetok check`: compiler-style or JSON output, exit code."""
+"""`latexdetok check`: compiler-style or JSON output, exit code."""
 
 import json
+from importlib.metadata import entry_points
 from pathlib import Path
 
 from latexdetok.__main__ import ERRORS, OK, UNREADABLE, main
@@ -73,3 +74,9 @@ def test_a_folder_is_walked(tmp_path, capsys):
 def test_a_missing_file(tmp_path, capsys):
     status = main(["check", str(tmp_path / "absent.tex")])
     assert (status, "unreadable" in capsys.readouterr().err) == (UNREADABLE, True)
+
+
+def test_the_command_is_installed_with_the_package():
+    # Without it, `uvx latexdetok` and `pipx install latexdetok` fail: the metadata is what they read.
+    (script,) = entry_points(group="console_scripts", name="latexdetok")
+    assert script.load() is main

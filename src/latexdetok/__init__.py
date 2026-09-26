@@ -18,7 +18,7 @@ To learn what is wrong in a document, `check("cours.tex")` returns its
 diagnostics: structure and meaning (`\\item` outside a list, `&` outside a table,
 `^` outside math…), read in the expanded view and brought back to the source,
 with the severity, the opening at fault and the fix (`checks`, `diagnostics`,
-`semantics`). On the command line: `python -m latexdetok check cours.tex`.
+`semantics`). On the command line: `latexdetok check cours.tex`.
 
 Messages are in English and can be translated: `set_language("fr")`, or
 `LATEXDETOK_LANG=fr`, takes them from `data/messages-fr.txt` (see `messages`).

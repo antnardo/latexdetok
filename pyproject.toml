@@ -37,6 +37,9 @@ Repository = "https://github.com/antnardo/latexdetok"
 Issues = "https://github.com/antnardo/latexdetok/issues"
 Changelog = "https://github.com/antnardo/latexdetok/blob/main/CHANGELOG.md"
 
+[project.scripts]
+latexdetok = "latexdetok.__main__:main"
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",

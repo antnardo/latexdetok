@@ -32,7 +32,7 @@ from pathlib import Path
 
 from latexdetok.catcodes import CatcodeChange, CatcodeTable
 from latexdetok.characters import ROOT_NAME, index_in_line
-from latexdetok.classes import TexCommand, TexContainer, TexGroup
+from latexdetok.classes import Position, TexCommand, TexContainer, TexGroup
 from latexdetok.diagnostics import TexDiagnostic
 from latexdetok.logger import verbose_logging
 from latexdetok.parser import BranchRegion, CatcodeRegions, TexParser
@@ -152,7 +152,19 @@ class TexFile:
             raise ValueError("this element does not belong to this file")
         if container.start_position is None or container.end_position is None:
             return str(container)
-        (start_line, start_col), (end_line, end_col) = container.start_position, container.end_position
+        return self.text_between(container.start_position, container.end_position)
+
+    def text_between(self, start: Position, end: Position) -> str:
+        """The exact source from `start` to `end` (excluded), line endings as written.
+
+        Any span of this file: a diagnostic's, an `Expansion`'s, or one that
+        `ExpandedFile.source_span` brings back from the expanded view. A column
+        beyond the text of its line designates the end of that line, never the
+        middle of a `\\r\\n` (see `characters.index_in_line`).
+        """
+        if end < start:
+            raise ValueError(f"the span ends before it starts: {start} to {end}")
+        (start_line, start_col), (end_line, end_col) = start, end
         if start_line == end_line:
             line = self._line(start_line)
             return line[index_in_line(line, start_col) : index_in_line(line, end_col)]

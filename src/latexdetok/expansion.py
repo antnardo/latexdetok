@@ -271,6 +271,61 @@ class SourceMap:
         line, col = self.source.position(piece.source + offset - 1 - piece.start)
         return line, col + 1
 
+    def source_span(self, start: int, end: int) -> tuple[Position, Position]:
+        """The span in the source of what produced the text from `start` to `end` (excluded).
+
+        Within one piece: its text if it is copied, the use otherwise. Across
+        several, the smallest span that covers what produced each of them. Their
+        two ends alone would give an end before the start for a body that writes
+        its arguments back in another order (`#2#1`), and would cut the use of a
+        text that ends on an argument in two: a use whose arguments are copied
+        in place is covered whole where the span would cut it, or where its body
+        writes them out of order.
+
+        A piece taken up away from where it is written — an argument that the
+        end code of an environment writes again — counts as the use that took
+        it up (`within`) if that use wrote part of the text too. The braces that
+        `\\ifstrempty{#1}` writes around the title of a theorem lead back to the
+        `\\end`, while the math of the title alone reads where it is typed.
+        """
+        first = self.source_start(start)
+        if end <= start:
+            return first, first
+        low, high = self.index(start), self.index(end - 1)
+        if low == high:
+            return first, self.source_end(end)
+        pieces = self.pieces[low : high + 1]
+        writers = {id(piece.expansion) for piece in pieces if piece.expansion is not None}
+        spans: list[tuple[Position, Position]] = []
+        # The uses whose arguments are copied in place, and whether their body writes them out of order.
+        in_place: dict[int, tuple[Expansion, bool]] = {}
+        previous: _Piece | None = None
+        for piece in pieces:
+            span = self.source_start(max(start, piece.start)), self.source_end(min(end, piece.end))
+            use = piece.within
+            inside = use is not None and use.start <= span[0] and span[1] <= use.end
+            if use is not None and not inside and id(use) in writers:
+                span = use.start, use.end
+            elif piece.source is not None and use is not None and inside:
+                out_of_order = (
+                    previous is not None
+                    and previous.source is not None
+                    and piece.source < previous.source + previous.end - previous.start
+                )
+                in_place[id(use)] = use, out_of_order or in_place.get(id(use), (use, False))[1]
+            spans.append(span)
+            previous = piece
+        first, last = min(span[0] for span in spans), max(span[1] for span in spans)
+        growing = True
+        while growing:
+            growing = False
+            for use, out_of_order in in_place.values():
+                cut = not (use.start <= first and last <= use.end)
+                if (cut or out_of_order) and (use.start < first or last < use.end):
+                    first, last = min(first, use.start), max(last, use.end)
+                    growing = True
+        return first, last
+
     def catcode_regions(self) -> dict[int, list[tuple[int, int, CatcodeTable]]]:
         """Where the produced text reads again under a table other than the document's (see `TexParser`)."""
         regions: dict[int, list[tuple[int, int, CatcodeTable]]] = defaultdict(list)
@@ -319,9 +374,9 @@ class ExpandedFile(TexFile):
     """An expanded document: a `TexFile` on the text produced, tied back to its source.
 
     `container`, `diagnostics` and the queries are those of the expanded text;
-    `source_span`, `origin` and `expansions` lead back to the source; `conditions`
-    and `branches` say which conditionals were decided, and which side every
-    element is on.
+    `source_span`, `source_text`, `origin` and `expansions` lead back to the
+    source; `conditions` and `branches` say which conditionals were decided,
+    and which side every element is on.
     """
 
     def __init__(
@@ -348,13 +403,23 @@ class ExpandedFile(TexFile):
         return self.source_map.source_start(self.source_map.target.offset(position))
 
     def source_span(self, node: TexContainer) -> tuple[Position, Position]:
-        """The span in the source of what produced `node`."""
+        """The span in the source of what produced `node` (see `SourceMap.source_span`)."""
         if node.start_position is None or node.end_position is None:
             raise TypeError("an element with no position cannot be located")
         target = self.source_map.target
-        start, end = target.offset(node.start_position), target.offset(node.end_position)
-        source_start = self.source_map.source_start(start)
-        return source_start, self.source_map.source_end(end) if end > start else source_start
+        return self.source_map.source_span(
+            target.offset(node.start_position), target.offset(node.end_position)
+        )
+
+    def source_text(self, node: TexContainer) -> str:
+        """What produced `node`, as the source writes it: the text of `source_span`, line endings included.
+
+        `raw_text(node)` is the text of the view, where the macros are expanded;
+        this is what the user typed.
+        """
+        if node.rootfile is not self:
+            raise ValueError("this element does not belong to this view")
+        return self.source.text_between(*self.source_span(node))
 
     def origin(self, node: TexContainer) -> Expansion | None:
         """The expansion whose body wrote the start of `node`; None if it is written in the source."""

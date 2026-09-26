@@ -336,12 +336,27 @@ $x\in\mathbb{R}$
 ```
 
 Every node of the view finds again what produced it in the source: `origin`
-returns the expansion whose body wrote it, `source_span` the source span.
+returns the expansion whose body wrote it, `source_span` the source span, and
+`source_text` what the user typed there, where `raw_text` is the text of the
+view.
 
 ```pycon
 >>> produced = view.get_envs("$")[0].content[-1]
 >>> str(produced), view.origin(produced).name, view.source_span(produced)
 ('{R}', 'R', ((3, 5), (3, 7)))
+>>> math = view.get_envs("$")[0]
+>>> view.raw_text(math), view.source_text(math)
+('$x\\in\\mathbb{R}$', '$x\\in\\R$')
+
+```
+
+`text_between` reads any span of a file the same way, line endings as written:
+that of a diagnostic, or of an `Expansion`.
+
+```pycon
+>>> expansion = view.expansions[0]
+>>> course.text_between(expansion.start, expansion.end)
+'\\R'
 
 ```
 

@@ -453,6 +453,62 @@ class TestMapping:
         nabla = in_document(developed, lambda node: node.is_command("nabla"))
         assert developed.origin(nabla).name == "vnabla"
 
+    def test_the_source_text_of_a_copied_element(self, view):
+        developed = view(METHODE)
+        title = in_document(developed, lambda node: node.is_pure_text() and node.content == "Titre")
+        assert developed.source_text(title) == "Titre"
+
+    def test_the_source_text_of_an_element_written_by_a_body_is_the_use(self, view):
+        developed = view(METHODE)
+        gras = in_document(developed, lambda node: node.is_command("gras"))
+        assert developed.source_text(gras) == "\\methode{Titre}{Corps}"
+
+    def test_the_source_text_keeps_the_line_endings_of_the_source(self):
+        tex = TexFile(["\\newcommand{\\R}{\\mathbb{R}}\r\n", "$x\r\n", "\\in \\R$\r\n"])
+        tex.analyse()
+        developed = expand(tex)
+        (math,) = developed.get_envs("$")
+        assert (developed.raw_text(math), developed.source_text(math)) == (
+            "$x\n\\in \\mathbb{R}$",
+            "$x\r\n\\in \\R$",
+        )
+
+    def test_the_source_text_of_an_element_of_another_file(self, view):
+        developed = view(BEQ)
+        with pytest.raises(ValueError, match="does not belong"):
+            developed.source_text(developed.source.container[0])
+
+    @pytest.mark.parametrize(
+        ("source", "text", "typed"),
+        [
+            # The two ends alone gave an end before the start: an empty text.
+            ("\\newcommand{\\swap}[2]{#2#1}\n\\swap{ab}{cd}\n", "cdab", "\\swap{ab}{cd}"),
+            # They cut the use before its brace.
+            ("\\newcommand{\\id}[1]{#1}\nx\\id{ab}\n", "xab", "x\\id{ab}"),
+        ],
+    )
+    def test_a_text_across_pieces_covers_the_uses_that_put_them_together(self, view, source, text, typed):
+        developed = view(source)
+        node = next(
+            node for node in nodes(developed.container) if node.is_pure_text() and node.content == text
+        )
+        start, end = developed.source_span(node)
+        assert (start <= end, developed.source_text(node)) == (True, typed)
+
+    def test_an_argument_taken_up_by_the_end_code(self, view):
+        # Found in the corpus: the title of a theorem, which `\ifstrempty{#1}` tests at the `\end`.
+        # The braces around it are the end code's; what is inside reads where it is typed.
+        developed = view(
+            "\\newcommand{\\R}{\\mathbb{R}}\n"
+            "\\NewDocumentEnvironment{boite}{o}{}{\\ifstrempty{#1}{}{}}\n"
+            "\\begin{boite}[sur $\\R^3$]\ntexte\n\\end{boite}\n"
+        )
+        title = next(node for node in nodes(developed.container) if str(node) == "{sur $\\mathbb{R}^3$}")
+        assert (
+            developed.source_text(title),
+            [developed.source_text(math) for math in developed.get_envs("$")],
+        ) == ("\\end{boite}", ["$\\R^3$", "$\\R^3$"])
+
     def test_a_diagnostic_brought_back_to_the_source(self, view, problems):
         developed = view("\\def\\eeq{\\end{equation}}\ntexte\n\\eeq\n")
         (diagnostic,) = problems(developed)

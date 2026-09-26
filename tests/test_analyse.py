@@ -151,6 +151,32 @@ class TestRawText:
         assert tex.container.raw_text() == ""
 
 
+class TestTextBetween:
+    @pytest.mark.parametrize("ending", ["\n", "\r\n", "\r"])
+    def test_the_line_endings_are_those_of_the_file(self, ending):
+        tex = TexFile([f"ab{ending}", f"cd{ending}", f"ef{ending}"])
+        assert tex.text_between((1, 1), (3, 1)) == f"b{ending}cd{ending}e"
+
+    @pytest.mark.parametrize("ending", ["\n", "\r\n", "\r"])
+    def test_a_column_beyond_the_text_takes_the_whole_line_ending(self, ending):
+        assert TexFile([f"ab{ending}", "c\n"]).text_between((1, 1), (1, 3)) == f"b{ending}"
+
+    def test_over_several_lines_with_no_line_endings(self):
+        assert TexFile(["ab", "cd"]).text_between((1, 1), (2, 1)) == "b\nc"
+
+    def test_an_empty_span(self):
+        assert TexFile(["ab\n"]).text_between((1, 1), (1, 1)) == ""
+
+    def test_a_span_that_ends_before_it_starts(self):
+        with pytest.raises(ValueError, match="ends before it starts"):
+            TexFile(["ab\n", "cd\n"]).text_between((2, 0), (1, 1))
+
+    def test_the_span_of_a_diagnostic(self, parse):
+        tex = parse("\\begin{itemize}\n\\item a\n")
+        (diagnostic,) = tex.diagnostics
+        assert tex.text_between(diagnostic.start, diagnostic.end) == "\\begin{itemize}"
+
+
 class TestGetLinesToNext:
     def test_up_to_the_end_of_the_document(self, parse):
         tex = parse("\\begin{document}\n\\section{A}\na\n\\section{B}\nb\n\\end{document}\n")

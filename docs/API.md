@@ -152,6 +152,7 @@ Methods:
 | `analyse(verbose=None, follow_inputs=False)` | `TexGroup` | analyses (or re-analyses) the lines; the root is also in `container` |
 | `content()` | `str` | a rewriting of the source from the tree, multiple spaces collapsed, lines ending in `\n` whatever the file's; for the file as it is written, `rewrite(tex, [])` |
 | `raw_text(container)` | `str` | the exact source between the positions of a node of this file, line endings as written; `ValueError` for a node of another file |
+| `text_between(start, end)` | `str` | the exact source from `start` to `end` (excluded), line endings as written: any span of the file, a diagnostic's or one `ExpandedFile.source_span` brings back; a column beyond the text of its line designates the end of that line; `ValueError` if `end` comes before `start` |
 | `repr_hierarchy(expand=True)` | `str` | the indented tree, for debugging |
 | `iter()` | an iterator | a flat walk of the root (see `TexContainer.iter`) |
 | `set_verbose(verbose)` | `None` | traces the analysis or not |
@@ -977,7 +978,8 @@ queries are the view's.
 | Method | Returns |
 | --- | --- |
 | `source_position(position)` | the position in the source; for a text written by a body, the start of the use |
-| `source_span(node)` | `(start, end)` in the source of what produced the node: its text if it is copied, the use otherwise |
+| `source_span(node)` | `(start, end)` in the source of what produced the node: its text if it is copied, the use otherwise; across several pieces, the smallest span that covers what produced each one, uses whole (see `SourceMap.source_span`) |
+| `source_text(node)` | what produced the node, as the source writes it: the text of `source_span`, line endings included, where `raw_text(node)` is the text of the view; `ValueError` for a node of another file |
 | `origin(node)` | the `Expansion` whose body wrote the start of the node; `None` if it is copied from the source |
 | `branches(node)` | `((Condition, taken?), …)` of the decided branches where the node starts, from the outer to the inner, even when melted into the stream |
 
@@ -1011,6 +1013,7 @@ Where every piece of the text produced comes from. Built by `expand`.
 | `expansion_at(offset)` | the expansion that wrote the character; `None` if it is copied |
 | `producer(offset)` | the expansion that produced it: written by it, or an argument it substituted |
 | `source_start(offset)`, `source_end(offset)` | the start and end (excluded) positions in the source |
+| `source_span(start, end)` | the span in the source of the text produced from `start` to `end`: within one piece, its text if it is copied, the use otherwise; across several, the smallest span that covers what produced each one, never ending before it starts. A use whose arguments are copied in place is covered whole where the span would cut it, or where its body writes them out of order (`#2#1`); a piece taken up away from where it is written (an argument in the end code of an environment) counts as the use that took it up, if that use wrote part of the text too |
 | `catcode_regions()` | tables to force in order to read the text produced again (`CatcodeRegions`) |
 | `branch_regions()` | the branches of the text produced (`BranchRegion`) |
 

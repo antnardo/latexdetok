@@ -21,6 +21,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   expanded view could differ from that of the same lines in `\n`.
 - A column beyond the text of a line no longer cuts a `\r\n` in two in `rewrite`
   and `raw_text()`: it designates the end of the line.
+- The expanded view was cut into lines where `str.splitlines` cuts: also at a
+  form feed, at `\x85` — a cp1252 `…` read as Latin-1 — and at `\x0b`,
+  `\x1c`–`\x1e`, `\u2028` and `\u2029`, which TeX and `read_lines` read inside
+  the line. Every position after one of them led to the wrong place in the
+  source, and one at the end of a line gave the view a blank line: `check` could
+  report a `$` never closed in a file that compiles. The view is now cut at its
+  line endings alone, like the source.
 - The README and the examples write the edited source with `newline=""`, without
   which Windows turns every `\n` into `\r\n`.
 

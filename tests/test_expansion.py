@@ -465,6 +465,23 @@ class TestMapping:
             ("eeq", (3, 9), (3, 13)),
         ]
 
+    @pytest.mark.parametrize("separator", ["\x0c", "\x85"], ids=["form-feed", "next-line"])
+    def test_a_form_feed_or_next_line_does_not_cut_the_view(self, separator):
+        # `str.splitlines` cuts at both, TeX at neither: `\x85` is a cp1252 `…` read as Latin-1.
+        tex = TexFile(["\\def\\x{X}\n", f"a{separator}b \\x\n", "\\item c\n"])
+        tex.analyse()
+        developed = expand(tex)
+        item = next(node for node in nodes(developed.container) if node.is_command("item"))
+        assert (
+            developed.lines,
+            developed.source_map.target.text,
+            developed.source_position(item.start_position),
+        ) == (
+            ["\\def\\x{X}\n", f"a{separator}b X\n", "\\item c\n"],
+            "".join(developed.lines),
+            (3, 0),
+        )
+
 
 class TestCatcodes:
     def test_a_body_is_read_under_the_table_of_its_definition(self, view):

@@ -74,6 +74,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import cache
+from io import StringIO
 from itertools import accumulate, pairwise
 
 from latexdetok.analyse import TexFile
@@ -453,7 +454,10 @@ def expand(tex: TexFile, max_depth: int = MAX_DEPTH) -> ExpandedFile:
         if len(text) > limit:
             logger.warning("%s: expansion stopped, the text goes beyond %d characters", tex.name, limit)
             break
-        lines = text.splitlines(keepends=True)
+        # Cut where the source is cut: at the line endings, all `\n` in the text written (see `_Offsets`).
+        # `str.splitlines` also cuts at a form feed, or at the `\x85` of a cp1252 `…` read as Latin-1,
+        # where TeX does not: every position after it would move, and a blank line could appear.
+        lines = StringIO(text, newline="\n").readlines()
         source_map = SourceMap(writer.pieces, source_map.source, _Offsets(lines))
         expansions = [*expansions, *writer.expansions]
         conditions = [*conditions, *writer.conditions]

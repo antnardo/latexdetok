@@ -14,7 +14,7 @@ class TestReading:
             "cours.tex",
             path,
             ["\\section{A}\n"],
-            "utf-8-sig",
+            "utf-8",
         )
 
     def test_from_a_path_string(self, tmp_path):
@@ -22,16 +22,25 @@ class TestReading:
         path.write_text("a\n", encoding="utf-8")
         assert TexFile(str(path)).lines == ["a\n"]
 
-    def test_the_utf8_bom_is_removed(self, tmp_path):
-        path = tmp_path / "bom.tex"
-        path.write_bytes("\ufeffé\n".encode())
-        assert TexFile(path).lines == ["é\n"]
-
-    def test_falling_back_to_latin1(self, tmp_path):
-        path = tmp_path / "vieux.tex"
-        path.write_bytes("Étude\n".encode("latin-1"))
-        tex = TexFile(path)
-        assert (tex.lines, tex.encoding) == (["Étude\n"], "latin-1")
+    @pytest.mark.parametrize(
+        ("data", "forced", "encoding", "lines"),
+        [
+            ("é\n".encode(), None, "utf-8", ["é\n"]),
+            ("\ufeffé\n".encode(), None, "utf-8-sig", ["é\n"]),
+            ("\ufeff".encode(), None, "utf-8-sig", []),
+            ("Étude\n".encode("latin-1"), None, "latin-1", ["Étude\n"]),
+            ("é\n".encode(), "utf-8-sig", "utf-8", ["é\n"]),
+            ("\ufeffé\n".encode(), "utf-8", "utf-8-sig", ["é\n"]),
+            ("é\n".encode("cp1252"), "cp1252", "cp1252", ["é\n"]),
+        ],
+        ids=["utf-8", "bom", "bom-alone", "latin-1", "forced-sig-no-bom", "forced-utf-8-bom", "forced-other"],
+    )
+    def test_the_encoding_is_the_one_that_writes_the_file_back(self, tmp_path, data, forced, encoding, lines):
+        # A byte order mark is not text: out of the first line, and in the encoding, which puts it back.
+        path = tmp_path / "cours.tex"
+        path.write_bytes(data)
+        tex = TexFile(path, encoding=forced)
+        assert (tex.encoding, tex.lines, "".join(tex.lines).encode(tex.encoding)) == (encoding, lines, data)
 
     def test_a_forced_encoding(self, tmp_path):
         path = tmp_path / "vieux.tex"

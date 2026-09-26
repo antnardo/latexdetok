@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Fixed
+
+- `TexFile.encoding` and `read_lines` said `utf-8-sig` for every UTF-8 file:
+  writing the source back with it, as the README does, added a byte order mark
+  the file never had. They now say `utf-8`, and `utf-8-sig` only for a file that
+  starts with the mark, whether UTF-8 was found or forced.
+
+### Changed
+
+- `FALLBACK_ENCODINGS` is `("utf-8", "latin-1")`.
+
 ## [0.1.1] — 2026-09-26
 
 ### Added

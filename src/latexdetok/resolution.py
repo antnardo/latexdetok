@@ -47,9 +47,16 @@ in the categories does not leave its own reading (LaTeX restores `@` after a
 package). An included `.tex` is read with the table in force where it is
 included, and the table it leaves applies to the includer: `\\input` opens no
 group.
+
+Encoding. `read_lines` reads UTF-8, else the Latin-1 of old sources, which
+reads any byte; the encoding it gives back is the one that writes the file
+identically. Python's `utf-8-sig` also reads a file with no byte order mark, and
+writing with it adds the three bytes of one: the mark is therefore looked for,
+and a file without one says `utf-8`.
 """
 
 import atexit
+import codecs
 import os
 import select
 import shutil
@@ -71,7 +78,10 @@ from latexdetok.signatures import JournalEntry, SignatureRegistry
 
 __all__ = ["FALLBACK_ENCODINGS", "TexmfResolver", "clear_caches", "read_lines", "root_of"]
 
-FALLBACK_ENCODINGS = ("utf-8-sig", "latin-1")
+FALLBACK_ENCODINGS = ("utf-8", "latin-1")
+# The two spellings of UTF-8 that `codecs` knows; which one a file gets is its byte order mark's call.
+UTF8_CODECS = frozenset({"utf-8", "utf-8-sig"})
+BYTE_ORDER_MARK = "\ufeff"
 DISTRIBUTION_VARIABLES = ("TEXMFDIST", "TEXMFMAIN")
 # Settings that change what kpsewhich finds: the cache key depends on them.
 KPATHSEA_ENVIRONMENT = ("TEXMFHOME", "TEXMFLOCAL", "TEXINPUTS", "TEXMFCNF")
@@ -86,19 +96,29 @@ _definitions: dict[DefinitionsKey, tuple[tuple[JournalEntry, ...], CatcodeTable]
 
 
 def read_lines(path: Path, encoding: str | None = None) -> tuple[str, list[str]]:
-    """The lines of the file, line endings included, and the encoding that worked.
+    """The lines of the file, line endings included, and the encoding that writes them back.
 
     With no encoding given: UTF-8, then the Latin-1 of old sources, which reads
-    any byte at all and makes a safe fallback.
+    any byte at all and makes a safe fallback. A UTF-8 file, found or forced,
+    says `utf-8-sig` if it starts with a byte order mark, which is then not part
+    of the first line, and `utf-8` otherwise.
     """
     encodings = (encoding,) if encoding else FALLBACK_ENCODINGS
     for candidate in encodings:
+        utf8 = codecs.lookup(candidate).name in UTF8_CODECS
         try:
-            with path.open(encoding=candidate) as file:
-                return candidate, file.readlines()
+            with path.open(encoding="utf-8" if utf8 else candidate) as file:
+                lines = file.readlines()
         except UnicodeDecodeError:
             if candidate == encodings[-1]:
                 raise
+            continue
+        if not utf8:
+            return candidate, lines
+        if not lines or not lines[0].startswith(BYTE_ORDER_MARK):
+            return "utf-8", lines
+        lines[0] = lines[0].removeprefix(BYTE_ORDER_MARK)
+        return "utf-8-sig", lines if lines[0] else lines[1:]
     raise AssertionError("unreachable: the last encoding either raises or returns")
 
 

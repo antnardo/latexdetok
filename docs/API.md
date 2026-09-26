@@ -131,7 +131,7 @@ Attributes:
 | Attribute | Type | Contents |
 | --- | --- | --- |
 | `src_file` | `Path \| None` | the path of the source, `None` for lines |
-| `encoding` | `str \| None` | the encoding that was used to read |
+| `encoding` | `str \| None` | the encoding that was used to read, and that writes the file back: `utf-8-sig` only if it starts with a byte order mark |
 | `lines` | `list[str]` | the lines of the source, line endings included |
 | `name` | `str` | the name displayed |
 | `container` | `TexGroup` | the root of the tree, the environment `latexfile`; empty before `analyse()` |
@@ -173,9 +173,12 @@ master, and its inclusions are looked for from the master's folder.
 read_lines(path: Path, encoding: str | None = None) -> tuple[str, list[str]]
 ```
 
-`(encoding, lines)` of a file, line endings included. With no encoding:
-`utf-8-sig`, then `latin-1`, which reads any byte at all. A forced encoding that
-does not fit raises `UnicodeDecodeError`.
+`(encoding, lines)` of a file, line endings included. With no encoding: `utf-8`,
+then `latin-1`, which reads any byte at all. The encoding returned writes the
+lines back identically: a UTF-8 file, found or forced, gives `utf-8-sig` if it
+starts with a byte order mark, which is then not part of the first line, and
+`utf-8` otherwise. A forced encoding that does not fit raises
+`UnicodeDecodeError`.
 
 ## `checks`: checking a document
 
@@ -910,7 +913,7 @@ leaves it its own.
 | `root_of(path, lines)` | the master document declared by `% !TEX root = …` in the first 20 lines, if it exists and is not the file itself |
 | `clear_caches()` | forgets the cached searches and definitions, and closes the interactive `kpsewhich` |
 
-`FALLBACK_ENCODINGS = ("utf-8-sig", "latin-1")`.
+`FALLBACK_ENCODINGS = ("utf-8", "latin-1")`.
 
 Cached, for the process: every search once per kpathsea setting (`TEXMFHOME`,
 `TEXMFLOCAL`, `TEXINPUTS`, `TEXMFCNF`); for every file read, its definitions,

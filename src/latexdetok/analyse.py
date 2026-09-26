@@ -32,7 +32,7 @@ from pathlib import Path
 
 from latexdetok.catcodes import CatcodeChange, CatcodeTable
 from latexdetok.characters import ROOT_NAME, index_in_line
-from latexdetok.classes import TexContainer, TexGroup
+from latexdetok.classes import TexCommand, TexContainer, TexGroup
 from latexdetok.diagnostics import TexDiagnostic
 from latexdetok.logger import verbose_logging
 from latexdetok.parser import BranchRegion, CatcodeRegions, TexParser
@@ -195,10 +195,13 @@ class TexFile:
 
     def get_lines_to_next(self, command: str, starred: bool = False) -> list[list[str]]:
         """Source lines of every occurrence of `command` up to the next one;
-        the last one runs to `\\end{document}` excluded, or to the end of the file."""
+        the last one runs to `\\end{document}` excluded, or to the end of the file.
+        A command left bare (`\\titleformat{\\section}`, see `TexCommand.bare`) is
+        not a call: it starts nothing."""
         start_lines = [
             content.start_position[0]
             for content in self.container.get_commands_arguments(command, nargs=0, starred=starred)
+            if not (isinstance(content[0], TexCommand) and content[0].bare)
         ]
         if not start_lines:
             return []

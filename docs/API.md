@@ -157,7 +157,7 @@ Methods:
 | `set_verbose(verbose)` | `None` | traces the analysis or not |
 | `self[i]` | `TexContainer` | `container[i]` |
 | `get_commands_arguments(...)`, `get_commands_to_next(...)`, `get_envs(name)`, `get_preamble()`, `get_sections(starred=True)`, `get_graphics()`, `get_inputs(document=None)` | | the queries of the root (see `TexContainer` and `TexGroup`) |
-| `get_lines_to_next(command, starred=False)` | `list[list[str]]` | the source lines of every occurrence of `\command` up to the next one; the last one runs to the line before `\end{document}`, or to the end of the file |
+| `get_lines_to_next(command, starred=False)` | `list[list[str]]` | the source lines of every occurrence of `\command` up to the next one; the last one runs to the line before `\end{document}`, or to the end of the file; a command left bare (`\titleformat{\section}`, see `TexCommand.bare`) starts nothing |
 
 `analyse(follow_inputs=True)` looks for the files the document loads (`\input`,
 `\include`, `\InputIfFileExists`, `\usepackage`, `\RequirePackage`,
@@ -411,12 +411,17 @@ Queries (on a list container, recursive, results in document order):
 - `commands`: one name or a list of names. With `starred`, the starred variants
   are looked for too.
 - Without `nargs` or `nopt`, a command of known signature comes with the
-  arguments the tokeniser bound to it (the missing ones are left out).
-  Otherwise, or for an unknown command: up to `nopt` arguments `[…]` if they are
-  there (0 by default), then the next `nargs` elements (1 by default).
+  arguments the tokeniser bound to it (the missing ones are left out), and alone
+  if its signature has none (`\maketitle`). Otherwise, or for an unknown
+  command: up to `nopt` arguments `[…]` if they are there (0 by default), then
+  the next `nargs` elements (1 by default).
+- A command left bare (`TexCommand.bare`: `\section` in `\let\titre\section`)
+  comes alone, `nargs` or not: what follows it belongs to the command whose
+  argument it is.
 - `get_commands_to_next`: with `close_at_same_level`, every selection stops at
   the next occurrence; otherwise it goes to the end of the group, and the
-  selections overlap. `remove_comments` takes the comments out.
+  selections overlap. `remove_comments` takes the comments out. A command left
+  bare neither starts a selection nor ends one.
 
 Class methods for walking:
 
@@ -454,6 +459,7 @@ catcodes in force, which can make any character a letter.
 | --- | --- | --- |
 | `signature` | `CommandSignature \| None` | the signature known at the use; `None` for an unknown command, or for a text-mode one read in math |
 | `arguments` | `list[TexContainer \| None] \| None` | the bound arguments, aligned with `signature.arguments`; `None` in the list for an argument that is absent (optional) or missing (mandatory); `None` outright if nothing is bound |
+| `bare` | `bool` | the command is the argument of another one, and reads none of its own where it is written |
 | `macro` | `Macro \| None` | the body of the user macro in force at the use |
 | `role` | `Role \| None` | the role in a primitive conditional: `if`, `else`, `or`, `fi` |
 | `value` | `bool \| None` | the value of the conditional an `\if…` opens, when the tokeniser could decide it |
@@ -464,9 +470,13 @@ catcodes in force, which can make any character a letter.
 not found.
 
 The arguments stay siblings in the tree: `arguments` designates them without
-moving them. `arguments` is `None` for an unknown command, and for a command
-taken as a plain token (`\section` in `\let\titre\section`) or alone in its
-braces with no argument (`\titleformat{\section}`).
+moving them. `arguments` is `None` for an unknown command, for a signature
+without arguments, and for a command left bare. `bare` tells that last case
+apart, whether the signature is known or not: a command taken as a plain token
+(`\section` in `\let\titre\section`, `\demi` in `\frac\demi x`, `\vect` in
+`\def\vect#1{…}`) or alone in its braces with no argument
+(`\titleformat{\section}`). The queries give it no argument, and the splitting
+ones (`get_commands_to_next`, `get_lines_to_next`) do not take it for a call.
 
 ### `TexGroup`
 

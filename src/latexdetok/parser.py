@@ -510,11 +510,11 @@ class TexParser:
             and (name not in STRUCTURAL or _names_delimiter(binding, name))
         ):
             # An argument without braces: the command is a plain token (`\def\url`, `\let\a\b`).
-            self._add(
-                TexCommand(
-                    name, (lineno, col), (lineno, end), self._rootfile, signature=signature, macro=macro
-                )
+            token = TexCommand(
+                name, (lineno, col), (lineno, end), self._rootfile, signature=signature, macro=macro
             )
+            token.bare = True
+            self._add(token)
             return end
         if not (self._pile[-1].inactive or self._skipping()):
             self._change_catcodes(name, body, end, (lineno, col))
@@ -1337,6 +1337,7 @@ def _named_not_called(node: TexContainer) -> None:
         and all(argument is None for argument in node.arguments)
     ):
         node.arguments = None
+        node.bare = True
 
 
 # Commands whose argument is not typeset where it is written: it goes off to Lua, to a

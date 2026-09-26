@@ -68,7 +68,23 @@ class TestArguments:
     def test_a_token_that_is_not_called(self, parse):
         tex = parse("\\let\\titre\\section\n")
         (section,) = commands(tex, "section")
-        assert (bound(section), section.missing_arguments()) == (None, [])
+        assert (bound(section), section.missing_arguments(), section.bare) == (None, [], True)
+
+    @pytest.mark.parametrize(
+        ("source", "name", "bare"),
+        [
+            ("\\section{A}\n", "section", False),
+            ("\\foo{a}\n", "foo", False),
+            ("\\maketitle\n", "maketitle", False),
+            ("\\let\\foo\\relax\n", "foo", True),
+            ("\\def\\x#1\\relax#2{X}\n", "relax", True),
+            ("$\\frac\\alpha\\beta$\n", "beta", True),
+        ],
+    )
+    def test_bare_tells_a_token_from_a_command_that_reads_its_arguments(self, parse, source, name, bare):
+        # Unknown (`\foo`) or without arguments (`\maketitle`), a command is not bare: it runs where it is.
+        (command,) = commands(parse(source), name)
+        assert command.bare is bare
 
     def test_a_blank_line_leaves_the_argument_missing(self, parse):
         (section,) = commands(parse("\\section\n\ntexte\n"), "section")
@@ -90,7 +106,9 @@ class TestArguments:
             for node in parse(source).iter()
             if isinstance(node, TexCommand) and node.signature is not None
         ]
-        assert [node.missing_arguments() for node in named if node.base_name in ("section", "~")] == [[]]
+        assert [
+            (node.missing_arguments(), node.bare) for node in named if node.base_name in ("section", "~")
+        ] == [([], True)]
 
     def test_a_long_argument_takes_the_blank_line(self, parse):
         # Found in the corpus: \newcommand{\methode}[2] is a long macro.
@@ -217,3 +235,41 @@ class TestQueries:
     def test_an_unknown_command(self, parse):
         (found,) = parse("\\foo[a]{b}\n").get_commands_arguments("foo")
         assert [str(node) for node in found] == ["\\foo", "[a]"]
+
+    @pytest.mark.parametrize(
+        ("source", "name", "selections"),
+        [
+            ("\\let\\titre\\section\n\\newcommand{\\R}{x}\n", "section", [["\\section"]]),
+            ("\\let\\mm\\marginpar\ndu texte\n", "marginpar", [["\\marginpar"]]),
+            ("\\let\\mm\\marginpar\n\ndu texte\n", "marginpar", [["\\marginpar"]]),
+            ("\\let\\mm\\marginpar\ndu texte\n", "mm", [["\\mm"]]),
+            ("\\renewcommand\\section{X}\n", "section", [["\\section"]]),
+            # Found in the corpus: the parameter text of `\def` came with `\vect`.
+            ("\\def\\vect#1{\\overrightarrow{#1}}\n", "vect", [["\\vect"]]),
+            ("\\newcommand{\\demi}{1/2}\n$\\frac\\demi x$\n", "demi", [["\\demi"], ["\\demi"]]),
+            ("\\let\\titre\\section\n\\titre{Intro}\n", "titre", [["\\titre"], ["\\titre", "{Intro}"]]),
+        ],
+    )
+    def test_a_command_left_bare_comes_alone(self, parse, source, name, selections):
+        found = parse(source).get_commands_arguments(name)
+        assert [[str(node) for node in selection] for selection in found] == selections
+
+    def test_a_command_left_bare_comes_alone_whatever_nargs(self, parse):
+        tex = parse("\\let\\titre\\section\n\\newcommand{\\R}{x}\n")
+        (found,) = tex.get_commands_arguments("section", nargs=1, nopt=1)
+        assert [str(node) for node in found] == ["\\section"]
+
+    @pytest.mark.parametrize(
+        ("source", "name", "selections"),
+        [
+            ("\\maketitle\nDu texte\n", "maketitle", [["\\maketitle"]]),
+            ("\\newcommand{\\R}{x}\n$\\R y$\n", "R", [["\\R"], ["\\R"]]),
+        ],
+    )
+    def test_a_known_command_without_arguments_comes_alone(self, parse, source, name, selections):
+        found = parse(source).get_commands_arguments(name)
+        assert [[str(node) for node in selection] for selection in found] == selections
+
+    def test_the_heuristic_on_demand_for_a_command_without_arguments(self, parse):
+        (found,) = parse("\\maketitle\nDu texte\n").get_commands_arguments("maketitle", nargs=1)
+        assert [str(node) for node in found] == ["\\maketitle", "Du texte"]

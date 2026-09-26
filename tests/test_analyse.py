@@ -163,6 +163,13 @@ class TestGetLinesToNext:
     def test_with_no_occurrence(self, parse):
         assert parse("a\n").get_lines_to_next("section") == []
 
+    def test_a_command_left_bare_starts_nothing(self, parse):
+        # Found in the corpus: titlesec names `\section` in the preamble.
+        tex = parse(
+            "\\titleformat{\\section}{\\bfseries}{}{0pt}{}\n\\begin{document}\n\\section{A}\na\n\\end{document}\n"
+        )
+        assert tex.get_lines_to_next("section") == [["\\section{A}\n", "a\n"]]
+
     def test_every_piece_re_analyses(self, fixture_path):
         tex = TexFile(fixture_path("exam.tex"))
         tex.analyse()

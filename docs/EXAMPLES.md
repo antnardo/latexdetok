@@ -194,6 +194,19 @@ arguments to take:
 
 ```
 
+A command that is only the argument of another one — `\section` in
+`\let\titre\section` — reads none of its own (`TexCommand.bare`): it comes
+alone, whatever follows it, and `get_commands_to_next` and `get_lines_to_next`
+do not take it for a call.
+
+```pycon
+>>> let = TexFile(["\\let\\titre\\section\n", "\\newcommand{\\R}{x}\n"])
+>>> _ = let.analyse()
+>>> [[str(node) for node in found] for found in let.get_commands_arguments("section")]
+[['\\section']]
+
+```
+
 `get_commands_to_next` cuts every command up to the next one of the same group;
 `get_lines_to_next` returns the matching source lines.
 

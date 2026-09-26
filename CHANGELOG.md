@@ -5,6 +5,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Added
+
+- `TexCommand.bare`: the command is the argument of another one — taken as a
+  plain token (`\section` in `\let\titre\section`, `\demi` in `\frac\demi x`)
+  or alone in its braces (`\titleformat{\section}`) — and reads none of its own
+  where it is written.
+
+### Fixed
+
+- `get_commands_arguments` gave a command left bare the element that follows
+  it, as it does for an unknown command: `\let\titre\section` followed by
+  `\newcommand` gave `\section` the `\newcommand`, `\def\vect#1{…}` gave `\vect`
+  the parameter text `#1`, and `\let\mm\marginpar` before a blank line gave
+  `\marginpar` the paragraph. Such a command now comes alone, `nargs` or not.
+- `get_commands_to_next` and `get_lines_to_next` took a command left bare for a
+  call: `\titleformat{\section}` in a preamble started a piece. It now neither
+  starts one nor ends one.
+
+### Changed
+
+- `get_commands_arguments` gives a known command whose signature has no
+  argument (`\maketitle`, `\omega`, a `\newcommand{\R}{x}`) alone, as its
+  documentation said: it came with the next element, as if it were unknown.
+  `nargs` still takes the following elements on demand.
+
 ## [0.1.2] — 2026-09-26
 
 ### Fixed

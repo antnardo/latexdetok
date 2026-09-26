@@ -81,6 +81,11 @@ def _gap(previous: "TexContainer | None", before: Position | None, after: Positi
     return "" if after[1] == before[1] else " "
 
 
+def _bare(node: "TexContainer") -> bool:
+    """A command left bare: the argument of another one, not a call (see `TexCommand.bare`)."""
+    return isinstance(node, TexCommand) and node.bare
+
+
 def _join(nodes: Sequence["TexContainer"], start: Position | None = None, end: Position | None = None) -> str:
     if not nodes:
         # `$ $` must not rewrite as `$$`, nor `{ }` lose its space.
@@ -323,10 +328,15 @@ class TexContainer:
         """Every command found, followed by its arguments.
 
         Without `nargs` or `nopt`, a command of known signature comes with the
-        arguments the tokeniser bound to it. Otherwise, or for an unknown
-        command, up to `nopt` optional arguments `[...]` (0 by default) are taken
-        if they are there, then the next `nargs` elements (1 by default). A
-        missing argument (a command at the end of a group) is simply left out.
+        arguments the tokeniser bound to it: none if its signature has none
+        (`\\maketitle`). Otherwise, or for an unknown command, up to `nopt`
+        optional arguments `[...]` (0 by default) are taken if they are there,
+        then the next `nargs` elements (1 by default). A missing argument (a
+        command at the end of a group) is simply left out.
+
+        A command left bare (`TexCommand.bare`: `\\section` in
+        `\\let\\titre\\section`) comes alone, `nargs` or not: it is the argument
+        of another command, to which what follows it belongs.
         """
         names = self._command_names(commands, starred)
         by_signature = nargs is None and nopt is None
@@ -336,8 +346,9 @@ class TexContainer:
                 return None
             found = TexGroup(rootfile=self.rootfile)
             found.append(node)
-            if by_signature and isinstance(node, TexCommand) and node.arguments is not None:
-                for argument in node.arguments:
+            if isinstance(node, TexCommand) and (node.bare or (by_signature and node.signature is not None)):
+                # A bare command has nothing bound: it comes alone.
+                for argument in node.arguments or ():
                     if argument is not None:
                         found.append(argument)
             else:
@@ -365,16 +376,18 @@ class TexContainer:
 
         With `close_at_same_level`, we stop at the next occurrence of the same
         command (starred or not, per `starred`); otherwise we go to the end of the
-        group, and the selections may overlap.
+        group, and the selections may overlap. A command left bare
+        (`\\titleformat{\\section}`, see `TexCommand.bare`) is not a call: it
+        neither starts a selection nor ends one.
         """
         names = self._command_names(command, starred)
 
         def search_command(node: TexContainer, index: int, parent: TexContainer) -> TexGroup | None:
-            if not node.is_command_in(names):
+            if not node.is_command_in(names) or _bare(node):
                 return None
             selection = [node]
             for sibling in parent.content[index + 1 :]:
-                if close_at_same_level and sibling.is_command_in(names):
+                if close_at_same_level and sibling.is_command_in(names) and not _bare(sibling):
                     break
                 if remove_comments and sibling.is_comment():
                     continue
@@ -772,8 +785,12 @@ class TexCommand(TexContent):
     argument that is absent (optional) or missing (mandatory).
 
     `arguments` is `None` when nothing was bound: an unknown signature (the
-    original heuristics apply), or a command taken as a plain token
-    (`\\section` in `\\let\\titre\\section`), which is not called.
+    original heuristics apply), a signature without arguments, or a command left
+    bare. `bare` tells that last case apart, whether the signature is known or
+    not: a command taken as a plain token (`\\section` in `\\let\\titre\\section`,
+    `\\demi` in `\\frac\\demi x`) or alone in its braces (`\\titleformat{\\section}`)
+    is itself the argument of another command. It reads none of its own where it
+    is written: what follows it belongs to that other command.
 
     `macro` is the body of the user macro in force at the use (see `expansion`).
     `role` says whether the command opens, separates or closes a primitive
@@ -781,7 +798,7 @@ class TexCommand(TexContent):
     conditional it opens, when the tokeniser could decide it (see `conditions`).
     """
 
-    __slots__ = ("arguments", "macro", "role", "signature", "value")
+    __slots__ = ("arguments", "bare", "macro", "role", "signature", "value")
 
     def __init__(
         self,
@@ -801,6 +818,7 @@ class TexCommand(TexContent):
         self.signature = signature
         self.macro = macro
         self.arguments: list[TexContainer | None] | None = None
+        self.bare = False
         self.role: Role | None = None
         self.value: bool | None = None
 

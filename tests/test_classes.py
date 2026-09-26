@@ -442,6 +442,16 @@ class TestGetCommandsToNext:
         (found,) = parse("\\begin{a}\\item x\\end{a} y\n").get_commands_to_next("item")
         assert found.raw_text() == "\\item x"
 
+    def test_a_command_left_bare_neither_starts_nor_ends_a_selection(self, parse):
+        tex = parse(
+            "\\titleformat{\\section}{\\bfseries}{}{0pt}{}\n"
+            "\\section{A}\ntexte\n\\let\\titre\\section\n\\section{B}\n"
+        )
+        assert [selection.raw_text() for selection in tex.get_commands_to_next("section")] == [
+            "\\section{A}\ntexte\n\\let\\titre\\section",
+            "\\section{B}",
+        ]
+
     def test_graphics_per_section(self, parse):
         tex = parse("\\section{A}\\includegraphics{a}\n\\section{B}\\includegraphics{b}\n")
         assert [

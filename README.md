@@ -243,7 +243,7 @@ magnitude mean something.
   23 times slower, thousands of names invented, kernel signatures lost.
 - **TexSoup** is simpler, and enough for a well-formed file.
 
-And latexdetok is young: version 0.1, one author, tried on one corpus — about
+And latexdetok is young: version 0.2, one author, tried on one corpus — about
 960 physics course files written by the same hand. Its rule that nothing valid
 is an error was checked there, on the 107 files that compile (a recent log, with
 no error); on other packages and other habits, expect infos and warnings it has

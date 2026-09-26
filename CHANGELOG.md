@@ -5,6 +5,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-27
+
+### Added
+
+- `latexdetok check -` reads the document from the standard input, and
+  `--stdin-filename PATH` says which file those bytes are the content of: its
+  folder is where the inclusions are looked for, and its name is what the
+  diagnostics carry. An editor can now have the buffer checked — what is being
+  typed, before it is saved — through any linter bridge, without an extension
+  of its own.
+- `TexFile(lines, path=…)`: lines held in memory that say which file they are
+  the content of. Same thing in the process: the lines given are the ones read,
+  and the path only says where the neighbours are.
+- `decode_lines(data, encoding=None)`, the reading of bytes that `read_lines`
+  now goes through. A file and a buffer give the same lines, endings included,
+  or an editor would be checking another document than the one on disk.
+
 ## [0.2.0] — 2026-09-26
 
 ### Added

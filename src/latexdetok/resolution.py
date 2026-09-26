@@ -63,6 +63,7 @@ import select
 import shutil
 import subprocess
 from collections.abc import Sequence
+from io import StringIO
 from pathlib import Path
 
 try:
@@ -77,7 +78,7 @@ from latexdetok.logger import logger
 from latexdetok.parser import TexParser
 from latexdetok.signatures import JournalEntry, SignatureRegistry
 
-__all__ = ["FALLBACK_ENCODINGS", "TexmfResolver", "clear_caches", "read_lines", "root_of"]
+__all__ = ["FALLBACK_ENCODINGS", "TexmfResolver", "clear_caches", "decode_lines", "read_lines", "root_of"]
 
 FALLBACK_ENCODINGS = ("utf-8", "latin-1")
 # The two spellings of UTF-8 that `codecs` knows; which one a file gets is its byte order mark's call.
@@ -99,21 +100,36 @@ _definitions: dict[DefinitionsKey, tuple[tuple[JournalEntry, ...], CatcodeTable]
 def read_lines(path: Path, encoding: str | None = None) -> tuple[str, list[str]]:
     """The lines of the file as written, line endings included, and the encoding that writes them back.
 
+    See `decode_lines`, which does the reading: a file and a buffer held in
+    memory must give the same lines, or an editor would see another document
+    than the one on disk.
+    """
+    return decode_lines(path.read_bytes(), encoding)
+
+
+def decode_lines(data: bytes, encoding: str | None = None) -> tuple[str, list[str]]:
+    """The lines of those bytes as written, line endings included, and the encoding that writes them back.
+
     With no encoding given: UTF-8, then the Latin-1 of old sources, which reads
-    any byte at all and makes a safe fallback. A UTF-8 file, found or forced,
-    says `utf-8-sig` if it starts with a byte order mark, which is then not part
-    of the first line, and `utf-8` otherwise.
+    any byte at all and makes a safe fallback. UTF-8, found or forced, says
+    `utf-8-sig` if the text starts with a byte order mark, which is then not
+    part of the first line, and `utf-8` otherwise.
+
+    Lines are cut the way a file opened with `newline=""` cuts them — on `\n`,
+    `\r` and `\r\n`, and on nothing else. `str.splitlines` would also cut on a
+    form feed and on the `\x85` of a cp1252 `…` read as Latin-1, which shifts
+    every line number after it.
     """
     encodings = (encoding,) if encoding else FALLBACK_ENCODINGS
     for candidate in encodings:
         utf8 = codecs.lookup(candidate).name in UTF8_CODECS
         try:
-            with path.open(encoding="utf-8" if utf8 else candidate, newline="") as file:
-                lines = file.readlines()
+            text = data.decode("utf-8" if utf8 else candidate)
         except UnicodeDecodeError:
             if candidate == encodings[-1]:
                 raise
             continue
+        lines = StringIO(text, newline="").readlines()
         if not utf8:
             return candidate, lines
         if not lines or not lines[0].startswith(BYTE_ORDER_MARK):

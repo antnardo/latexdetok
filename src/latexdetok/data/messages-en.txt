@@ -16,6 +16,8 @@ severity.infos                                  infos
 # Command line
 cli.unreadable                                  {path}: unreadable: {error}
 cli.hidden                                      ({count} hidden, see --infos)
+cli.stdin-alone                                 `-` reads the standard input: it goes alone, without other paths
+cli.stdin-filename-without-stdin                --stdin-filename says what `-` is the content of: give `-` as the path
 
 # Structure: what was never closed
 unclosed-brace                                  “{” never closed

@@ -452,9 +452,42 @@ On the command line: it exits in error if there is an error, shows infos with
 given.
 
 ```bash
-python3 -m latexdetok check cours.tex
-python3 -m latexdetok check chapitres/ --json
+latexdetok check cours.tex
+latexdetok check chapitres/ --json
 ```
+
+## Checking a buffer, not a file
+
+An editor has something a file does not: what is being typed, before it is
+saved. The path `-` reads the document from the standard input, and
+`--stdin-filename` says which file those bytes are the content of — its folder
+is where `\input` and `\usepackage` are looked for, and its name is what the
+diagnostics carry.
+
+```bash
+cat cours.tex | latexdetok check - --json --stdin-filename cours.tex
+```
+
+In the process, the same thing is `path`: lines held in memory that know where
+they come from. The lines given are the ones read — the file on disk is only
+ever asked where its neighbours are.
+
+```pycon
+>>> _ = (folder / "shorthands.tex").write_text("\\newcommand{\\beq}{\\begin{equation}}\n", encoding="utf-8")
+>>> _ = (folder / "en-cours.tex").write_text("c'est ce qui est enregistré\n", encoding="utf-8")
+>>> tampon = ["\\input{shorthands}\n", "\\begin{document}\n", "\\beq x\\end{equation}\n", "\\end{document}\n"]
+>>> en_cours = TexFile(tampon, path=folder / "en-cours.tex")
+>>> en_cours.name, en_cours.lines[2]
+('en-cours.tex', '\\beq x\\end{equation}\n')
+>>> _ = en_cours.analyse(follow_inputs=True)
+>>> check(en_cours)
+[]
+
+```
+
+`\beq` opens the environment that `\end{equation}` closes: without
+`shorthands.tex`, found next to the path, the `\end` would have nothing to
+close.
 
 In VS Code, a task runs the command on the open file, and its diagnostics show
 up in the Problems panel. One problem matcher per severity, because VS Code only

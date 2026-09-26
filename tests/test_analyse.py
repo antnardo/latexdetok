@@ -1,5 +1,7 @@
 """`TexFile`: reading files, reading the source back, queries on the examples."""
 
+from pathlib import Path
+
 import pytest
 
 from latexdetok import TexContent, TexFile, read_lines
@@ -85,6 +87,43 @@ class TestReading:
     def test_an_invalid_source(self):
         with pytest.raises(TypeError, match="expected a path"):
             TexFile(42)  # type: ignore[arg-type]
+
+
+class TestLinesThatComeFromAFile:
+    """`path`: lines held in memory that say which file they are the content of."""
+
+    def test_the_name_and_the_file_come_from_the_path(self):
+        tex = TexFile(["a\n"], path="chapitres/un.tex")
+        assert (tex.name, tex.src_file) == ("un.tex", Path("chapitres/un.tex"))
+
+    def test_a_name_given_wins(self):
+        assert TexFile(["a\n"], name="extrait", path="chapitres/un.tex").name == "extrait"
+
+    def test_the_encoding_is_the_one_given(self):
+        assert TexFile(["a\n"], encoding="latin-1").encoding == "latin-1"
+
+    def test_the_lines_are_not_read_again_from_the_disk(self, tmp_path):
+        path = tmp_path / "cours.tex"
+        path.write_text("sur le disque\n", encoding="utf-8")
+        assert TexFile(["en mémoire\n"], path=path).lines == ["en mémoire\n"]
+
+    def test_the_inclusions_are_looked_for_in_the_folder_of_the_path(self, tmp_path):
+        (tmp_path / "defs.tex").write_text("\\newcommand{\\R}{\\mathbb{R}}\n", encoding="utf-8")
+        tex = TexFile(["\\input{defs}\n"], path=tmp_path / "cours.tex")
+        tex.analyse(follow_inputs=True)
+        assert tex.signatures.macro("R") is not None
+
+    def test_without_a_path_nothing_is_looked_for_beside_it(self, tmp_path):
+        (tmp_path / "defs.tex").write_text("\\newcommand{\\R}{\\mathbb{R}}\n", encoding="utf-8")
+        tex = TexFile(["\\input{defs}\n"])
+        tex.analyse(follow_inputs=True)
+        assert tex.signatures.macro("R") is None
+
+    def test_a_path_source_already_says_where_it_comes_from(self, tmp_path):
+        path = tmp_path / "cours.tex"
+        path.write_text("a\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="lines held in memory"):
+            TexFile(path, path=path)
 
 
 class TestAnalysis:

@@ -6,7 +6,7 @@ import shutil
 import pytest
 
 from latexdetok import CatcodeTable, Category, TexCommand, TexFile, resolution
-from latexdetok.resolution import TexmfResolver, clear_caches
+from latexdetok.resolution import TexmfResolver, clear_caches, decode_lines, read_lines
 
 requires_kpsewhich = pytest.mark.skipif(shutil.which("kpsewhich") is None, reason="TeX Live absent")
 
@@ -350,3 +350,45 @@ class TestMasterDocument:
         tex = TexFile(chapter)
         tex.analyse()
         assert (tex.root, spec(tex, "vect")) == (None, None)
+
+
+class TestDecodeLines:
+    """The bytes of a buffer read like the bytes of a file: an editor sees the same document."""
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            (b"a\nb\n", ["a\n", "b\n"]),
+            (b"a\r\nb\r\n", ["a\r\n", "b\r\n"]),
+            (b"a\rb\r", ["a\r", "b\r"]),
+            (b"a\r\nb\nc\r", ["a\r\n", "b\n", "c\r"]),
+            (b"a\nb", ["a\n", "b"]),
+            (b"", []),
+            # `str.splitlines` would cut on the form feed and shift every line number after it.
+            (b"a\x0cb\nc\n", ["a\x0cb\n", "c\n"]),
+        ],
+    )
+    def test_the_line_endings_are_the_ones_written(self, data, expected):
+        assert decode_lines(data)[1] == expected
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            ("é\n".encode(), ("utf-8", ["é\n"])),
+            ("\ufeffé\n".encode(), ("utf-8-sig", ["é\n"])),
+            ("\ufeff\né\n".encode(), ("utf-8-sig", ["\n", "é\n"])),
+            ("Étude\n".encode("latin-1"), ("latin-1", ["Étude\n"])),
+        ],
+    )
+    def test_the_encoding_found(self, data, expected):
+        assert decode_lines(data) == expected
+
+    def test_a_forced_encoding_that_does_not_read(self):
+        with pytest.raises(UnicodeDecodeError):
+            decode_lines("Étude\n".encode("latin-1"), "utf-8")
+
+    def test_a_file_and_its_bytes_read_the_same(self, tmp_path):
+        data = "\ufeffÉtude\r\nde $x$\n".encode()
+        path = tmp_path / "cours.tex"
+        path.write_bytes(data)
+        assert read_lines(path) == decode_lines(data)

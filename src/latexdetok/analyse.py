@@ -39,7 +39,10 @@ from latexdetok.parser import BranchRegion, CatcodeRegions, TexParser
 from latexdetok.resolution import TexmfResolver, read_lines, root_of
 from latexdetok.signatures import SignatureRegistry
 
-__all__ = ["TexFile", "read_lines"]
+__all__ = ["LINES_NAME", "TexFile", "read_lines"]
+
+# What lines held in memory are called when neither `name` nor `path` says otherwise.
+LINES_NAME = "<List of strings content>"
 
 
 class TexFile:
@@ -47,6 +50,12 @@ class TexFile:
 
     `analyse()` builds the tree into `self.container`; the queries
     (`get_sections`, `get_envs`…) then apply to the whole file.
+
+    Lines held in memory say through `path` which file they are the content of:
+    that is what an editor has, a buffer whose unsaved state is the document
+    that matters. The folder of that path is where inclusions are looked for,
+    `% !TEX root` is read from it, and the diagnostics are named after it — the
+    lines are still the ones given, never re-read from the disk.
     """
 
     def __init__(
@@ -55,18 +64,21 @@ class TexFile:
         *,
         encoding: str | None = None,
         name: str | None = None,
+        path: str | PathLike[str] | None = None,
         verbose: bool = False,
     ) -> None:
         if isinstance(src, (str, PathLike)):
+            if path is not None:
+                raise ValueError("`path` is for lines held in memory: a path source already says where")
             self.src_file: Path | None = Path(src)
             self.encoding: str | None
             self.encoding, self.lines = read_lines(self.src_file, encoding)
             self.name = name or self.src_file.name
         elif isinstance(src, (list, tuple)):
-            self.src_file = None
-            self.encoding = None
+            self.src_file = Path(path) if path is not None else None
+            self.encoding = encoding
             self.lines = list(src)
-            self.name = name or "<List of strings content>"
+            self.name = name or (self.src_file.name if self.src_file is not None else LINES_NAME)
         else:
             raise TypeError(f"expected a path or a list of lines, got {type(src).__name__}")
         self.container = TexGroup(ROOT_NAME, env=True, rootfile=self, position=(1, 0), end_position=(1, 0))

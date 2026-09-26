@@ -16,6 +16,8 @@ severity.infos                                  infos
 # Ligne de commande
 cli.unreadable                                  {path} : illisible : {error}
 cli.hidden                                      ({count} masquées, voir --infos)
+cli.stdin-alone                                 « - » lit l'entrée standard : il va seul, sans autre chemin
+cli.stdin-filename-without-stdin                --stdin-filename dit de quoi « - » est le contenu : donner « - » comme chemin
 
 # Structure : ce qui n'a pas été fermé
 unclosed-brace                                  « { » jamais fermée

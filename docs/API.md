@@ -113,7 +113,7 @@ import outline`).
 ### `TexFile`
 
 ```python
-TexFile(src, *, encoding=None, name=None, verbose=False)
+TexFile(src, *, encoding=None, name=None, path=None, verbose=False)
 ```
 
 A LaTeX source, from a path (`str` or `os.PathLike`) or from a list (or tuple)
@@ -124,13 +124,14 @@ of lines, line endings included. Any other type raises `TypeError`.
 | `src` | the path of the file, or its lines |
 | `encoding` | a forced encoding; by default UTF-8, then Latin-1 (see `read_lines`) |
 | `name` | the name displayed (diagnostics, outline); by default the file name, or `<List of strings content>` |
+| `path` | for lines only: the file they are the content of — its folder is where inclusions are looked for, `% !TEX root` is read from it, and it names the diagnostics. The lines given are kept, never read again from the disk. With a path source, raises `ValueError` |
 | `verbose` | traces the analysis on the console (`set_verbose`) |
-Attributs :
+
 Attributes:
-| Attribut | Type | Contenu |
+
 | Attribute | Type | Contents |
 | --- | --- | --- |
-| `src_file` | `Path \| None` | the path of the source, `None` for lines |
+| `src_file` | `Path \| None` | the path of the source, or the `path` of lines that come from one; `None` otherwise |
 | `encoding` | `str \| None` | the encoding that was used to read, and that writes the file back: `utf-8-sig` only if it starts with a byte order mark |
 | `lines` | `list[str]` | the lines of the source as written, line endings included: `\r\n` stays `\r\n` |
 | `name` | `str` | the name displayed |
@@ -174,13 +175,27 @@ master, and its inclusions are looked for from the master's folder.
 read_lines(path: Path, encoding: str | None = None) -> tuple[str, list[str]]
 ```
 
-`(encoding, lines)` of a file, line endings included and not translated: the
-lines are cut at `\n`, `\r\n` or a lone `\r`, as TeX cuts them, and keep their
-ending. With no encoding: `utf-8`, then `latin-1`, which reads any byte at all.
-The encoding returned writes the lines back identically: a UTF-8 file, found or
-forced, gives `utf-8-sig` if it starts with a byte order mark, which is then
-not part of the first line, and `utf-8` otherwise. A forced encoding that does
-not fit raises `UnicodeDecodeError`.
+`(encoding, lines)` of a file: the bytes are read, then `decode_lines` does
+the rest.
+
+### `decode_lines`
+
+```python
+decode_lines(data: bytes, encoding: str | None = None) -> tuple[str, list[str]]
+```
+
+`(encoding, lines)` of those bytes, line endings included and not translated:
+the lines are cut at `\n`, `\r\n` or a lone `\r`, as TeX cuts them, and keep
+their ending — never at a form feed, which `str.splitlines` would cut and which
+would shift every line number after it. With no encoding: `utf-8`, then
+`latin-1`, which reads any byte at all. The encoding returned writes the lines
+back identically: UTF-8, found or forced, gives `utf-8-sig` if the text starts
+with a byte order mark, which is then not part of the first line, and `utf-8`
+otherwise. A forced encoding that does not fit raises `UnicodeDecodeError`.
+
+A file and a buffer held in memory must give the same lines, or an editor would
+be checking another document than the one on disk: that is why both go through
+here.
 
 ## `checks`: checking a document
 
@@ -315,10 +330,15 @@ starts with no list and no alignment known.
 ## Command line
 
 ```bash
-python3 -m latexdetok check CHEMIN… [--json] [--infos] [--no-inputs] [--no-expand] [--color auto|always|never]
+latexdetok check CHEMIN… [--stdin-filename PATH] [--json] [--infos] [--no-inputs] [--no-expand]
+                         [--color auto|always|never]
 ```
 
-A folder gives all its `.tex`. The rendering of `render_text`, infos hidden without `--infos`, then a summary
+A folder gives all its `.tex`. The path `-` reads the document from the
+standard input, goes alone, and takes its name and its folder from
+`--stdin-filename` when one is given; without it the diagnostics say `-` and
+the inclusions are looked for in the current folder. The rendering of
+`render_text`, infos hidden without `--infos`, then a summary
 (`2 errors, 1 warning, 0 info`); with `--json`, one single array for every file.
 Exit codes: 0 with no error, 1 with at least one error, 2 for an unreadable
 file. `main(argv)` (in `latexdetok.__main__`) returns that code.
@@ -923,6 +943,7 @@ leaves it its own.
 | Function | Returns |
 | --- | --- |
 | `read_lines(path, encoding=None)` | see [`analyse`](#read_lines) |
+| `decode_lines(data, encoding=None)` | the same, from bytes: what a buffer read from the standard input goes through |
 | `root_of(path, lines)` | the master document declared by `% !TEX root = …` in the first 20 lines, if it exists and is not the file itself |
 | `clear_caches()` | forgets the cached searches and definitions, and closes the interactive `kpsewhich` |
 

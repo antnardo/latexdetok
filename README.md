@@ -304,11 +304,23 @@ private tools:
 ## Diagnosing a document
 
 ```bash
-python3 -m latexdetok check cours.tex
-python3 -m latexdetok check chapitres/ --json
+latexdetok check cours.tex
+latexdetok check chapitres/ --json
 ```
 
 Compiler-style output, exit code 1 if there is an error.
+
+The path `-` reads the document from the standard input, and
+`--stdin-filename` says which file those bytes are the content of: its folder
+is where the inclusions are looked for, and its name is what the diagnostics
+carry. That is what an editor has to offer — the buffer, with what has just
+been typed and not yet saved — and it is enough to plug latexdetok into a
+linter bridge (`efm-langserver`, `nvim-lint`, a “lint on save” extension)
+without writing one.
+
+```bash
+cat cours.tex | latexdetok check - --json --stdin-filename cours.tex
+```
 
 In VS Code, two tasks turn that output into problems in the editor. Declared in
 the user's `tasks.json` rather than a workspace's, they work in every folder:

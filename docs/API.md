@@ -33,6 +33,7 @@ The few examples on this page run like those of `EXAMPLES.md`
 - [`characters`: characters and names](#characters-characters-and-names)
 - [`logger`: the log](#logger-the-log)
 - [`compilation`: compiled modules](#compilation-compiled-modules)
+- [`server`: the language server](#server-the-language-server)
 - [Scripts](#scripts)
 
 ## Conventions
@@ -944,6 +945,7 @@ leaves it its own.
 | --- | --- |
 | `read_lines(path, encoding=None)` | see [`analyse`](#read_lines) |
 | `decode_lines(data, encoding=None)` | the same, from bytes: what a buffer read from the standard input goes through |
+| `split_lines(text)` | the lines of a text as written, endings included: what an editor holds, cut where a file is cut |
 | `root_of(path, lines)` | the master document declared by `% !TEX root = …` in the first 20 lines, if it exists and is not the file itself |
 | `clear_caches()` | forgets the cached searches and definitions, and closes the interactive `kpsewhich` |
 
@@ -1197,6 +1199,38 @@ the front of the package path if they match the sources.
 In compiled mode, a method of a compiled class cannot be replaced at run time,
 a compiled class cannot be subclassed outside the package, and an attribute
 refuses a value of a type other than the annotated one (`TypeError`).
+
+## `server`: the language server
+
+`pip install "latexdetok[lsp]"` brings `pygls`, the only dependency the package
+has ever taken, and only for this module: the core stays on the standard
+library. The console script `latexdetok-lsp` speaks the protocol on its
+standard input, which is how an editor starts a server.
+
+A command answers about the file that was saved; the server answers about the
+buffer, at every keystroke — 14 to 76 ms, against some 600 ms for a fresh
+process, which is the whole reason it is a server.
+
+| Name | Role |
+| --- | --- |
+| `diagnose(text, uri)` | the diagnostics of a buffer as `lsprotocol` writes them; the folder of `uri` is where the inclusions are looked for, and an untitled buffer has none |
+| `server` | the `LanguageServer`, with the four notifications an editor sends: open, change, save, close |
+| `settings` | what `initializationOptions` may change: `language` (`en`, `fr`), `followInputs`, `expand` |
+| `SEVERITIES` | the three severities of the package, in the four of the protocol |
+| `main()` | `server.start_io()`, what the console script runs |
+
+What crosses over, and what is converted. A `TexDiagnostic` already carries
+what the protocol asks for — a span with its two ends, a severity, a stable
+code, a message, the related places, the fix. Two things change on the way:
+the column, counted here in characters and there in UTF-16 code units, which
+differ on anything outside the basic plane; and the fix, which has no field of
+its own and becomes the second line of the message.
+
+A document being typed is wrong most of the time, half-written commands and
+environments not yet closed: that is what the tolerance of the package is for.
+
+The client for VS Code is in `editors/vscode/`; any other LSP editor points its
+client at `latexdetok-lsp`, over stdio, for the `latex` language.
 
 ## Scripts
 

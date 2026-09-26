@@ -30,6 +30,11 @@ classifiers = [
 ]
 dependencies = []
 
+# The core stays on the standard library; the language server needs a protocol
+# implementation, and whoever does not want a server does not carry it.
+[project.optional-dependencies]
+lsp = ["pygls>=2.0"]
+
 [project.urls]
 Homepage = "https://github.com/antnardo/latexdetok"
 Documentation = "https://github.com/antnardo/latexdetok/blob/main/docs/API.md"
@@ -39,12 +44,14 @@ Changelog = "https://github.com/antnardo/latexdetok/blob/main/CHANGELOG.md"
 
 [project.scripts]
 latexdetok = "latexdetok.__main__:main"
+latexdetok-lsp = "latexdetok.server:main"
 
 [dependency-groups]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
     "mypy>=1.11",
+    "pygls>=2.0",
 ]
 # The mypyc build, apart: it must run under the interpreter it builds for.
 compile = [
@@ -66,6 +73,7 @@ include = [
     "/tests",
     "/docs",
     "/scripts",
+    "/editors",
     "/README.md",
     "/LICENSE",
     "/CHANGELOG.md",

@@ -5,6 +5,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-27
+
+### Added
+
+- A **language server**: `pip install "latexdetok[lsp]"` installs
+  `latexdetok-lsp`, which speaks the protocol on its standard input and
+  underlines the buffer as it is typed. A command answers about the file that
+  was saved; the server answers about what is being written — 14 to 76 ms a
+  check, against some 600 ms for a fresh process, which is the whole reason it
+  is a server. Settings travel in `initializationOptions`: `language`,
+  `followInputs`, `expand`.
+- A client for VS Code, in `editors/vscode/`: it starts the server and hands it
+  the buffer, and does nothing else. Not on the marketplace — `npm install`,
+  `npx @vscode/vsce package`, `code --install-extension`. Any other LSP editor
+  points its own client at `latexdetok-lsp`, over stdio.
+- `split_lines(text)`, beside `decode_lines(data)`: the lines of a text as
+  written, cut where a file is cut. An editor holds a string, not bytes.
+
+`pygls` is the only dependency the package has ever taken, and only for the
+server: the core stays on the standard library, and whoever does not want a
+server does not carry it.
+
 ## [0.3.0] — 2026-09-27
 
 ### Added

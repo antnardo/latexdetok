@@ -78,7 +78,15 @@ from latexdetok.logger import logger
 from latexdetok.parser import TexParser
 from latexdetok.signatures import JournalEntry, SignatureRegistry
 
-__all__ = ["FALLBACK_ENCODINGS", "TexmfResolver", "clear_caches", "decode_lines", "read_lines", "root_of"]
+__all__ = [
+    "FALLBACK_ENCODINGS",
+    "TexmfResolver",
+    "clear_caches",
+    "decode_lines",
+    "read_lines",
+    "root_of",
+    "split_lines",
+]
 
 FALLBACK_ENCODINGS = ("utf-8", "latin-1")
 # The two spellings of UTF-8 that `codecs` knows; which one a file gets is its byte order mark's call.
@@ -129,7 +137,7 @@ def decode_lines(data: bytes, encoding: str | None = None) -> tuple[str, list[st
             if candidate == encodings[-1]:
                 raise
             continue
-        lines = StringIO(text, newline="").readlines()
+        lines = split_lines(text)
         if not utf8:
             return candidate, lines
         if not lines or not lines[0].startswith(BYTE_ORDER_MARK):
@@ -137,6 +145,18 @@ def decode_lines(data: bytes, encoding: str | None = None) -> tuple[str, list[st
         lines[0] = lines[0].removeprefix(BYTE_ORDER_MARK)
         return "utf-8-sig", lines if lines[0] else lines[1:]
     raise AssertionError("unreachable: the last encoding either raises or returns")
+
+
+def split_lines(text: str) -> list[str]:
+    """The lines of a text as written, line endings included: what an editor holds, cut as TeX cuts.
+
+    `StringIO(newline="")` cuts exactly where a file opened the same way does —
+    on `\n`, `\r` and `\r\n`, and nowhere else. `str.splitlines` would also cut
+    on a form feed, on the `\x85` of a cp1252 `…` read as Latin-1, and on the
+    line and paragraph separators of Unicode, shifting every line number after
+    them.
+    """
+    return StringIO(text, newline="").readlines()
 
 
 def root_of(path: Path, lines: Sequence[str]) -> Path | None:

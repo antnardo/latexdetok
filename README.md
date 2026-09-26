@@ -97,6 +97,8 @@ intro.tex:8:1: error [crossed-environment] “\begin{itemize}” closed by “\e
 - **Edits**: a modified output drawn from the analysis, the rest of the source
   identical byte for byte, line endings and byte order mark included — for a
   minimal diff.
+- **In the editor**: a language server (`latexdetok-lsp`) underlines the
+  buffer as it is typed, with a client for VS Code; any LSP editor can use it.
 - **Frame**: an outline in text, an HTML page with two views.
 - **Speed**: the core compiles with mypyc, twice as fast.
 
@@ -322,8 +324,57 @@ without writing one.
 cat cours.tex | latexdetok check - --json --stdin-filename cours.tex
 ```
 
-In VS Code, two tasks turn that output into problems in the editor. Declared in
-the user's `tasks.json` rather than a workspace's, they work in every folder:
+## In an editor
+
+A command run on a file answers about what was saved. A **language server**
+answers about what is being typed: the editor sends it the buffer at every
+keystroke and gets back the places to underline. That is the whole protocol —
+one process, started once, spoken to over its standard input.
+
+```bash
+pip install "latexdetok[lsp]"   # brings pygls, the only dependency there is
+latexdetok-lsp                  # what the editor starts; it waits on stdin
+```
+
+Why a server and not the command: `latexdetok check -` answers in 14 to 76 ms
+once the package is imported, but a fresh process costs some 600 ms — the
+import, then the first search through `kpsewhich`. The server pays that once.
+
+Settings travel in `initializationOptions`: `language` (`en`, `fr`),
+`followInputs` and `expand`.
+
+### VS Code
+
+The client lives in
+[editors/vscode](https://github.com/antnardo/latexdetok/tree/main/editors/vscode).
+It is not on the marketplace; build it and install it in one go:
+
+```bash
+cd editors/vscode && npm install && npx @vscode/vsce package -o latexdetok.vsix
+code --install-extension latexdetok.vsix
+```
+
+Then `latexdetok.serverPath` in the settings, if `latexdetok-lsp` is not on the
+`PATH` VS Code sees — an environment of one's own usually is not:
+
+```json
+{
+  "latexdetok.serverPath": "~/Envs/Main/bin/latexdetok-lsp",
+  "latexdetok.language": "fr"
+}
+```
+
+### Any other editor
+
+Neovim, Emacs, Kate, Helix: point their LSP client at the command
+`latexdetok-lsp`, over stdio, for the `latex` language. There is nothing else
+to configure, and nothing of VS Code in the server.
+
+### Without a server
+
+Two tasks give the same diagnostics on demand, without installing anything more
+than the package. Declared in the user's `tasks.json` rather than a
+workspace's, they work in every folder:
 
 | Task | What it checks |
 | --- | --- |
@@ -378,11 +429,13 @@ python3 scripts/fingerprints.py path/to/corpus --inputs --expand -o before.json
 | `text.py` | `to_text`: typeset text, map back to the source |
 | `export.py` | `Edit`, `corrected`, `rewrite`: editing the source |
 | `rendering.py` | outline, HTML page |
+| `server.py` | `latexdetok-lsp`: the language server (needs the `lsp` extra) |
 | `compilation.py`, `_mypyc/` | loading of the compiled modules (folder ignored by git) |
 
 The package is in `src/latexdetok/`; `scripts/` holds the development helpers
-(rendering, corpus, fingerprints, bench, build, signature harvest) and `tests/`
-the tests, including the examples of the documentation.
+(rendering, corpus, fingerprints, bench, build, signature harvest), `tests/`
+the tests, including the examples of the documentation, and `editors/vscode/`
+the client that starts the server in VS Code.
 
 ## Licence
 

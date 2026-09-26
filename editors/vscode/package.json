@@ -1,0 +1,63 @@
+{
+  "name": "latexdetok",
+  "displayName": "latexdetok",
+  "description": "Diagnostics for LaTeX sources, underlined as they are typed, from the latexdetok language server.",
+  "version": "0.1.0",
+  "publisher": "antnardo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/antnardo/latexdetok.git",
+    "directory": "editors/vscode"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:latex"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "latexdetok",
+      "properties": {
+        "latexdetok.serverPath": {
+          "type": "string",
+          "default": "latexdetok-lsp",
+          "markdownDescription": "The command that starts the server. `pip install latexdetok[lsp]` installs it; give the whole path when it is not on the `PATH` VS Code sees, for example `~/Envs/Main/bin/latexdetok-lsp`."
+        },
+        "latexdetok.language": {
+          "type": "string",
+          "enum": [
+            "en",
+            "fr"
+          ],
+          "default": "en",
+          "description": "The language of the messages. The diagnostic codes never change."
+        },
+        "latexdetok.followInputs": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Read the definitions of the files the document loads (`\\input`, `\\usepackage`, `% !TEX root`). Off, a macro that opens an environment passes for unbalanced."
+        },
+        "latexdetok.expand": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Expand the macros of the document before diagnosing. Off, `\\beq … \\eeq` passes for unbalanced."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "latexdetok.restart",
+        "title": "latexdetok: restart the server"
+      }
+    ]
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}

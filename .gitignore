@@ -13,3 +13,7 @@ htmlcov/
 
 # The mypyc build: produced by scripts/compile.py, never committed.
 src/latexdetok/_mypyc/
+
+# The VS Code client: npm's business, and the package it builds.
+editors/vscode/node_modules/
+editors/vscode/*.vsix

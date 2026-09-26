@@ -114,7 +114,9 @@ class TestRawText:
     def test_leaves_read_their_source_again(self, fixture_file, walk):
         mismatches = []
         for node in walk(fixture_file.container):
-            raw = node.raw_text()
+            # `raw_text()` keeps the file's line endings — `\r\n` in a Windows checkout — and `str()`
+            # writes `\n`: they are compared in `\n`.
+            raw = re.sub(r"\r\n?", "\n", node.raw_text())
             if node.is_pure_text() and not node.is_par():
                 ok = collapse_spaces(raw) == node.content
             elif node.is_par():

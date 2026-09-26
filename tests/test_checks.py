@@ -116,3 +116,26 @@ class TestLoadedFiles:
             "\\documentclass{article}\n\\begin{document}\n\\input{absent}\n\\end{document}\n",
         )
         assert check(path, follow_inputs=False) == []
+
+
+class TestWhatOneMistakeHides:
+    """Independent mistakes are all reported; what an unmatched opening swallows is not.
+
+    Reporting the `\\item` that follows a `$` left open would be reporting the
+    same mistake twice: inside that math, an `\\item` is not an `\\item` out of
+    place. The editor shows the next one as soon as the first is settled.
+    """
+
+    def test_two_independent_mistakes_are_both_reported(self, parse):
+        tex = parse("\\begin{document}\n\\item un\n\nsuite.\n\\item deux\n\\end{document}\n")
+        assert [d.code for d in check(tex)] == ["item-outside-list", "item-outside-list"]
+
+    def test_what_comes_before_an_unclosed_opening_is_still_reported(self, parse):
+        tex = parse("\\begin{document}\n\\item hors liste\n\nSoit $x\n\nsuite.\n\\end{document}\n")
+        assert [d.code for d in check(tex)] == ["item-outside-list", "unclosed-math"]
+
+    def test_what_an_unclosed_math_swallows_waits_its_turn(self, parse):
+        tex = parse("\\begin{document}\nSoit $x\n\nsuite.\n\\item hors liste\n\\end{document}\n")
+        assert [d.code for d in check(tex)] == ["unclosed-math"]
+        settled = parse("\\begin{document}\nSoit $x$\n\nsuite.\n\\item hors liste\n\\end{document}\n")
+        assert [d.code for d in check(settled)] == ["item-outside-list"]

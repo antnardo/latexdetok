@@ -38,3 +38,13 @@ def test_the_command_it_registers_is_declared(manifest):
     declared = {command["command"] for command in manifest["contributes"]["commands"]}
     source = (MANIFEST.parent / "extension.js").read_text(encoding="utf-8")
     assert all(f'registerCommand("{command}"' in source for command in declared)
+
+
+def test_what_it_declares_in_an_untrusted_workspace(manifest):
+    # Without the declaration, VS Code disables the extension there and nothing is underlined.
+    # The command that starts the server is a setting: it must not come from the workspace.
+    untrusted = manifest["capabilities"]["untrustedWorkspaces"]
+    assert (untrusted["supported"], untrusted["restrictedConfigurations"]) == (
+        "limited",
+        ["latexdetok.serverPath"],
+    )

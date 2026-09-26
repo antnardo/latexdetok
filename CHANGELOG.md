@@ -5,6 +5,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+## [0.4.2] — 2026-09-27
+
+### Fixed
+
+- The server logs the traceback of what it could not analyse, not only the name
+  of the document: a server that swallows the reason is a server nobody can
+  fix. The editor shows it in its output channel.
+- The VS Code client declares what it does in an untrusted workspace. Without
+  that declaration VS Code disabled it there and nothing was underlined, with
+  no message. The command that starts the server is now taken from the user
+  settings only, never from a workspace one has not approved.
+- The client restarts even when the previous server never started: stopping a
+  client in that state raises, and the restart stopped there.
+
+### Changed
+
+- The README no longer promises “every mistake at once” without a word on what
+  an unmatched opening swallows. Independent mistakes are all reported; inside
+  a `$` left open, an `\item` is math, not an `\item` out of place, and
+  reporting it would be reporting the same mistake twice. In an editor the next
+  one appears as soon as the first is corrected.
+
 ## [0.4.1] — 2026-09-27
 
 ### Fixed

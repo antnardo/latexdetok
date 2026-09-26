@@ -218,6 +218,12 @@ A diagnostic whose start is written by a macro body is placed on the use, and
 its message says so: “written by “\beq””, “written by “\x” inside “\y”” when the
 use of `\x` itself comes from a body.
 
+Independent mistakes are all returned at once, but what an opening that never
+closes swallows is not judged until that opening is settled: inside a `$` left
+open, an `\item` is math, not an `\item` out of place, and reporting it would
+be reporting the same mistake twice. In an editor, the next one appears as soon
+as the first is corrected.
+
 ### `diagnose` and `in_source`
 
 | Function | Returns |

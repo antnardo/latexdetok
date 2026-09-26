@@ -32,6 +32,7 @@ library, and whoever does not want a server does not carry it.
 
 import asyncio
 import sys
+import traceback
 from pathlib import Path
 
 try:
@@ -159,8 +160,12 @@ async def _analyse(uri: str, delay: float) -> None:
     except asyncio.CancelledError:
         raise
     except Exception:  # a server that dies stops underlining anything at all
+        # With the traceback: a server that swallows the reason is a server nobody can fix.
         server.window_log_message(
-            types.LogMessageParams(type=types.MessageType.Error, message=f"latexdetok: {uri}")
+            types.LogMessageParams(
+                type=types.MessageType.Error,
+                message=f"latexdetok: {uri}\n{traceback.format_exc()}",
+            )
         )
     finally:
         _pending.pop(uri, None)

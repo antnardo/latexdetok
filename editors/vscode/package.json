@@ -59,5 +59,18 @@
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "The diagnostics work, but the command that starts the server is taken from the user settings only.",
+      "restrictedConfigurations": [
+        "latexdetok.serverPath"
+      ]
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "The server reads the files a document loads, so it needs them on disk."
+    }
   }
 }

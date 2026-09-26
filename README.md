@@ -74,10 +74,13 @@ intro.tex:8:1: error [crossed-environment] “\begin{itemize}” closed by “\e
   (`diagnostics`), never refused.
 - **Diagnostics**: `check` and the `latexdetok check` command say what is
   wrong, better than TeX does: the cause rather than the place where TeX gave
-  up, the opening facing the closing, the fix, every mistake at once. Structure
-  and meaning (`\item` outside a list, `&` outside a table, `^` outside math, a
-  missing argument…), macros expanded, and nothing that may be valid is an
-  error.
+  up, the opening facing the closing, the fix, and every independent mistake at
+  once. Structure and meaning (`\item` outside a list, `&` outside a table, `^`
+  outside math, a missing argument…), macros expanded, and nothing that may be
+  valid is an error. What follows an opening that never closes is not judged
+  until that opening is settled: inside a `$` left open, an `\item` is math, not
+  an `\item` out of place — reporting it would be reporting the same mistake
+  twice.
 - **Signatures**: the commands of the LaTeX2e kernel bind their arguments
   (`\section`: `s o m`), and a hand-written table covers the common packages
   (amsmath, graphicx, siunitx, beamer, booktabs, enumitem…); the definitions of

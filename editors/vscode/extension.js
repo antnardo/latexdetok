@@ -46,7 +46,11 @@ async function stop() {
   const running = client;
   client = undefined;
   if (running) {
-    await running.stop();
+    try {
+      await running.stop();
+    } catch {
+      // A client whose server never started refuses to stop; the next one is new anyway.
+    }
   }
 }
 

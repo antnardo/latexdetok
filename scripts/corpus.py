@@ -119,7 +119,8 @@ def main() -> None:
     options = parser.parse_args()
     folder = options.folder.expanduser()
 
-    paths = sorted(p for p in folder.rglob("*.tex") if not IGNORED_PARTS & set(p.parts))
+    # A folder may be named `x.tex` too.
+    paths = sorted(p for p in folder.rglob("*.tex") if p.is_file() and not IGNORED_PARTS & set(p.parts))
     failures: dict[str, list[str]] = defaultdict(list)
     source_tally, checked_tally = Tally(), Tally()
     characters, elapsed = 0, 0.0

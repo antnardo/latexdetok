@@ -87,7 +87,7 @@ def bench_file(path: Path, options: argparse.Namespace) -> None:
 
 
 def bench_folder(folder: Path, options: argparse.Namespace) -> None:
-    paths = sorted(p for p in folder.rglob("*.tex") if not IGNORED_PARTS & set(p.parts))
+    paths = sorted(p for p in folder.rglob("*.tex") if p.is_file() and not IGNORED_PARTS & set(p.parts))
     clear_caches()
     analysed: list[TexFile] = []
 

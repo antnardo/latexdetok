@@ -136,7 +136,7 @@ def main() -> None:
     parser.add_argument("--compare", type=Path, help="compare with the fingerprints of a JSON file")
     options = parser.parse_args()
     folder = options.folder.expanduser()
-    paths = sorted(p for p in folder.rglob("*.tex") if not IGNORED_PARTS & set(p.parts))
+    paths = sorted(p for p in folder.rglob("*.tex") if p.is_file() and not IGNORED_PARTS & set(p.parts))
 
     prints: dict[str, dict[str, str]] = {}
     for path in paths:

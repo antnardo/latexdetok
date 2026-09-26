@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-09-27
+
+### Fixed
+
+- `latexdetok-lsp` without the `lsp` extra says what to install instead of
+  showing a traceback about `lsprotocol`. An entry point cannot depend on an
+  extra: `pip install latexdetok` installs the command all the same, and an
+  editor that finds that one on its `PATH` — before the environment the server
+  really lives in — failed with a stack trace naming a module nobody had asked
+  for.
+
 ## [0.4.0] — 2026-09-27
 
 ### Added

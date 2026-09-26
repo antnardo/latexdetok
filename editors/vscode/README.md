@@ -33,8 +33,11 @@ code --install-extension latexdetok.vsix
 | `latexdetok.followInputs` | `true` | read the definitions of the loaded files (`\input`, `\usepackage`, `% !TEX root`) |
 | `latexdetok.expand` | `true` | expand the macros of the document before diagnosing |
 
-An environment of one's own is rarely on the `PATH` a desktop application
-inherits, so the first one is the setting to check when nothing is underlined:
+The first one is the setting to check when nothing is underlined. `pip install
+latexdetok` installs `latexdetok-lsp` whether or not the `lsp` extra came with
+it, so the command VS Code finds first on its `PATH` may be one from an
+environment without `pygls`: it says so in the output channel rather than
+starting. Giving the whole path settles it:
 
 ```json
 { "latexdetok.serverPath": "~/Envs/Main/bin/latexdetok-lsp" }

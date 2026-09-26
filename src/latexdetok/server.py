@@ -31,11 +31,23 @@ library, and whoever does not want a server does not carry it.
 """
 
 import asyncio
+import sys
 from pathlib import Path
 
-from lsprotocol import types
-from pygls import uris
-from pygls.lsp.server import LanguageServer
+try:
+    from lsprotocol import types
+    from pygls import uris
+    from pygls.lsp.server import LanguageServer
+except ImportError as error:  # pragma: no cover - the message is what is tested
+    # An entry point cannot depend on an extra: `pip install latexdetok` installs
+    # `latexdetok-lsp` all the same, and an editor that finds it on the PATH would
+    # otherwise show a traceback about a module nobody asked for.
+    print(
+        f"latexdetok: the language server needs pygls ({error.name} is missing):"
+        ' pip install "latexdetok[lsp]"',
+        file=sys.stderr,
+    )
+    raise SystemExit(1) from error
 
 from latexdetok import __version__
 from latexdetok.analyse import TexFile

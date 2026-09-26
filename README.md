@@ -354,8 +354,11 @@ cd editors/vscode && npm install && npx @vscode/vsce package -o latexdetok.vsix
 code --install-extension latexdetok.vsix
 ```
 
-Then `latexdetok.serverPath` in the settings, if `latexdetok-lsp` is not on the
-`PATH` VS Code sees — an environment of one's own usually is not:
+Then `latexdetok.serverPath` in the settings, with the whole path of the
+server. It is worth setting even when `latexdetok-lsp` is on the `PATH` VS Code
+sees: the command is installed by `latexdetok` itself, extra or no extra, so
+the first one found may well be an environment where `pygls` is not — it says
+so rather than starting, but it does not start.
 
 ```json
 {

@@ -196,3 +196,11 @@ class TestOverTheProtocol:
             "unclosed-math",
             {"line": 2, "character": 5},
         )
+
+
+def test_without_pygls_the_command_says_what_to_install():
+    # `pip install latexdetok` installs `latexdetok-lsp` all the same: an entry point
+    # cannot depend on an extra. Found on the PATH, it must say so, not show a traceback.
+    blocked = "import sys; sys.modules['lsprotocol'] = None; import latexdetok.server"
+    done = subprocess.run([sys.executable, "-c", blocked], capture_output=True, text=True)
+    assert (done.returncode, 'pip install "latexdetok[lsp]"' in done.stderr) == (1, True)

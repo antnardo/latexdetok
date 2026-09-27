@@ -62,6 +62,7 @@ import os
 import select
 import shutil
 import subprocess
+import threading
 from collections.abc import Sequence
 from io import StringIO
 from pathlib import Path
@@ -266,6 +267,11 @@ class _Session:
 
 # Per kpathsea setting, the open session; None if it failed, and we do not go back to it.
 _sessions: dict[tuple[str | None, ...], _Session | None] = {}
+# One question at a time. The session is a pipe that answers one line per name: two
+# threads asking at once read each other's answers, the session is given up for both,
+# and the one still inside `find` writes to a pipe the other has just closed. A language
+# server analyses several documents in parallel — this is not a theoretical case.
+_asking = threading.Lock()
 
 
 def _session_find(executable: str, filename: str) -> tuple[bool, str | None]:
@@ -274,30 +280,39 @@ def _session_find(executable: str, filename: str) -> tuple[bool, str | None]:
     if pty is None or not filename.strip() or filename.startswith("-") or "\n" in filename:
         return False, None
     key = _environment_key()
-    if key not in _sessions:
+    with _asking:
+        if key not in _sessions:
+            try:
+                _sessions[key] = _Session(executable)
+            except (OSError, EOFError) as error:
+                logger.debug("interactive kpsewhich unavailable: %s", error)
+                _sessions[key] = None
+        session = _sessions[key]
+        if session is None:
+            return False, None
         try:
-            _sessions[key] = _Session(executable)
-        except (OSError, EOFError) as error:
-            logger.debug("kpsewhich interactif indisponible : %s", error)
+            return True, session.find(filename)
+        # `ValueError` is what a write to a closed pipe raises, which a session given up
+        # elsewhere leaves behind: the plain call answers, and nothing reaches the caller.
+        except (OSError, EOFError, ValueError) as error:
+            logger.debug("interactive kpsewhich given up: %s", error)
+            session.close()
             _sessions[key] = None
-    session = _sessions[key]
-    if session is None:
-        return False, None
-    try:
-        return True, session.find(filename)
-    except (OSError, EOFError) as error:
-        logger.debug("interactive kpsewhich given up: %s", error)
-        session.close()
-        _sessions[key] = None
-        return False, None
+            return False, None
 
 
 @atexit.register
 def _close_sessions() -> None:
-    for session in _sessions.values():
-        if session is not None:
-            session.close()
-    _sessions.clear()
+    # Bounded: a question waits at most `SESSION_TIMEOUT`, and the answer is not worth
+    # hanging the interpreter for — at worst the child is left to the operating system.
+    if _asking.acquire(timeout=SESSION_TIMEOUT + 1):
+        try:
+            for session in _sessions.values():
+                if session is not None:
+                    session.close()
+            _sessions.clear()
+        finally:
+            _asking.release()
 
 
 def find_in_texmf(filename: str) -> Path | None:

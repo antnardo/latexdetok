@@ -991,6 +991,12 @@ table and the booleans are the same. Searches go through one single
 `kpsewhich -interactive` kept open, or through one call each without a
 pseudo-terminal.
 
+That session answers one line per name asked, so it is asked one question at a
+time: analyses running in parallel threads — which is what a language server
+does — queue there for the few milliseconds a search takes, and nowhere else.
+Everything else an analysis writes is its own: `SignatureRegistry.kernel()`
+hands out a copy, and what a document defines is learned in it alone.
+
 ## `expansion`: the expanded view
 
 ### `expand`

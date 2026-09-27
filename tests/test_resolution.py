@@ -2,6 +2,8 @@
 
 import os
 import shutil
+import threading
+import time
 
 import pytest
 
@@ -392,3 +394,67 @@ class TestDecodeLines:
         path = tmp_path / "cours.tex"
         path.write_bytes(data)
         assert read_lines(path) == decode_lines(data)
+
+
+class TestOneQuestionAtATime:
+    """The session answers one line per name: two threads asking at once lose it for both.
+
+    A language server analyses several documents in parallel threads, which is
+    where this was found: one thread read the other's answer, gave the session
+    up, and the other wrote to a pipe that had just been closed.
+    """
+
+    @staticmethod
+    def session(answer):
+        """A stand-in for `_Session` that refuses to be asked two things at once."""
+
+        class Stub:
+            occupied = False
+
+            def __init__(self, executable):
+                pass
+
+            def find(self, filename):
+                if Stub.occupied:
+                    raise AssertionError("two questions at once")
+                Stub.occupied = True
+                try:
+                    time.sleep(0.001)
+                    return answer(filename)
+                finally:
+                    Stub.occupied = False
+
+            def close(self):
+                pass
+
+        return Stub
+
+    @pytest.fixture(autouse=True)
+    def _un_pty(self, monkeypatch):
+        # Without it the session is not even tried, and on Windows there is none.
+        monkeypatch.setattr(resolution, "pty", object())
+
+    def test_threads_never_read_each_others_answers(self, monkeypatch):
+        monkeypatch.setattr(resolution, "_Session", self.session(lambda name: f"/texmf/{name}"))
+        answers: list[tuple[bool, str | None]] = []
+
+        def ask():
+            for _ in range(20):
+                answers.append(resolution._session_find("kpsewhich", "amsmath.sty"))
+
+        threads = [threading.Thread(target=ask) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        assert answers == [(True, "/texmf/amsmath.sty")] * 160
+
+    def test_a_write_to_a_closed_pipe_falls_back_on_the_plain_call(self, monkeypatch):
+        # `ValueError`, which a session given up elsewhere leaves behind, is not an `OSError`:
+        # it used to reach the caller, and in a server it stopped the whole analysis.
+        def closed(filename):
+            raise ValueError("write to closed file")
+
+        monkeypatch.setattr(resolution, "_Session", self.session(closed))
+        assert resolution._session_find("kpsewhich", "amsmath.sty") == (False, None)
+        assert resolution._sessions[resolution._environment_key()] is None

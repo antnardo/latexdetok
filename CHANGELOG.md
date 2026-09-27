@@ -17,6 +17,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   `Réponse été déjà : $x+1` gave `Réponse été déjà :$ $x+1`. Emacs was wrong
   only past the basic plane, on a `𝔸` or an emoji. VS Code was never affected.
   `diagnose` and `code_actions` take the unit as `encoding`, UTF-16 by default.
+- Searches through the interactive `kpsewhich` are asked one question at a
+  time. That session answers one line per name, so two threads asking at once
+  read each other's answers: one gave the session up, the other wrote to a pipe
+  that had just been closed, and `ValueError: write to closed file` — which is
+  not an `OSError` and so was caught nowhere — stopped the analysis. A language
+  server analyses several open documents in parallel threads, which is where it
+  showed. `ValueError` is caught too, and the plain call answers instead.
 
 ### Changed
 

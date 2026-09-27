@@ -657,6 +657,15 @@ Builds the tree of a sequence of lines; `TexFile.analyse` uses it.
 `fragment`, `signatures` (the enriched registry), `catcodes` (the table in force
 at the end), `catcode_changes`.
 
+The definitions are learned as they are read, and end with their group as in
+TeX: braces that are nobody's argument, an environment, math, `\begingroup`
+(see `SignatureRegistry.open_group`). `\gdef`, `\xdef` and a definition after
+`\global` outlive every group. The braces of an argument do not undo anything
+(`\AtBeginDocument{\renewcommand…}` holds for the document), nor does
+`\end{document}`, after which nothing is read. A definition written in the body
+of another is not learned there: it is made where that other is used, which the
+expanded view reads.
+
 ### `unknown_command_before` and `UNTYPESET_ARGUMENTS`
 
 `unknown_command_before(content)` returns the unknown command whose arguments
@@ -860,8 +869,13 @@ own copy of the kernel.
 | `define(definition)` | `None` | records a signature, a delegation, a body or a boolean; the last definition of a name wins, and a new signature forgets its body |
 | `forget_command(name)` | `None` | forgets signature, delegation and body |
 | `copy_command(target, source)` | `None` | `\let\target\source` |
-| `record()` | a context manager | returns the list where the `("define", definition)` and `("forget", name)` of the block are noted |
-| `replay(journal)` | `None` | replays a journal |
+| `record()` | a context manager | returns the list where the `("define", definition, global)` and `("forget", name, global)` of the block are noted; not the local ones made in a group the block opened, which that group undoes |
+| `replay(journal)` | `None` | replays a journal where the stack stands now: local entries end with the group open, global ones outlive it |
+| `globally()` | a context manager | the definitions of the block outlive every group (`\gdef`, `\global\let`) |
+| `open_group()` | `None` | a group opens: the local definitions that follow end with it |
+| `close_group()` | `None` | the group closes: the names defined in it get back what they stood for |
+| `dissolve_group()` | `None` | the group will never close: what it saved goes to the group around it |
+| `depth` | `int` | how many groups are open on the save stack |
 | `load(lines, origin="<table>")` | `None` | loads a table; `ValueError` with the offending line |
 | `len(registry)` | `int` | the number of command and environment signatures |
 
@@ -1002,7 +1016,12 @@ hands out a copy, and what a document defines is learned in it alone.
 ### `expand`
 
 ```python
-expand(tex: TexFile, max_depth: int = MAX_DEPTH) -> ExpandedFile
+expand(
+    tex: TexFile,
+    max_depth: int = MAX_DEPTH,
+    keep: Collection[str] = (),
+    writable: bool = False,
+) -> ExpandedFile
 ```
 
 Expands the user's macros of an analysed file and decides its conditionals. The
@@ -1017,7 +1036,27 @@ source gives the view of its `\n` copy.
 
 What expands: the `Macro` and `EnvironmentMacro` of the registry, at uses whose
 mandatory arguments are there. Nothing inside the arguments of a definition, nor
-after `\noexpand`, `\string`, `\ifx`, `\expandafter`.
+after `\noexpand`, `\string`, `\ifx`, `\expandafter`. Nor the macros and
+environments `keep` names, without backslash. With `writable`, nor a body that
+TeX would read otherwise in the document: defined under other catcodes
+(`\makeatletter`, `\ExplSyntaxOn`), and using them — `\@title` is one command in
+the body, `\@` and “title” in the document. That is the view to write back
+(`ExpandedFile.compilable`).
+
+A body that defines a macro defines it where it is used:
+`\newcommand{\setauthor}[1]{\renewcommand{\theauthor}{#1}}` leaves
+`\theauthor` as it was until `\setauthor{Alice}`. The uses of `\theauthor` that
+follow it in the same pass wait for the next one, where the `\renewcommand`
+written by the body has been read; those before keep the old definition.
+
+The junction between a body and the text after the use keeps what TeX reads:
+after a use ending on a control word (`\pkg`, or `\twice\LaTeX`), the blanks are
+eaten and a `%` written by the body comments out the line ending, which would
+otherwise become a space after the body; after a use ending on a brace, a blank
+is a space TeX has already read, and a body ending on a control word that reads
+nothing after it (`\itshape`, `\textdegree`) writes `{}` so as not to swallow
+it. The same after `\begin{name}`, unless `\newenvironment{name}[1][d]` looked
+for its optional argument there and skipped the blanks.
 
 What is decided: `\iftrue`, `\iffalse`, the booleans of `\newif`, `\ifnum` on
 written numbers, `\ifmmode`, `\IfBooleanTF`, `\IfValueTF`, `\IfNoValueTF`,
@@ -1036,6 +1075,7 @@ queries are the view's.
 | `source_map` | the `SourceMap` of the text produced |
 | `expansions` | `list[Expansion]`, in the order they were made |
 | `conditions` | the `list[Condition]` that were decided |
+| `writable` | the view was built with `writable=True` |
 
 | Method | Returns |
 | --- | --- |
@@ -1044,6 +1084,30 @@ queries are the view's.
 | `source_text(node)` | what produced the node, as the source writes it: the text of `source_span`, line endings included, where `raw_text(node)` is the text of the view; `ValueError` for a node of another file |
 | `origin(node)` | the `Expansion` whose body wrote the start of the node; `None` if it is copied from the source |
 | `branches(node)` | `((Condition, taken?), …)` of the decided branches where the node starts, from the outer to the inner, even when melted into the stream |
+| `compilable(edits=())` | the view written back as a source TeX compiles like the original, `edits` applied with it |
+
+`compilable` removes what the view keeps for the analysis only. A user
+environment whose code was inserted becomes a group, `{…}`, without its
+arguments, which the code took up. A decided conditional with arguments
+(`\IfValueTF`, `\IfBooleanTF`, `\ifstrempty`…) gives way to the inside of the
+branch taken: `-NoValue-` written out is not ltcmd's marker, and
+`\IfValueTF{-NoValue-}` would take the other branch. The branch of an
+`\@ifstar` or `\@ifnextchar` the use did not take goes too. Primitive
+conditionals stay as written: TeX decides them again, the same way. The text is
+in `\n`, like the view; `edits` are drawn from the view's nodes — to remove the
+definitions of what was expanded, for instance. A body TeX would read otherwise
+in the document is written as it stands, with a warning in the log: build the
+view with `writable=True`.
+
+```pycon
+>>> from latexdetok import TexFile, expand
+>>> tex = TexFile(["\\NewDocumentCommand{\\opt}{o m}{\\IfValueTF{#1}{#2 (#1)}{#2}}\n", "\\opt{a} and \\opt[b]{c}.\n"])
+>>> _ = tex.analyse()
+>>> print(expand(tex, writable=True).compilable(), end="")
+\NewDocumentCommand{\opt}{o m}{\IfValueTF{#1}{#2 (#1)}{#2}}
+a and c (b).
+
+```
 
 ### `Expansion`
 
@@ -1208,6 +1272,7 @@ back to English.
 | `TEX_ROOT`, `TEX_ROOT_LINES` | the `% !TEX root = …` declaration, looked for in the first 20 lines |
 | `collapse_spaces(text)` | blanks collapsed the way TeX does, the non-breaking space kept |
 | `index_in_line(line, column)` | the index of a column in a line; beyond the text of the line, the index after its line ending, whatever its width |
+| `is_control_word(name)` | does TeX skip the blanks after `\name`? After letters, yes; not after a control symbol (`\,`) nor a star |
 | `valid_command_name(name)` | letters (ASCII, `@`, `_`, `:`) or a single character, a trailing star allowed |
 | `valid_group_start(c)` | does `c` open a group? |
 

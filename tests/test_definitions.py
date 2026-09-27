@@ -310,6 +310,103 @@ class TestEnvironmentCode:
         assert (first.macro, second.macro.begin) == (None, "A")
 
 
+class TestDefinitionInABody:
+    """A definition written in the body of another is only made where that other is used (see `expansion`)."""
+
+    def test_the_old_definition_stays_in_force(self, parse):
+        tex = parse(
+            "\\newcommand{\\theauthor}{Nobody}\n"
+            "\\newcommand{\\setauthor}[1]{\\renewcommand{\\theauthor}{#1}}\n"
+        )
+        assert tex.signatures.macro("theauthor").body == "Nobody"
+
+    def test_nothing_it_defines_is_known(self, parse):
+        tex = parse("\\newcommand{\\x}{\\def\\y{Y}\\newif\\ifz\\newenvironment{w}{A}{B}}\n")
+        registry = tex.signatures
+        assert (registry.macro("y"), registry.is_boolean("z"), registry.environment_macro("w")) == (
+            None,
+            False,
+            None,
+        )
+
+    def test_a_kernel_command_keeps_its_signature(self, parse):
+        # Found in the corpus: `\\let\\par\\relax` in a body made `\\par` unknown to the whole document.
+        assert signature(parse("\\newcommand{\\x}{\\begingroup\\let\\par\\relax\\endgroup}\n"), "par") == ""
+
+    def test_an_expanded_definition_forgets_no_body(self, parse):
+        # Found in the corpus: `\\xdef\\@devoirdate{#4}` in `\\devoirlibre` erased the default of `\\@devoirdate`.
+        tex = parse("\\def\\x{default}\n\\newcommand{\\setx}[1]{\\xdef\\x{#1}}\n")
+        assert tex.signatures.macro("x").body == "default"
+
+
+class TestGroups:
+    """A definition ends with its group, as in TeX, unless it is global."""
+
+    @pytest.mark.parametrize(
+        ("source", "expected"),
+        [
+            ("{\\renewcommand{\\x}{B}}", "A"),
+            ("\\begin{center}\\renewcommand{\\x}{B}\\end{center}", "A"),
+            ("\\begingroup\\def\\x{B}\\endgroup", "A"),
+            ("$\\def\\x{B}$", "A"),
+            ("{\\gdef\\x{B}}", "B"),
+            ("{\\global\\def\\x{B}}", "B"),
+            ("{\\global\\long\\def\\x{B}}", "B"),
+            ("{\\def\\x{B}\\gdef\\x{C}}", "C"),
+            ("{\\gdef\\x{C}\\def\\x{B}}", "C"),
+            ("{{\\def\\x{B}}\\gdef\\x{C}}", "C"),
+        ],
+    )
+    def test_the_definition_after_the_group(self, parse, source, expected):
+        tex = parse(f"\\newcommand{{\\x}}{{A}}\n{source}\n")
+        assert tex.signatures.macro("x").body == expected
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            # Braces of an argument: TeX strips them before running the code.
+            "\\AtBeginDocument{\\renewcommand{\\x}{B}}",
+            # Nothing is read after `\\end{document}`: the checks read the definitions of the whole document.
+            "\\begin{document}\\renewcommand{\\x}{B}\\end{document}",
+            # A group that never closes restores nothing.
+            "{\\renewcommand{\\x}{B}",
+        ],
+    )
+    def test_the_definition_is_kept(self, parse, source):
+        tex = parse(f"\\newcommand{{\\x}}{{A}}\n{source}\n")
+        assert tex.signatures.macro("x").body == "B"
+
+    def test_inside_the_group_the_new_definition_is_in_force(self, parse):
+        tex = parse("\\newcommand{\\x}{A}\n{\\renewcommand{\\x}{B}\\x}\\x\n")
+        uses = [
+            node
+            for node in tex.iter()
+            if isinstance(node, TexCommand) and node.start_position in ((2, 21), (2, 24))
+        ]
+        assert [node.macro.body for node in uses] == ["B", "A"]
+
+    @pytest.mark.parametrize(
+        ("definition", "defined"),
+        [
+            ("\\newenvironment{y}{A}{B}", lambda registry: registry.environment_macro("y")),
+            ("\\newif\\ify", lambda registry: registry.is_boolean("y") or None),
+            ("\\newcommand{\\y}[1]{#1}", lambda registry: registry.command("y")),
+        ],
+        ids=["environment", "boolean", "command"],
+    )
+    def test_everything_a_group_defines_ends_with_it(self, parse, definition, defined):
+        assert defined(parse(f"{{{definition}}}\n").signatures) is None
+
+    def test_an_included_file_defines_in_the_group_of_its_input(self, tmp_path):
+        (tmp_path / "defs.tex").write_text("\\newcommand{\\y}{Y}\n", encoding="utf-8")
+        main = tmp_path / "main.tex"
+        main.write_text("{\\input{defs}\\y}\n", encoding="utf-8")
+        tex = TexFile(main)
+        tex.analyse(follow_inputs=True)
+        (use,) = [node for node in tex.iter() if isinstance(node, TexCommand) and node.content == "y"]
+        assert (use.macro.body, tex.signatures.macro("y")) == ("Y", None)
+
+
 class TestNewif:
     def test_a_false_boolean(self, parse):
         tex = parse("\\newif\\ifprof\n")

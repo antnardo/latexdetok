@@ -23,7 +23,19 @@ What expands, when the mandatory arguments are there:
 
 Nothing else: kernel commands, primitives and package commands stay as they
 are. Nothing either where TeX does not expand: the arguments of a definition or
-of a `\\let`, the token following `\\noexpand`, `\\string` or `\\ifx`.
+of a `\\let`, the token following `\\noexpand`, `\\string` or `\\ifx`. Nor what
+the caller keeps (`keep`), nor, for a view meant to be written back
+(`writable`), a body TeX would read otherwise in the document: written under
+`\\makeatletter`, `\\@title` is one command in the body, `\\@` and “title” in
+the document.
+
+Definitions made by a body. `\\newcommand{\\setauthor}[1]{\\renewcommand{\\theauthor}{#1}}`
+defines `\\theauthor` where `\\setauthor` is used, not before (see `TexParser`).
+A pass expands the uses with the definitions the tokeniser learned in the text
+of the previous pass: a use of `\\theauthor` that follows `\\setauthor{Alice}`
+waits for the next pass, where the `\\renewcommand` written by the body has been
+read. Those after it wait with it; the ones before are expanded with the old
+definition, as TeX does.
 
 Conditionals. The ones `conditions` can decide are decided: primitive
 conditionals from the value the tokeniser gave the `\\if…`, conditionals with
@@ -53,8 +65,16 @@ Departures from TeX, none of them affecting the structure:
 
 - a use taken as an argument without braces (`\\frac\\demi x`) is replaced
   between braces, so as to stay one single argument;
-- the blanks that follow a use with no argument are eaten as TeX does after a
-  control word, but not the line ending;
+- the blanks that follow a use ending on a control word (`\\pkg`, or the
+  `\\LaTeX` of `\\twice\\LaTeX`) are eaten as TeX does, and its line ending is
+  commented out: a `%` the body writes before it keeps the lines of the source,
+  where the line ending alone would become a space after the body;
+- a blank that follows a use ending on a brace is a space TeX has already read:
+  if the body ends on a control word that reads nothing after it (`\\itshape`,
+  `\\textdegree`), the body writes `{}` after it, which the control word would
+  otherwise swallow. Not after one that reads what follows (`\\item` looks for
+  its `[`, skipping blanks; `\\ignorespaces`), where TeX skips that space too,
+  nor after an unknown one, which could do either;
 - an argument that is a blank line (`+m`) becomes a blank line;
 - an environment whose final optional argument is missing is not expanded if its
   begin code starts with `[`: read again, that bracket would become the
@@ -71,7 +91,7 @@ Departures from TeX, none of them affecting the structure:
 import re
 from bisect import bisect_left, bisect_right
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
 from functools import cache
 from io import StringIO
@@ -79,6 +99,7 @@ from itertools import accumulate, pairwise
 
 from latexdetok.analyse import TexFile
 from latexdetok.catcodes import CatcodeTable
+from latexdetok.characters import is_control_word
 from latexdetok.classes import Position, TexBranch, TexCommand, TexContainer, TexGroup
 from latexdetok.conditions import (
     ARGUMENT_TESTS,
@@ -91,9 +112,10 @@ from latexdetok.conditions import (
     ifnum_test,
 )
 from latexdetok.definitions import DEFINING_COMMANDS
+from latexdetok.export import Edit, rewrite
 from latexdetok.logger import logger
 from latexdetok.parser import BranchRegion
-from latexdetok.signatures import ArgumentSpec, SignatureRegistry
+from latexdetok.signatures import ArgumentSpec, EnvironmentMacro, Macro, SignatureRegistry
 
 __all__ = ["MAX_DEPTH", "MAX_PASSES", "Condition", "ExpandedFile", "Expansion", "SourceMap", "expand"]
 
@@ -126,6 +148,26 @@ CONTROL_WORD_TAIL = 80
 OPENS_WITH_BRACKET = re.compile(r"(?:\s|%[^\n]*\n)*\[")
 LETTER = re.compile(r"[A-Za-z@]")
 LEADING_LINE_END = re.compile(r"[ \t]*\n")
+
+# A definition written in a body, and the name it defines, or the parameter that gives it.
+DEFINED_COMMAND = re.compile(
+    r"\\(?:(?:re)?newcommand|providecommand|DeclareRobustCommand|[gex]?def|let|futurelet"
+    r"|(?:New|Renew|Provide|Declare)DocumentCommand|NewExpandableDocumentCommand"
+    r"|(?:New|Renew|Declare)CommandCopy)(?![A-Za-z@])\*?\s*\{?\s*(\\(?:[A-Za-z@]+|.)|#[1-9])"
+)
+DEFINED_ENVIRONMENT = re.compile(
+    r"\\(?:(?:re)?newenvironment\*?|(?:New|Renew|Provide|Declare)DocumentEnvironment)"
+    r"\s*\{\s*([^{}\s#]+|#[1-9])\s*\}"
+)
+CONTROL_WORD = re.compile(r"\\([A-Za-z@]+)")
+BEGIN = re.compile(r"\\begin\s*\{\s*([^{}\s]+)\s*\}")
+NAMED = re.compile(r"\\([A-Za-z@]+|.)")
+# Beyond that many macros called by a body, we stop looking at what they define.
+MAX_CALLED = 200
+# The conditionals the view writes itself, both branches after the use of a macro that tests what follows.
+LOOKAHEAD_TESTS = frozenset({"@ifstar", "@ifnextchar"})
+# Control words without arguments that look at what follows all the same, and decide about a space.
+READS_AHEAD = frozenset({"ignorespaces", "xspace"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -376,7 +418,8 @@ class ExpandedFile(TexFile):
     `container`, `diagnostics` and the queries are those of the expanded text;
     `source_span`, `source_text`, `origin` and `expansions` lead back to the
     source; `conditions` and `branches` say which conditionals were decided,
-    and which side every element is on.
+    and which side every element is on. `compilable()` writes it back as a
+    source.
     """
 
     def __init__(
@@ -386,6 +429,8 @@ class ExpandedFile(TexFile):
         source_map: SourceMap,
         expansions: list[Expansion],
         conditions: list[Condition],
+        done: Collection[int] = (),
+        writable: bool = False,
     ) -> None:
         super().__init__(list(lines), name=source.name)
         # Same inclusions and same master document as the source: we compile the same file.
@@ -397,6 +442,9 @@ class ExpandedFile(TexFile):
         self.conditions = conditions
         self.catcode_regions = source_map.catcode_regions()
         self.branch_regions = source_map.branch_regions()
+        # Where the expanded environments and the decided conditionals start, in the text of the view.
+        self._done = frozenset(done)
+        self.writable = writable
 
     def source_position(self, position: Position) -> Position:
         """The position in the source; for a text written by a body, the start of the use."""
@@ -437,6 +485,121 @@ class ExpandedFile(TexFile):
         piece = self.source_map.piece(self.source_map.target.offset(node.start_position))
         return tuple((condition, taken) for condition, taken, _ in piece.branches)
 
+    def compilable(self, edits: Iterable[Edit] = ()) -> str:
+        """The view written back as a source that TeX compiles like the original; `edits` apply with it.
+
+        The view keeps, for the analysis, what TeX would run twice or read
+        otherwise once written; this is where it goes. A user environment whose
+        code was inserted becomes a group, `{…}`, without its arguments, which
+        the code has taken up. A conditional with arguments that was decided
+        (`\\IfValueTF`, `\\IfBooleanTF`, `\\ifstrempty`…) gives way to the inside of
+        its branch taken: `-NoValue-` written out is not ltcmd's marker, and
+        `\\IfValueTF{-NoValue-}` would take the other branch. The branch of an
+        `\\@ifstar` or an `\\@ifnextchar` that the use did not take goes too. The
+        primitive conditionals stay as written: TeX decides them again, the same
+        way.
+
+        `edits` are drawn from the view (`Edit.of(node, …)` on its nodes): to
+        remove the definitions of what was expanded, for instance. The text is in
+        `\\n`, as the view is; to write it, `encoding=tex.encoding`. A body that
+        TeX would read otherwise in the document (`\\@title` of a
+        `\\makeatletter`) is written as it stands, with a warning in the log:
+        `expand(tex, writable=True)` keeps such macros unexpanded.
+        """
+        if not self.writable:
+            foreign = self._foreign_bodies()
+            if foreign:
+                logger.warning(
+                    "%s: %s written back under the catcodes of the document, which read the body otherwise;"
+                    " expand(tex, writable=True) keeps them",
+                    self.name,
+                    ", ".join(foreign),
+                )
+        own: list[Edit] = []
+        self._written_back(self.container, own)
+        return rewrite(self, [*own, *edits])
+
+    def _written_back(self, group: TexGroup, edits: list[Edit]) -> None:
+        """The edits that write back what the view keeps for the analysis only (see `compilable`)."""
+        offsets = self.source_map.target
+        content = group.content
+        removed: set[int] = set()
+        if (
+            group.env
+            and group.macro is not None
+            and group.start_position is not None
+            and offsets.offset(group.start_position) in self._done
+        ):
+            edits += [Edit.opening(group, "{"), Edit.closing(group, "}")]
+            for argument in group.arguments:
+                if argument is not None:
+                    edits.append(Edit.of(argument, ""))
+                    removed.add(id(argument))
+        for node in content:
+            if id(node) in removed:
+                continue
+            if isinstance(node, TexBranch) and not node.taken and node.condition.test in LOOKAHEAD_TESTS:
+                edits.append(Edit.of(node, self._parting(node, node.end_position)))
+            elif isinstance(node, TexGroup):
+                self._written_back(node, edits)
+            elif isinstance(node, TexCommand) and node.base_name in ARGUMENT_TESTS and node.arguments:
+                test, *branches = [argument for argument in node.arguments if argument is not None]
+                # Decided, with its branches whole: one that spilled out melted into the stream.
+                if not branches or not all(isinstance(branch, TexBranch) for branch in branches):
+                    continue
+                taken = next(
+                    (branch for branch in branches if isinstance(branch, TexBranch) and branch.taken), None
+                )
+                following = taken.inner_start if taken is not None else branches[-1].end_position
+                edits += [Edit.of(node, self._parting(node, following)), Edit.of(test, "")]
+                removed.update(id(argument) for argument in (test, *branches))
+                for branch in branches:
+                    assert isinstance(branch, TexBranch)
+                    if not branch.taken:
+                        edits.append(Edit.of(branch, ""))
+                        continue
+                    edits += [Edit.opening(branch, ""), Edit.closing(branch, self._closing(node, branch))]
+                    self._written_back(branch, edits)
+
+    def _parting(self, node: TexContainer, following: Position | None) -> str:
+        """What replaces a node removed: a space, if a control word before it would glue to a letter after."""
+        assert node.start_position is not None and following is not None
+        line, column = node.start_position
+        before = self.lines[line - 1][:column][-CONTROL_WORD_TAIL:]
+        after_line, after_column = following
+        after = (
+            self.lines[after_line - 1][after_column : after_column + 1]
+            if after_line <= len(self.lines)
+            else ""
+        )
+        return " " if ENDS_WITH_CONTROL_WORD.search(before) and LETTER.match(after) else ""
+
+    def _closing(self, test: TexCommand, branch: TexBranch) -> str:
+        """The brace of a branch taken, written back: `{}` if a control word would eat the space after it."""
+        last = next(argument for argument in reversed(test.arguments or []) if argument is not None)
+        assert last.end_position is not None and branch.inner_end is not None
+        line, column = last.end_position
+        following = self.lines[line - 1][column : column + 1] if line <= len(self.lines) else ""
+        inner_line, inner_column = branch.inner_end
+        tail = self.lines[inner_line - 1][:inner_column][-CONTROL_WORD_TAIL:].rstrip(BLANKS)
+        word = ENDS_WITH_CONTROL_WORD.search(tail)
+        quiet = word is not None and _reads_nothing_after(word.group().rsplit("\\", 1)[1], self.signatures)
+        return "{}" if quiet and following in (" ", "\t", "\n") else ""
+
+    def _foreign_bodies(self) -> list[str]:
+        """The macros expanded here whose body the document would read otherwise (see `_writable`)."""
+        registry = self.source.signatures
+        names: list[str] = []
+        for expansion in self.expansions:
+            macro: Macro | EnvironmentMacro | None = (
+                registry.environment_macro(expansion.name)
+                if expansion.environment
+                else registry.macro(expansion.name)
+            )
+            if macro is not None and not _writable(macro) and expansion.name not in names:
+                names.append(expansion.name)
+        return names
+
 
 # The value of a parameter: the span of the text to copy, the text written, or nothing.
 Value = tuple[int, int] | str | None
@@ -452,6 +615,10 @@ class _Use:
     second time. A macro that tests what follows writes both its branches:
     `body`, taken if `value`, then `alternative`. `kept`: the discarded branches
     the use crosses to read its arguments, copied before the body.
+
+    What follows the use, for the junction (see the module header): `line_end`,
+    the use ends on a control word right before a line ending, which TeX drops;
+    `space_after`, it ends on something else before a blank, a space TeX has read.
     """
 
     start: int
@@ -466,6 +633,8 @@ class _Use:
     test: str = ""
     value: bool = True
     kept: tuple[tuple[int, int], ...] = ()
+    line_end: bool = False
+    space_after: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -494,13 +663,20 @@ class _Decision:
         return self.start
 
 
-def expand(tex: TexFile, max_depth: int = MAX_DEPTH) -> ExpandedFile:
+def expand(
+    tex: TexFile, max_depth: int = MAX_DEPTH, keep: Collection[str] = (), writable: bool = False
+) -> ExpandedFile:
     """Expand the user's macros of an analysed file, and decide its conditionals.
 
     The view is analysed as the source was (`follow_inputs` included). With
     nothing to expand, it has the text of the source. Every pass expands the uses
     and decides the conditionals of the previous one, as long as any are left; an
     expansion deeper than `max_depth` does not happen, which stops a recursion.
+    `keep` names the macros and environments to leave as they are, without
+    backslash. `writable` builds a view to be written back
+    (`ExpandedFile.compilable`): a body that TeX would read otherwise in the
+    document, because it was defined under other catcodes and uses them, is not
+    expanded either.
     """
     source_map = SourceMap.identity(tex.lines)
     limit = MAX_GROWTH * len(source_map.source.text) + GROWTH_MARGIN
@@ -509,11 +685,12 @@ def expand(tex: TexFile, max_depth: int = MAX_DEPTH) -> ExpandedFile:
     conditions: list[Condition] = []
     # Starts of the expanded environments and of the decided conditionals, in the text of the pass.
     done: set[int] = set()
+    kept = frozenset(keep)
     for _ in range(MAX_PASSES):
-        uses = _collect(current.container, source_map, done, current.signatures, max_depth)
+        uses = _collect(current.container, source_map, done, current.signatures, max_depth, kept, writable)
         if not uses:
             break
-        writer = _Writer(source_map, uses, done)
+        writer = _Writer(source_map, uses, done, current.signatures)
         writer.write_range(0, len(source_map.target.text))
         text = writer.text()
         if len(text) > limit:
@@ -527,11 +704,11 @@ def expand(tex: TexFile, max_depth: int = MAX_DEPTH) -> ExpandedFile:
         expansions = [*expansions, *writer.expansions]
         conditions = [*conditions, *writer.conditions]
         done = writer.done
-        current = ExpandedFile(tex, lines, source_map, expansions, conditions)
+        current = ExpandedFile(tex, lines, source_map, expansions, conditions, done, writable)
         current.analyse(follow_inputs=tex.follow_inputs)
     if isinstance(current, ExpandedFile):
         return current
-    view = ExpandedFile(tex, tex.lines, source_map, [], [])
+    view = ExpandedFile(tex, tex.lines, source_map, [], [], set(), writable)
     view.analyse(follow_inputs=tex.follow_inputs)
     return view
 
@@ -546,11 +723,27 @@ class _Pending:
 
 
 def _collect(
-    root: TexGroup, source_map: SourceMap, done: set[int], registry: SignatureRegistry, max_depth: int
+    root: TexGroup,
+    source_map: SourceMap,
+    done: set[int],
+    registry: SignatureRegistry,
+    max_depth: int,
+    keep: frozenset[str] = frozenset(),
+    writable: bool = False,
 ) -> list[_Use | _Decision]:
-    """Uses to expand and conditionals to decide in the tree of one pass, in the order of the text."""
+    """Uses to expand and conditionals to decide in the tree of one pass, in the order of the text.
+
+    A use whose macro an earlier use of the pass may redefine is left to the next
+    pass (see the module header).
+    """
     uses: list[_Use | _Decision] = []
     pending: list[_Pending] = []
+    text = source_map.target.text
+    redefined: set[tuple[str, str]] = set()
+
+    def collected(use: _Use) -> None:
+        uses.append(use)
+        redefined.update(_defined_by(use, text, registry))
 
     def visit(group: TexGroup) -> None:
         content = group.content
@@ -564,12 +757,14 @@ def _collect(
                     visit(node)  # a discarded branch is not run: nothing in it is expanded
                 continue
             if isinstance(node, TexGroup):
-                environment = _environment_uses(node, source_map, done, max_depth)
+                environment = None
+                if node.macro is None or ("environment", node.macro.name) not in redefined:
+                    environment = _environment_uses(node, source_map, done, max_depth, keep, writable)
                 if environment is not None:
-                    uses.append(environment[0])
+                    collected(environment[0])
                 visit(node)
                 if environment is not None:
-                    uses.append(environment[1])
+                    collected(environment[1])
                 continue
             if not isinstance(node, TexCommand):
                 continue
@@ -592,9 +787,13 @@ def _collect(
                 continue
             if node.arguments:
                 token_arguments.update(id(arg) for arg in node.arguments if isinstance(arg, TexCommand))
-            use = _use(node, id(node) in token_arguments, source_map, max_depth, content, index)
+            if node.macro is None or ("command", node.macro.name) in redefined:
+                continue
+            use = _use(
+                node, id(node) in token_arguments, source_map, max_depth, content, index, keep, writable
+            )
             if use is not None:
-                uses.append(use)
+                collected(use)
 
     visit(root)
     # The begin code of an environment is inserted after its arguments, visited after it.
@@ -741,9 +940,13 @@ def _use(
     max_depth: int,
     content: list[TexContainer],
     index: int,
+    keep: frozenset[str] = frozenset(),
+    writable: bool = False,
 ) -> _Use | None:
     macro = command.macro
     if macro is None or command.start_position is None or command.end_position is None:
+        return None
+    if macro.name in keep or (writable and not _writable(macro)):
         return None
     found = command.arguments or []
     present = [argument for argument in found if argument is not None]
@@ -770,10 +973,15 @@ def _use(
     expansion = Expansion(macro.name, source_map.source_start(start), source_map.source_end(end), parent)
     if expansion.depth > max_depth:
         return None
-    if not present and command.content[-1:].isalpha():
-        text = offsets.text
+    text = offsets.text
+    # The use ends on a control word (its own name, or an argument taken without braces): TeX skips
+    # the blanks and the line ending after it. Otherwise, a blank after it is a space already read.
+    last_token = present[-1] if present and alternative is None else command
+    after_word = isinstance(last_token, TexCommand) and is_control_word(last_token.content)
+    if after_word and (not present or alternative is None):
         while end < len(text) and text[end] in BLANKS:
             end += 1
+    following = text[end : end + 1]
     between = content[index + 1 : _last_argument(content, index, found)] if present else []
     kept = tuple(
         _inner(node, source_map) for node in between if isinstance(node, TexBranch) and not node.taken
@@ -790,6 +998,8 @@ def _use(
         test=test,
         value=value,
         kept=kept,
+        line_end=after_word and following == "\n",
+        space_after=not after_word and alternative is None and following in (" ", "\t", "\n"),
     )
 
 
@@ -835,7 +1045,12 @@ def _values(
 
 
 def _environment_uses(
-    group: TexGroup, source_map: SourceMap, done: set[int], max_depth: int
+    group: TexGroup,
+    source_map: SourceMap,
+    done: set[int],
+    max_depth: int,
+    keep: frozenset[str] = frozenset(),
+    writable: bool = False,
 ) -> tuple[_Use, _Use] | None:
     """The insertions of the begin and end code of a user environment."""
     macro = group.macro
@@ -845,6 +1060,8 @@ def _environment_uses(
         or group.end_position is None
         or group.inner_start is None
         or group.inner_end is None
+        or macro.name in keep
+        or (writable and not _writable(macro))
     ):
         return None
     offsets = source_map.target
@@ -877,8 +1094,31 @@ def _environment_uses(
         environment=True,
     )
     end_values = values if macro.end_arguments else ()
+    # `\begin{name}` ends on a brace: a blank after it is a space TeX has read before the begin code. Unless
+    # `\newenvironment{name}[1][d]` looked for its optional argument there and did not find it: its
+    # `\@ifnextchar` skipped the blanks, line ending included, as after a control word. ltcmd does not
+    # skip them before a final optional argument.
+    text = offsets.text
+    skipped = (
+        bool(found) and found[-1] is None and not macro.end_arguments and macro.parameters[-1].kind in "oO"
+    )
+    after = begin_at
+    while skipped and after < len(text) and text[after] in BLANKS:
+        after += 1
+    following = text[after : after + 1]
     return (
-        _Use(begin_at, begin_at, macro.begin, macro.catcodes, values, False, opening, start),
+        _Use(
+            begin_at,
+            after,
+            macro.begin,
+            macro.catcodes,
+            values,
+            False,
+            opening,
+            start,
+            line_end=skipped and following == "\n",
+            space_after=not skipped and following in (" ", "\t", "\n"),
+        ),
         _Use(end_at, end_at, macro.end, macro.catcodes, end_values, False, closing),
     )
 
@@ -911,6 +1151,110 @@ def _following(content: list[TexContainer], index: int, count: int) -> int:
         if not content[position].is_comment():
             count -= 1
     return position
+
+
+def _writable(macro: Macro | EnvironmentMacro) -> bool:
+    """Does the body read the same under the document's catcodes as under those of its definition?
+
+    Only the characters the body holds count: `\\newcommand{\\R}{\\mathbb{R}}` in a
+    `.sty` is written anywhere, `\\newcommand{\\ptitle}{\\@title}` of a
+    `\\makeatletter` is not.
+    """
+    texts = [macro.begin, macro.end] if isinstance(macro, EnvironmentMacro) else [macro.body]
+    if isinstance(macro, Macro) and macro.otherwise is not None:
+        texts.append(macro.otherwise)
+    foreign = _foreign_characters(macro.catcodes)
+    return not any(character in foreign for text in texts for character in text)
+
+
+@cache
+def _foreign_characters(catcodes: CatcodeTable) -> frozenset[str]:
+    """The characters `catcodes` reads otherwise than a LaTeX document does."""
+    return frozenset(character for character, _, _ in CatcodeTable.latex().differences(catcodes))
+
+
+@cache
+def _body_facts(body: str) -> tuple[tuple[tuple[str, str], ...], frozenset[str], frozenset[str]]:
+    """What a body defines, and the control words and environments it calls.
+
+    A command defined is written as in the body (`\\x`), an environment by its
+    name; either may be a parameter (`#1`), which the use gives.
+    """
+    defined = [("command", target) for target in DEFINED_COMMAND.findall(body)]
+    defined += [("environment", target) for target in DEFINED_ENVIRONMENT.findall(body)]
+    return tuple(defined), frozenset(CONTROL_WORD.findall(body)), frozenset(BEGIN.findall(body))
+
+
+def _defined_by(use: _Use, text: str, registry: SignatureRegistry) -> set[tuple[str, str]]:
+    """The commands and environments the expansion of `use` may define, through the macros it calls too.
+
+    A name given by a parameter is read in the argument: `\\newcommand#1{…}`
+    defines `\\y` at `\\declare\\y`. A macro the body calls is known by name only
+    (its parameters are not followed), within `MAX_CALLED` macros.
+    """
+    names: set[tuple[str, str]] = set()
+    seen: set[str] = set()
+    bodies: list[tuple[str, tuple[Value, ...]]] = [(use.body, use.values)]
+    if use.alternative is not None:
+        bodies.append((use.alternative, use.values))
+    while bodies and len(seen) < MAX_CALLED:
+        body, values = bodies.pop()
+        defined, words, environments = _body_facts(body)
+        for kind, target in defined:
+            if target.startswith("#"):
+                number = int(target[1])
+                value = values[number - 1] if number <= len(values) else None
+                written = text[value[0] : value[1]] if isinstance(value, tuple) else value
+                if written is None:
+                    continue
+                target = written.strip()
+            if kind == "command":
+                match = NAMED.fullmatch(target)
+                if match is None:
+                    continue
+                target = match.group(1)
+            names.add((kind, target))
+        for word in words - seen:
+            seen.add(word)
+            macro = registry.macro(word)
+            if macro is not None:
+                bodies.append((macro.body, ()))
+                if macro.otherwise is not None:
+                    bodies.append((macro.otherwise, ()))
+        for environment in environments:
+            if "{" + environment in seen:
+                continue
+            seen.add("{" + environment)
+            code = registry.environment_macro(environment)
+            if code is not None:
+                bodies += [(code.begin, ()), (code.end, ())]
+    return names
+
+
+def _reads_nothing_after(name: str, registry: SignatureRegistry, depth: int = 0) -> bool:
+    """Is `\\name` known to leave what follows it alone: no argument, no star, no look ahead?
+
+    A macro of the document without parameters leaves it alone, unless its own body
+    ends on a control word that does not. An unknown command may do anything.
+    """
+    macro = registry.macro(name)
+    if macro is not None:
+        if macro.parameters or macro.otherwise is not None or macro.starred:
+            return False
+        tail = macro.body[-CONTROL_WORD_TAIL:].rstrip(BLANKS)
+        word = ENDS_WITH_CONTROL_WORD.search(tail)
+        if word is None:
+            return True
+        return depth < MAX_DEPTH and _reads_nothing_after(
+            word.group().rsplit("\\", 1)[1], registry, depth + 1
+        )
+    signature = registry.command(name)
+    return (
+        signature is not None
+        and not signature.arguments
+        and not signature.starred
+        and name not in READS_AHEAD
+    )
 
 
 @cache
@@ -947,10 +1291,13 @@ def _combine(outer: tuple[Side, ...], inner: tuple[Side, ...]) -> tuple[Side, ..
 class _Writer:
     """Writes the text of a passage, and notes where every piece comes from."""
 
-    def __init__(self, previous: SourceMap, uses: list[_Use | _Decision], done: set[int]) -> None:
+    def __init__(
+        self, previous: SourceMap, uses: list[_Use | _Decision], done: set[int], registry: SignatureRegistry
+    ) -> None:
         self._previous = previous
         self._text = previous.target.text
         self._uses = uses
+        self._registry = registry
         self._starts = [use.start for use in uses]
         # Starts of expanded environments and decided conditionals, to be found again in the written text.
         self._done = sorted(done | {use.opens for use in uses if use.opens is not None})
@@ -994,7 +1341,8 @@ class _Writer:
             if isinstance(use, _Decision):
                 self._decide(use)
             else:
-                self._expand(use)
+                # At the end of an argument substituted in a body, what follows is the body's, not the text's.
+                self._expand(use, junction=use.end < end)
             cursor = use.end
         self._copy(cursor, end)
 
@@ -1024,7 +1372,7 @@ class _Writer:
                 self.write_range(part.start, part.end)
             self._branches = outer
 
-    def _expand(self, use: _Use) -> None:
+    def _expand(self, use: _Use, junction: bool = True) -> None:
         expansion = use.expansion
         self.expansions.append(expansion)
         self._last_expansion = expansion
@@ -1049,9 +1397,29 @@ class _Writer:
             self._branches = inside
         if use.braced:
             self._write("}", expansion)
+        if junction and (use.line_end or use.space_after):
+            self._junction(use)
         self._branches = outer
         self._within, self._context = outer_within, outer_context
         self._last_expansion = expansion
+
+    def _junction(self, use: _Use) -> None:
+        """Keep what follows the use as TeX reads it, now that the body ends the text (see the header)."""
+        tail = self.parts[-1][-CONTROL_WORD_TAIL:].rstrip(BLANKS) if self.parts else ""
+        word = ENDS_WITH_CONTROL_WORD.search(tail)
+        if use.line_end and word is None and not self._blank_tail:
+            # TeX dropped the line ending after the name of the use; after the body, it would be a space.
+            # A body that ends its own line needs nothing: that line ending becomes a space at the head
+            # of the next line, where TeX skips it (see `_join`).
+            self._write("%", use.expansion)
+        elif (
+            use.space_after
+            and word is not None
+            and not use.braced
+            and _reads_nothing_after(word.group().rsplit("\\", 1)[1], self._registry)
+        ):
+            # TeX read that blank as a space, before the body ran: the control word may not swallow it.
+            self._write("{}", use.expansion)
 
     def _write_body(self, body: str, use: _Use) -> None:
         for part in _template(body):

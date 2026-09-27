@@ -16,6 +16,64 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   not compile — `Command \item invalid in math mode`. The diagnostic lands on
   the `\item`, as TeX's does, and points at the `$` that opened the math, which
   TeX never says.
+- `ExpandedFile.compilable(edits=())`: the expanded view written back as a
+  source TeX compiles into the same document. The view keeps, for the analysis,
+  what TeX would run twice or read otherwise: `\begin{env}` around the code it
+  inserted, both branches of the conditionals it decided, `-NoValue-` written
+  out — which is not ltcmd's marker, so that `\IfValueTF{-NoValue-}` took the
+  other branch. Written back, a user environment becomes a group, a decided
+  conditional with arguments the inside of its branch taken, and the branch of
+  an `\@ifstar` the use did not take goes. `edits` apply with it, to remove the
+  definitions of what was expanded for instance. Checked by compiling: the
+  documents of the Stack Overflow question 1509799, and TeX Live's
+  `scalerel.tex` (17 pages) and `section-doc.tex` (9 pages), give the same PDF,
+  text and pixels.
+- `expand(tex, keep=…)` leaves the macros and environments it names as they
+  are, and `expand(tex, writable=True)` the bodies TeX would read otherwise in
+  the document: under `\makeatletter`, `\@title` is one command in the body,
+  `\@` and “title” once written out. `compilable()` warns in the log when a view
+  not built so writes one.
+- `SignatureRegistry.open_group()`, `close_group()`, `dissolve_group()`,
+  `globally()` and `depth`: the save stack of TeX's groups (see below).
+- `characters.is_control_word(name)`: does TeX skip the blanks after `\name`?
+
+### Fixed
+
+- A definition in the body of a macro was learned when that macro was
+  defined. `\newcommand{\setauthor}[1]{\renewcommand{\theauthor}{#1}}` turned
+  every `\theauthor` of the document into `#1`, before `\setauthor{Alice}` as
+  after, and the view no longer compiled; `\newcommand{\inner}[1]{#1 ##1}` in the
+  body of `\makeinner` gave `B #1` for `\inner{B}`. It is learned where the
+  body is used, by the expanded view, and a use that follows `\setauthor{Alice}`
+  waits for the pass where the `\renewcommand` has been read: “After: Alice.”,
+  as TeX prints. On the corpus, the same cause had `\xdef\@devoirdate{#4}` in
+  `\devoirlibre` erase the default of `\@devoirdate`, and `\let\par\relax` in a
+  helper strip `\par` of its signature for the whole document.
+- A definition outlived its group. `{\renewcommand{\x}{B}\x}\x` read `B` twice
+  where TeX prints “BA”. It ends with its braces, its environment, its math or
+  its `\begingroup`, and a file included there defines inside the group;
+  `\gdef`, `\xdef` and `\global` outlive them all. The braces of an argument
+  undo nothing — TeX strips them before running the code, and
+  `\AtBeginDocument{\renewcommand…}` holds for the document —, nor does
+  `\end{document}`.
+- The view lost the space after a use whose body ends on a control word:
+  `\degree{20} C` printed “20°C”, `\shout{loud} words` “loudwords”, and a
+  `\begin{remark}` at the end of its line, with a begin code ending on
+  `\itshape`, “Remark.Words”. TeX had read that blank as a space before the
+  body ran; the body now writes `{}` after a control word that reads nothing
+  after it. Not after one that looks ahead (`\item`, `\ignorespaces`), nor after
+  `\begin{env}` when `\newenvironment{env}[1][d]` looked for its optional
+  argument there and skipped the blanks.
+- The view turned into a space the line ending TeX drops after a use without
+  argument: `\pkg` at the end of a line, then `C.`, printed “scalerel C.” for
+  “scalerelC.”, and changed 2 pages of TeX Live's `scalerel.tex`. The body
+  writes a `%` before that line ending, which keeps the lines of the source. The
+  same after a use that ends on an argument written without braces, `\twice\LaTeX`.
+- A boolean set in the second argument of an unknown command was taken as set
+  for sure, then undone at its brace: `\DeclareOptionX{bloc}{\AMC@qbloctrue}`
+  left `\ifAMC@qbloc` false, where TeX has it true when the option is given. Its
+  value is now unknown, as it already was in the first argument. On the corpus,
+  59 conditionals of automultiplechoice are no longer decided.
 
 ## [0.5.1] — 2026-09-27
 

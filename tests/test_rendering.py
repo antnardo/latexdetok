@@ -188,7 +188,7 @@ class TestTwoFaces:
                 "\\newcommand\\declare{\\newcommand\\R{RR}}\\NewDocumentEnvironment{x}{m}{}{(#1)}\n"
                 "\\declare\n\\begin{x}{\\R}z\\end{x}\n",
                 [
-                    ("\\declare", "\\newcommand\\R{RR}", []),
+                    ("\\declare", "\\newcommand\\R{RR}%", []),
                     ("\\begin{x}{\\R}", "\\begin{x}{RR}", [("\\R", "RR", [])]),
                     ("\\end{x}", "(RR)\\end{x}", []),
                 ],

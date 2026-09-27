@@ -27,6 +27,7 @@ __all__ = [
     "TEX_ROOT_LINES",
     "collapse_spaces",
     "index_in_line",
+    "is_control_word",
     "valid_command_name",
     "valid_group_start",
 ]
@@ -62,6 +63,17 @@ def valid_command_name(name: str) -> bool:
     if len(base) == 1:
         return True
     return len(base) > 1 and all(c in _NAME_CHARACTERS for c in base)
+
+
+def is_control_word(name: str) -> bool:
+    """Does TeX skip the blanks after `\\name`?
+
+    After a name of letters, yes: `\\LaTeX is` prints “LaTeXis”, `\\i` too. Not
+    after a control symbol (`\\,`), nor after a star, a character of its own.
+    """
+    if len(name) > 1:
+        return not name.endswith("*")
+    return name in LETTERS
 
 
 def valid_group_start(c: str) -> bool:

@@ -2,7 +2,7 @@
 
 import pytest
 
-from latexdetok import TexBranch, TexCommand, TexFile, TexGroup, expand
+from latexdetok import Edit, TexBranch, TexCommand, TexFile, TexGroup, expand
 from latexdetok import expansion as expansion_module
 from latexdetok.expansion import MAX_DEPTH
 
@@ -47,9 +47,10 @@ class TestMilestoneCriteria:
     def test_beq_eeq_become_an_environment(self, parse, shape, problems):
         tex = parse(BEQ)
         developed = expand(tex)
-        assert (len(tex.get_envs("equation")), shape(developed.container)[1][-1], problems(developed)) == (
+        # `\\eeq` ended its line: the `%` after `\\end{equation}` keeps the line ending eaten, as TeX does.
+        assert (len(tex.get_envs("equation")), shape(developed.container)[1][-2:], problems(developed)) == (
             0,
-            ("equation", ["x=1"]),
+            [("equation", ["x=1"]), "%"],
             [],
         )
 
@@ -82,7 +83,47 @@ class TestSubstitution:
 
     def test_a_definition_produced_by_an_expansion(self, view):
         source = "\\newcommand\\declare[1]{\\newcommand#1{X}}\n\\declare\\y\n\\y\n"
-        assert view(source).content().splitlines()[-2:] == ["\\newcommand\\y{X}", "X"]
+        assert view(source).content().splitlines()[-2:] == ["\\newcommand\\y{X}%", "X%"]
+
+
+class TestDefinitionsMadeByBodies:
+    """A body that defines a macro defines it where it is used; the uses after it wait for the next pass."""
+
+    def test_the_uses_before_and_after_the_setter(self, view):
+        source = (
+            "\\newcommand{\\theauthor}{Nobody}\\newcommand{\\setauthor}[1]{\\renewcommand{\\theauthor}{#1}}\n"
+            "Before: \\theauthor.\n\\setauthor{Alice}\nAfter: \\theauthor.\n"
+        )
+        assert view(source).content().splitlines()[1:] == [
+            "Before: Nobody.",
+            "\\renewcommand{\\theauthor}{Alice}",
+            "After: Alice.",
+        ]
+
+    def test_a_definition_nested_in_a_definition(self, view):
+        source = "\\newcommand{\\makeinner}[1]{\\newcommand{\\inner}[1]{#1 ##1}}\n\\makeinner{A}\\inner{B}\n"
+        assert last_line(view(source)) == "\\newcommand{\\inner}[1]{A #1}A B"
+
+    def test_through_a_macro_the_body_calls(self, view):
+        source = (
+            "\\newcommand{\\x}{A}\\newcommand{\\dosetx}[1]{\\renewcommand{\\x}{#1}}"
+            "\\newcommand{\\setx}[1]{\\dosetx{#1}}\n\\setx{B}\\x\n"
+        )
+        assert last_line(view(source)) == "\\renewcommand{\\x}{B}B%"
+
+    def test_a_name_given_by_a_parameter(self, view):
+        source = "\\newcommand{\\y}{old}\\newcommand{\\setto}[2]{\\renewcommand#1{#2}}\n\\setto\\y{new}\\y\n"
+        assert last_line(view(source)) == "\\renewcommand\\y{new}new%"
+
+    def test_the_begin_code_of_an_environment(self, view):
+        source = "\\newcommand{\\q}{Q}\\newenvironment{part}{\\renewcommand{\\q}{P}}{}\n\\begin{part}\\q\\end{part}\\q\n"
+        assert last_line(view(source)) == "\\begin{part}\\renewcommand{\\q}{P}P\\end{part}Q%"
+
+    def test_a_definition_ends_with_its_group(self, view):
+        assert (
+            last_line(view("\\newcommand{\\x}{A}\n{\\renewcommand{\\x}{B}\\x}\\x\n"))
+            == "{\\renewcommand{\\x}{B}B}A%"
+        )
 
 
 class TestEnvironments:
@@ -242,6 +283,8 @@ class TestConditionals:
             "\\newif\\ifprof\\proftrue\n\\ifprof\\ifpdf A\\fi\\fi\n",
             "\\newif\\ifprof\n\\textbf{\\proftrue}\\ifprof A\\fi\n",
             "\\newif\\ifprof\n\\ifx\\a\\undefined\\proftrue\\fi\\ifprof A\\fi\n",
+            # Found in the corpus: `\\DeclareOptionX{bloc}{\\AMC@qbloctrue}`, run only if the option is given.
+            "\\newif\\ifprof\n\\DeclareOptionX{prof}{\\proftrue}\\ifprof A\\fi\n",
         ],
     )
     def test_not_decided(self, parse, source):
@@ -341,6 +384,63 @@ class TestTextProduced:
 
     def test_blanks_after_a_use_with_no_argument_are_eaten(self, view):
         assert last_line(view("\\def\\x{X}\n\\x bar\n")) == "Xbar"
+
+    @pytest.mark.parametrize(
+        ("source", "expected"),
+        [
+            # The space after the brace is one TeX has read: the control word may not eat it.
+            ("\\newcommand\\shout[1]{#1\\itshape}\n\\shout{loud} words\n", "loud\\itshape{} words"),
+            ("\\newcommand\\deg[1]{#1\\textdegree}\n\\deg{20} C\n", "20\\textdegree{} C"),
+            # A macro of the document that reads nothing, whose body ends on one that reads nothing.
+            (
+                "\\newcommand\\italics{\\itshape}\\newcommand\\x[1]{#1\\italics}\n\\x{a} b\n",
+                "a\\itshape{} b",
+            ),
+            # `\\item` looks for its `[` past the blanks, `\\ignorespaces` skips them, `\\foo` is unknown.
+            ("\\newcommand\\x[1]{#1\\item}\n\\x{a} [b]\n", "a\\item [b]"),
+            ("\\newcommand\\x[1]{#1\\ignorespaces}\n\\x{a} b\n", "a\\ignorespaces b"),
+            ("\\newcommand\\x[1]{#1\\foo}\n\\x{a} b\n", "a\\foo b"),
+        ],
+    )
+    def test_the_space_after_a_use(self, view, source, expected):
+        assert last_line(view(source)) == expected
+
+    @pytest.mark.parametrize(
+        ("definition", "expected"),
+        [
+            ("\\newenvironment{rem}{\\textbf{R.}\\itshape}{}", "\\begin{rem}\\textbf{R.}\\itshape{}"),
+            # `\\@ifnextchar` looked for the optional argument past the line ending, and ate it.
+            ("\\newenvironment{rem}[1][R]{\\textbf{#1.}\\itshape}{}", "\\begin{rem}\\textbf{R.}\\itshape"),
+            ("\\newenvironment{rem}[1][R]{\\textbf{#1.}}{}", "\\begin{rem}\\textbf{R.}%"),
+            # ltcmd does not skip the blanks before a final optional argument.
+            (
+                "\\NewDocumentEnvironment{rem}{o}{\\textbf{R.}\\itshape}{}",
+                "\\begin{rem}\\textbf{R.}\\itshape{}",
+            ),
+        ],
+    )
+    def test_the_line_ending_after_the_begin_code(self, view, definition, expected):
+        developed = view(f"{definition}\n\\begin{{rem}}\nWords\\end{{rem}}\n")
+        assert developed.content().splitlines()[1] == expected
+
+    @pytest.mark.parametrize(
+        ("source", "expected"),
+        [
+            # TeX drops the line ending after `\\pkg`: after the body, it would be a space.
+            ("\\newcommand\\pkg{\\textsf{s}}\nB \\pkg\nC.\n", ["B \\textsf{s}%", "C."]),
+            # After a body that ends on a control word, the line ending is dropped anyway.
+            ("\\newcommand\\bs{\\textbackslash}\na\\bs\nb\n", ["a\\textbackslash", "b"]),
+            # The use ends on its argument `\\LaTeX`, a control word too.
+            ("\\newcommand\\twice[1]{#1 and #1.}\n\\twice\\LaTeX\nis\n", ["\\LaTeX and \\LaTeX.%", "is"]),
+        ],
+    )
+    def test_the_line_ending_after_a_use(self, view, source, expected):
+        assert view(source).content().splitlines()[1:] == expected
+
+    def test_a_use_that_ends_an_argument_leaves_the_body_alone(self, view, problems):
+        # Found in the corpus: the `%` of `\\dL` went inside `\\vv{…}`, and commented out its brace.
+        developed = view("\\newcommand\\vect[1]{\\vv{#1}}\\newcommand\\dL{dL}\n$\\vect \\dL\n$\n")
+        assert (developed.content().splitlines()[1], problems(developed)) == ("$\\vv{{dL}}%", [])
 
     def test_a_use_taken_as_an_argument_gets_braces(self, view):
         assert last_line(view("\\def\\demi{1/2}\n$\\frac\\demi x$\n")) == "$\\frac{1/2}x$"
@@ -533,10 +633,80 @@ class TestMapping:
             developed.source_map.target.text,
             developed.source_position(item.start_position),
         ) == (
-            ["\\def\\x{X}\n", f"a{separator}b X\n", "\\item c\n"],
+            ["\\def\\x{X}\n", f"a{separator}b X%\n", "\\item c\n"],
             "".join(developed.lines),
             (3, 0),
         )
+
+
+class TestKeep:
+    def test_a_macro_kept_as_written(self, parse):
+        tex = parse("\\newcommand\\x{X}\\newcommand\\y{Y}\n\\x\\y\n")
+        developed = expand(tex, keep={"x"})
+        assert (last_line(developed), [item.name for item in developed.expansions]) == ("\\x Y%", ["y"])
+
+    def test_an_environment_kept_as_written(self, parse):
+        tex = parse("\\newenvironment{e}{B}{E}\n\\begin{e}x\\end{e}\n")
+        assert last_line(expand(tex, keep={"e"})) == "\\begin{e}x\\end{e}"
+
+    AT_TITLE = "\\makeatletter\n\\newcommand{\\ptitle}{\\@title}\n\\makeatother\nTitle: \\ptitle.\n"
+
+    @pytest.mark.parametrize(
+        ("writable", "expected"), [(False, "Title: \\@title."), (True, "Title: \\ptitle.")]
+    )
+    def test_a_body_the_document_would_read_otherwise(self, parse, writable, expected):
+        assert last_line(expand(parse(self.AT_TITLE), writable=writable)) == expected
+
+    def test_under_other_catcodes_a_body_that_does_not_use_them(self, parse):
+        tex = parse("\\makeatletter\n\\newcommand{\\R}{\\mathbb{R}}\n\\makeatother\n$\\R$\n")
+        assert last_line(expand(tex, writable=True)) == "$\\mathbb{R}$"
+
+
+class TestCompilable:
+    """The view written back: what it keeps for the analysis goes, the rest is its text."""
+
+    def written(self, parse, source, **options):
+        return expand(parse(source), **options).compilable().splitlines()[-1]
+
+    @pytest.mark.parametrize(
+        ("source", "expected"),
+        [
+            ("\\newenvironment{rem}{\\textbf{R.}}{\\par}\n\\begin{rem}x\\end{rem}\n", "{\\textbf{R.}x\\par}"),
+            ("\\newenvironment{sol}[1]{(#1)}{}\n\\begin{sol}{T}x\\end{sol}\n", "{(T)x}"),
+            (
+                "\\NewDocumentCommand{\\opt}{o m}{\\IfValueTF{#1}{#2 (#1)}{#2}}\n\\opt{a} and \\opt[b]{c}.\n",
+                "a and c (b).",
+            ),
+            ("\\NewDocumentCommand{\\x}{s m}{\\IfBooleanTF{#1}{[#2]}{(#2)}}\n\\x*{a}\\x{b}\n", "[a](b)"),
+            # After a control word, what replaces the test does not glue to it.
+            ("\\NewDocumentCommand{\\x}{o}{\\noindent\\IfValueTF{#1}{#1}{none}}\n\\x\n", "\\noindent none%"),
+            # The branch taken ends on `\\itshape`, before a space TeX has read.
+            (
+                "\\NewDocumentCommand{\\x}{s}{\\IfBooleanTF{#1}{\\itshape}{\\upshape}}\n\\x* words\n",
+                "\\itshape{} words",
+            ),
+            # TeX decides the primitive conditionals again, the same way.
+            ("\\newif\\ifprof\\proftrue\n\\ifprof A\\else B\\fi\n", "\\ifprof A\\else B\\fi"),
+        ],
+    )
+    def test_written_back(self, parse, source, expected):
+        assert self.written(parse, source) == expected
+
+    def test_the_branch_of_a_lookahead_the_use_did_not_take(self, parse):
+        written = expand(parse(TestBranches.RMQ + "\\rmq*{a}\n")).compilable().splitlines()[-1]
+        assert written == "\\moveup\\begin{boite}a\\end{boite}"
+
+    def test_with_edits_of_the_caller(self, parse):
+        tex = parse("\\newcommand{\\x}{X}\n\\x\n")
+        developed = expand(tex)
+        (definition,) = developed.get_commands_arguments(["newcommand"])
+        start, end = definition[0].start_position, definition[-1].end_position
+        assert developed.compilable([Edit(start, (end[0] + 1, 0), "")]) == "X%\n"
+
+    def test_a_body_that_cannot_be_written_is_reported(self, parse, caplog):
+        with caplog.at_level("WARNING", logger="latexdetok"):
+            expand(parse(TestKeep.AT_TITLE)).compilable()
+        assert "ptitle" in caplog.text and "writable=True" in caplog.text
 
 
 class TestCatcodes:

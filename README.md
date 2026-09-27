@@ -85,12 +85,13 @@ intro.tex:8:1: error [crossed-environment] “\begin{itemize}” closed by “\e
   (`\section`: `s o m`), and a hand-written table covers the common packages
   (amsmath, graphicx, siunitx, beamer, booktabs, enumitem…); the definitions of
   the file (`\newcommand`, `\def`, `\NewDocumentCommand`, `\newenvironment`…)
-  are learned while reading.
+  are learned while reading, and end with their group, as in TeX.
 - **Catcodes**: `\makeatletter`, `\catcode`, `\ExplSyntaxOn`, group by group.
 - **Inclusions**: `\input`, `\usepackage`, `\documentclass` looked for the way
   TeX does (the folder, then `kpsewhich`), `% !TEX root` of chapters.
 - **Expanded view**: the user's macros replaced by their bodies, every node tied
-  to what produced it in the source.
+  to what produced it in the source; written back (`compilable`), it compiles
+  into the same document, without the macros one did not `keep`.
 - **Conditionals**: the ones that can be decided without compiling are, and both
   their branches stay in the tree.
 - **Typeset text**: `to_text` renders the prose of a document, accents included,

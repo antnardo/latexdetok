@@ -37,6 +37,14 @@ of environments (`EnvironmentMacro`), which `expansion` expands: a signature
 says how to read a use, a body what it becomes. It also follows the value of
 the booleans of `\\newif` (`Boolean`), which the tokeniser keeps up to date as
 reading goes on.
+
+Groups. TeX undoes a definition at the end of the group that made it, unless it
+is global: `{\\renewcommand{\\x}{B}\\x}\\x` prints “BA”. The registry keeps a save
+stack, as TeX does: the tokeniser opens a level for every group that TeX closes
+by restoring (`open_group`), and at its end the names defined there get back
+what they stood for (`close_group`); a definition made in `globally()` outlives
+every level. A group that never closes (`dissolve_group`) hands its saved names
+to the one around it, where TeX leaves them.
 """
 
 from collections.abc import Iterable, Iterator
@@ -325,7 +333,34 @@ class Boolean:
 MAX_DELEGATION_DEPTH = 8
 
 Definition = CommandSignature | EnvironmentSignature | Delegation | Macro | EnvironmentMacro | Boolean
-JournalEntry = tuple[str, Definition | str]
+# ("define", definition) or ("forget", command name), and whether it was made globally.
+JournalEntry = tuple[str, Definition | str, bool]
+# What a definition saves on the stack: a command, an environment or a boolean, by name.
+SavedKey = tuple[str, str]
+
+
+@dataclass(frozen=True, slots=True)
+class _Saved:
+    """What a name stood for before a local definition changed it: the end of the group puts it back.
+
+    A command has a signature or a delegation (`signature`), and perhaps a body
+    (`macro`); an environment a signature and perhaps its code; a boolean exists
+    or not (`boolean`, its value in a 1-tuple).
+    """
+
+    kind: str
+    name: str
+    signature: CommandSignature | Delegation | EnvironmentSignature | None = None
+    macro: Macro | EnvironmentMacro | None = None
+    boolean: tuple[bool | None] | None = None
+
+
+def _kind(definition: Definition) -> str:
+    if isinstance(definition, CommandSignature | Delegation | Macro):
+        return "command"
+    if isinstance(definition, Boolean):
+        return "boolean"
+    return "environment"
 
 
 class SignatureRegistry:
@@ -338,6 +373,9 @@ class SignatureRegistry:
     back if it has one. `record()` notes what changes during a block, so that it
     can be replayed without re-reading the file that defined it (see
     `resolution`).
+
+    The save stack (see the module header) holds, per open group, the names
+    defined there and what they stood for before; nothing else pays for it.
     """
 
     def __init__(self) -> None:
@@ -347,7 +385,11 @@ class SignatureRegistry:
         self._environments: dict[str, EnvironmentSignature] = {}
         self._environment_macros: dict[str, EnvironmentMacro] = {}
         self._booleans: dict[str, bool | None] = {}
-        self._journals: list[list[JournalEntry]] = []
+        # A journal, and the depth of the stack when it started.
+        self._journals: list[tuple[list[JournalEntry], int]] = []
+        self._saves: list[dict[SavedKey, _Saved]] = []
+        # Inside `globally()`: the definitions outlive every group.
+        self._global = 0
 
     @classmethod
     def kernel(cls) -> "SignatureRegistry":
@@ -418,6 +460,7 @@ class SignatureRegistry:
         A body (`Macro`, `EnvironmentMacro`) completes the signature defined just
         before it.
         """
+        self._save(_kind(signature), signature.name)
         if isinstance(signature, CommandSignature):
             self._delegations.pop(signature.name, None)
             self._macros.pop(signature.name, None)
@@ -435,13 +478,14 @@ class SignatureRegistry:
         else:
             self._environment_macros.pop(signature.name, None)
             self._environments[signature.name] = signature
-        self._note(("define", signature))
+        self._note("define", signature)
 
     def forget_command(self, name: str) -> None:
+        self._save("command", name)
         self._commands.pop(name, None)
         self._delegations.pop(name, None)
         self._macros.pop(name, None)
-        self._note(("forget", name))
+        self._note("forget", name)
 
     def copy_command(self, target: str, source: str) -> None:
         """`\\let\\target\\source`: the target takes the signature and body of the source, or forgets them."""
@@ -459,24 +503,122 @@ class SignatureRegistry:
 
     @contextmanager
     def record(self) -> Iterator[list[JournalEntry]]:
-        """Note the definitions and forgettings of the block, nested blocks included."""
+        """Note the definitions and forgettings of the block, nested blocks included.
+
+        Not the local ones made in a group the block opened: that group undid
+        them before the end of the block, or will undo them — their effect on
+        whoever replays the block is nil.
+        """
         journal: list[JournalEntry] = []
-        self._journals.append(journal)
+        self._journals.append((journal, len(self._saves)))
         try:
             yield journal
         finally:
             self._journals.pop()
 
     def replay(self, journal: Iterable[JournalEntry]) -> None:
-        for _, value in journal:
-            if isinstance(value, str):
-                self.forget_command(value)
-            else:
-                self.define(value)
+        """Make the changes of a journal again, where the stack stands now."""
+        for _, value, is_global in journal:
+            self._global += is_global
+            try:
+                if isinstance(value, str):
+                    self.forget_command(value)
+                else:
+                    self.define(value)
+            finally:
+                self._global -= is_global
 
-    def _note(self, entry: JournalEntry) -> None:
-        for journal in self._journals:
-            journal.append(entry)
+    @contextmanager
+    def globally(self) -> Iterator[None]:
+        """The definitions of the block outlive every open group: `\\gdef`, `\\global\\let`."""
+        self._global += 1
+        try:
+            yield
+        finally:
+            self._global -= 1
+
+    def open_group(self) -> None:
+        """A group opens: the local definitions that follow end with it."""
+        self._saves.append({})
+
+    def close_group(self) -> None:
+        """The group closes: the names defined in it get back what they stood for."""
+        if not self._saves:
+            return
+        for saved in self._saves.pop().values():
+            self._restore(saved)
+
+    def dissolve_group(self) -> None:
+        """The group will never close: what it saved goes to the group around it, which TeX closes instead."""
+        if not self._saves:
+            return
+        saved = self._saves.pop()
+        if self._saves:
+            outer = self._saves[-1]
+            for key, value in saved.items():
+                outer.setdefault(key, value)
+
+    @property
+    def depth(self) -> int:
+        """How many groups are open on the save stack."""
+        return len(self._saves)
+
+    def _save(self, kind: str, name: str) -> None:
+        """Before a change: what the name stood for, if the group has not saved it yet."""
+        if not self._saves:
+            return
+        key = (kind, name)
+        if self._global:
+            # TeX keeps a global value at the end of every group: nothing will put the old one back.
+            for level in self._saves:
+                level.pop(key, None)
+            return
+        level = self._saves[-1]
+        if key in level:
+            return
+        if kind == "command":
+            level[key] = _Saved(
+                kind,
+                name,
+                self._commands.get(name) or self._delegations.get(name),
+                self._macros.get(name),
+            )
+        elif kind == "environment":
+            level[key] = _Saved(kind, name, self._environments.get(name), self._environment_macros.get(name))
+        else:
+            level[key] = _Saved(
+                kind, name, boolean=(self._booleans[name],) if name in self._booleans else None
+            )
+
+    def _restore(self, saved: _Saved) -> None:
+        """Put a name back as it stood; no journal notes it (see `record`)."""
+        name = saved.name
+        if saved.kind == "command":
+            for table in (self._commands, self._delegations, self._macros):
+                table.pop(name, None)
+            if isinstance(saved.signature, CommandSignature):
+                self._commands[name] = saved.signature
+            elif isinstance(saved.signature, Delegation):
+                self._delegations[name] = saved.signature
+            if isinstance(saved.macro, Macro):
+                self._macros[name] = saved.macro
+        elif saved.kind == "environment":
+            self._environments.pop(name, None)
+            self._environment_macros.pop(name, None)
+            if isinstance(saved.signature, EnvironmentSignature):
+                self._environments[name] = saved.signature
+            if isinstance(saved.macro, EnvironmentMacro):
+                self._environment_macros[name] = saved.macro
+        elif saved.boolean is None:
+            self._booleans.pop(name, None)
+        else:
+            self._booleans[name] = saved.boolean[0]
+
+    def _note(self, action: str, value: Definition | str) -> None:
+        depth = len(self._saves)
+        for journal, start in self._journals:
+            if self._global or depth <= start:
+                journal.append((action, value, self._global > 0))
 
     def load(self, lines: Iterable[str], origin: str = "<table>") -> None:
         """Load a table; raises `ValueError` with the offending line."""

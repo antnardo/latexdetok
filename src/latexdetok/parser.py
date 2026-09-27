@@ -33,7 +33,15 @@ to the binding opened by the last known command (see `binding`). The signature
 therefore decides what a `[` is (an optional argument or text), what a character
 taken alone is (`\\frac12`), what an argument read verbatim is (`\\verb|…|`). The
 definitions of the file enter the registry as soon as they are read (see
-`definitions`). For an unknown command, the original heuristics remain:
+`definitions`), and leave it at the end of their group, as in TeX: braces that
+are nobody's argument, an environment, math, `\\begingroup`. Not at the end of
+the argument of a command, whose braces TeX strips before running it
+(`\\AtBeginDocument{\\renewcommand…}` holds for the whole document), nor at
+`\\end{document}`, after which nothing is read. A definition written in the body
+of another is not one yet: `\\newcommand{\\setauthor}[1]{\\renewcommand{\\theauthor}{#1}}`
+only defines `\\theauthor` where `\\setauthor` is used, and the expanded view
+learns it there (see `expansion`). For an unknown command, the original
+heuristics remain:
 
 - `[` only opens an optional argument right behind an unknown command, a group
   `{}`/`[]` that is the argument of no known command, or an unknown
@@ -198,6 +206,10 @@ class _Opening:
     columns: bool = False
     # The unknown command whose name this group follows.
     owner: TexCommand | None = None
+    # This group opened a level of the save stack: its local definitions end with it.
+    scope: bool = False
+    # The `\begingroup` read in this group and not closed yet, one level of the save stack each.
+    begingroups: int = 0
 
 
 @dataclass(slots=True)
@@ -619,8 +631,11 @@ class TexParser:
             elif condition.value == condition.in_else:
                 return False
         for opening in self._pile[1:]:
-            # The argument of a command may be run elsewhere, several times, or never.
-            if opening.branch is None and (opening.argument_of is not None or opening.after_unknown):
+            # The argument of a command may be run elsewhere, several times, or never: the first one of
+            # an unknown command as much as the next (`\DeclareOptionX{bloc}{\AMC@qbloctrue}`).
+            if opening.branch is None and (
+                opening.argument_of is not None or opening.after_unknown or opening.owner is not None
+            ):
                 unknown = True
         return None if unknown else True
 
@@ -636,7 +651,10 @@ class TexParser:
         if is_global:
             for opening in self._pile:
                 opening.saved_booleans.pop(name, None)
-        elif value is not None:
+            with self.signatures.globally():
+                self.signatures.define(Boolean(name, value))
+            return
+        if value is not None:
             # A known value only holds to the end of the TeX group; an unknown one stays unknown.
             scope = next((opening for opening in reversed(self._pile[1:]) if _is_tex_group(opening)), None)
             if scope is not None and name not in scope.saved_booleans:
@@ -732,6 +750,9 @@ class TexParser:
         if index is None:
             return end  # already dissolved: an `\end` or a brace went through it
         opening = self._pile[index]
+        # A branch is not a group: a `\begingroup` still open in it is closed after it.
+        self._pile[index - 1].begingroups += opening.begingroups
+        opening.begingroups = 0
         if not region.taken:
             # Read apart: what stays open there does not leave the branch.
             verbatim = self._verbatim
@@ -780,10 +801,16 @@ class TexParser:
         opening = self._pile[-1]
         if name == "begingroup":
             opening.saved_catcodes.append(opening.catcodes)
+            if not opening.in_definition:
+                self.signatures.open_group()
+                opening.begingroups += 1
             return
         if name == "endgroup":
             if opening.saved_catcodes:
                 opening.catcodes = opening.saved_catcodes.pop()
+            if opening.begingroups:
+                opening.begingroups -= 1
+                self.signatures.close_group()
             return
         if name not in CATCODE_COMMANDS:
             return
@@ -1029,11 +1056,17 @@ class TexParser:
             self._learn(opening, binding.target)
 
     def _learn(self, opening: _Opening, command: TexCommand) -> None:
-        if opening.inactive or self._skipping():
+        # Nothing runs in a discarded branch, nor in the body of a definition before it is expanded.
+        if opening.inactive or opening.in_definition or self._skipping():
             return
-        if command.base_name == "documentclass" and not opening.in_definition:
+        if command.base_name == "documentclass":
             self._document_seen = True
-        inclusions = learn(command, self.signatures, opening.catcodes)
+        registry = self.signatures
+        if _defines_globally(opening.group.content, command):
+            with registry.globally():
+                inclusions = learn(command, registry, opening.catcodes)
+        else:
+            inclusions = learn(command, registry, opening.catcodes)
         if self._resolver is None:
             return
         for name, extension in inclusions:
@@ -1072,6 +1105,17 @@ class TexParser:
             and content[-1].signature is None
             and content[-1].role is None
         )
+        argument_of = target if isinstance(target, TexCommand) else None
+        # Where nothing is learned, nothing is saved: the body of a definition, a skipped branch.
+        scope = (
+            not (in_definition or parent.inactive or self._skipping())
+            and target is None
+            and owner is None
+            and not after_unknown
+            and _undoes_definitions(group)
+        )
+        if scope:
+            self.signatures.open_group()
         self._pile.append(
             _Opening(
                 group,
@@ -1079,13 +1123,14 @@ class TexParser:
                 parent.catcodes,
                 in_definition=in_definition,
                 inactive=parent.inactive,
-                argument_of=target if isinstance(target, TexCommand) else None,
+                argument_of=argument_of,
                 after_unknown=after_unknown,
                 untrusted=parent.untrusted or owner is not None,
                 guessed=group.option and parent.binding is None,
                 untypeset=untypeset,
                 columns=columns,
                 owner=owner,
+                scope=scope,
             )
         )
         if self._debug:
@@ -1102,6 +1147,8 @@ class TexParser:
             self._pile[-1].catcodes = opening.catcodes
         for name, value in opening.saved_booleans.items():
             self.signatures.define(Boolean(name, value))
+        # After the values: a `\newif` of the group is undone whatever its value became.
+        self._end_scope(opening, dissolved=False)
         group.inner_end = (lineno, col)
         group.end_position = (lineno, col + width)
         self._add(group)
@@ -1141,8 +1188,9 @@ class TexParser:
         """The top will not close: its tokens and its children join the parent."""
         opening = self._pile.pop()
         self._close_binding(opening)
+        # Never closed, the group restored nothing: its definitions and catcodes stay in force.
+        self._end_scope(opening, dissolved=True)
         parent = self._pile[-1]
-        # Never closed, the group restored nothing: its catcodes stay in force.
         parent.catcodes = opening.catcodes
         # The group the parent's binding was waiting for will not come.
         self._close_binding(parent)
@@ -1242,6 +1290,19 @@ class TexParser:
         while len(self._pile) > 1:
             self._dissolve(Cause.END_OF_FILE)
         self._close_binding(self._pile[0])
+        # A `\begingroup` the file leaves open: the file that includes it may close it.
+        self._end_scope(self._pile[0], dissolved=True)
+
+    def _end_scope(self, opening: _Opening, dissolved: bool) -> None:
+        """The levels of the save stack `opening` opened: undone if it closes, handed down if it dissolves."""
+        registry = self.signatures
+        end = registry.dissolve_group if dissolved else registry.close_group
+        for _ in range(opening.begingroups):
+            end()
+        opening.begingroups = 0
+        if opening.scope:
+            end()
+            opening.scope = False
 
     def _last_position(self) -> Position:
         if not self._lines:
@@ -1277,6 +1338,40 @@ def _is_tex_group(opening: _Opening) -> bool:
     """A group TeX closes by restoring the values: braces, environment, math."""
     group = opening.group
     return opening.branch is None and not group.option
+
+
+def _undoes_definitions(group: TexGroup) -> bool:
+    """Does the end of `group` undo the definitions made in it, arguments of commands aside?
+
+    Braces, an environment, math. Not `document`: nothing is read after its end,
+    and the checks read the definitions of the whole document in the registry
+    (see `semantics`).
+    """
+    if group.option:
+        return False
+    return group.bracket or group.math or group.name != "document"
+
+
+def _defines_globally(content: Sequence[TexContainer], command: TexCommand) -> bool:
+    """`\\gdef`, `\\xdef`, a definition after `\\global` (`\\global\\long\\def`): it outlives the groups."""
+    name = command.base_name
+    if name in GLOBAL_DEFINITIONS:
+        return True
+    if name not in PREFIXED_DEFINITIONS:
+        return False
+    index = next((i for i in range(len(content) - 1, -1, -1) if content[i] is command), 0)
+    index = _previous(content, index)
+    while index >= 0 and isinstance(content[index], TexCommand) and content[index].content in PREFIXES:
+        if content[index].content == "global":
+            return True
+        index = _previous(content, index)
+    return False
+
+
+GLOBAL_DEFINITIONS = frozenset({"gdef", "xdef"})
+# What `\global` may precede among the definitions read: LaTeX's own (`\newcommand`…) are always local.
+PREFIXED_DEFINITIONS = frozenset({"def", "edef", "let", "futurelet"})
+PREFIXES = frozenset({"global", "long", "outer", "protected"})
 
 
 def _macro_texts(macro: Macro | EnvironmentMacro) -> list[str]:

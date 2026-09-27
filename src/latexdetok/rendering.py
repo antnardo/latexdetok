@@ -734,7 +734,12 @@ class _TwoFaces:
             key = (root.start, root.end, root.name)
             start, end = self._source.offset(expansion.start), self._source.offset(expansion.end)
             known = extents.get(key)
-            extents[key] = (start, end) if known is None else (min(known[0], start), max(known[1], end))
+            if known is None:
+                extents[key] = (start, end)
+            elif start <= known[1] and known[0] <= end:
+                extents[key] = (min(known[0], start), max(known[1], end))
+            # Apart from the use: a copy of an argument written elsewhere, which the end code of an
+            # environment took up. It stays the text of the use that holds it (see `_cover`).
         spans: dict[tuple[int, int], str] = {}
         self._root_spans: dict[tuple[Position, Position, str], tuple[int, int]] = {}
         for (root_start, root_end, name), (start, end) in extents.items():

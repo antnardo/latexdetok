@@ -259,6 +259,69 @@ class TestBoolean:
         assert copy.boolean("prof") is True
 
 
+class TestGroups:
+    """The save stack: what a group defines ends with it, unless it is global."""
+
+    def test_a_group_puts_back_what_it_changed(self):
+        registry = SignatureRegistry.kernel()
+        registry.define(CommandSignature("x", ()))
+        registry.define(Macro("x", (), "A", CatcodeTable.latex()))
+        registry.open_group()
+        registry.define(CommandSignature.from_spec("x", "m"))
+        registry.define(EnvironmentSignature("y"))
+        registry.define(Boolean("z", True))
+        registry.forget_command("section")
+        registry.close_group()
+        assert (
+            registry.command("x").spec,
+            registry.macro("x").body,
+            registry.environment("y"),
+            registry.is_boolean("z"),
+            registry.command("section").spec,
+        ) == ("", "A", None, False, "s o m")
+
+    def test_a_global_definition_outlives_every_group(self):
+        registry = SignatureRegistry.kernel()
+        registry.open_group()
+        registry.open_group()
+        with registry.globally():
+            registry.define(CommandSignature("x", ()))
+        registry.close_group()
+        registry.close_group()
+        assert registry.command("x") is not None
+
+    def test_a_group_that_dissolves_hands_its_names_down(self):
+        registry = SignatureRegistry.kernel()
+        registry.open_group()
+        registry.open_group()
+        registry.define(CommandSignature("x", ()))
+        registry.dissolve_group()
+        assert (registry.command("x") is not None, registry.depth) == (True, 1)
+        registry.close_group()
+        assert (registry.command("x"), registry.depth) == (None, 0)
+
+    def test_the_journal_leaves_out_what_its_groups_undo(self):
+        registry = SignatureRegistry.kernel()
+        with registry.record() as journal:
+            registry.define(CommandSignature("a", ()))
+            registry.open_group()
+            registry.define(CommandSignature("b", ()))
+            with registry.globally():
+                registry.define(CommandSignature("c", ()))
+            registry.close_group()
+        assert [(value.name, is_global) for _, value, is_global in journal] == [("a", False), ("c", True)]
+
+    def test_a_global_entry_replayed_in_a_group_outlives_it(self):
+        source = SignatureRegistry.kernel()
+        with source.record() as journal, source.globally():
+            source.define(CommandSignature("c", ()))
+        target = SignatureRegistry.kernel()
+        target.open_group()
+        target.replay(journal)
+        target.close_group()
+        assert target.command("c") is not None
+
+
 class TestKernelTables:
     @pytest.mark.parametrize("table", TABLES)
     def test_every_table_loads(self, table):

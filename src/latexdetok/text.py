@@ -463,7 +463,7 @@ def _inside(node: TexContainer, delta: int) -> Position:
 class _Writer:
     """Puts the text together: blanks are asked for, not written, and the strongest wins."""
 
-    __slots__ = ("_accent", "_cursor", "_eaten", "_length", "_pending", "marks", "parts")
+    __slots__ = ("_accent", "_cursor", "_eaten", "_length", "_passed", "_pending", "marks", "parts")
 
     def __init__(self) -> None:
         self.parts: list[str] = []
@@ -474,6 +474,8 @@ class _Writer:
         self._cursor: Position | None = None
         # The node just left ends on a control word, or is a comment: TeX skips the blanks after it.
         self._eaten = False
+        # A formula was passed over since the last word written (see `passed_over`).
+        self._passed = False
 
     def arrive(self, position: Position | None) -> None:
         """Before reading a node: a blank if the source has one, nothing if it touches the previous one."""
@@ -490,6 +492,19 @@ class _Writer:
         # Nothing written yet: no blank at the head of the text.
         if self.parts and BLANKS[blank] > BLANKS[self._pending]:
             self._pending = blank
+
+    def passed_over(self) -> None:
+        """A formula was skipped here, and the blanks it parted were one blank in the source.
+
+        `The space $x$\\ is.` is a space, a formula, a control space: three
+        pieces, two blanks, and TeX sets them on either side of the formula.
+        Take the formula away and the two blanks meet, where the source had
+        one. An ordinary blank merges of itself — it is asked for, not written
+        — but a control space and a `~` are written, and would leave two.
+        Without the formula in between, they are TeX's own and stay as they
+        are: `The word \\ is.` really does print two spaces.
+        """
+        self._passed = True
 
     def unskip(self) -> None:
         """Forget a space asked for, as `\\unskip` removes the last one."""
@@ -509,6 +524,16 @@ class _Writer:
             # `\\'z` does not compose: the mark stays one character more, and the map would not follow.
             faithful = faithful and len(composed) == len(chunk)
             chunk, self._accent = composed, ""
+        if self._passed:
+            written = bool(self.parts) and self.parts[-1].endswith(" ")
+            if written or self._pending == " ":
+                # The blank on the other side of the formula is already there, written or asked for.
+                if chunk.isspace():
+                    return
+                if self._pending == " " and (written or chunk.startswith(" ")):
+                    self._pending = ""
+        if not chunk.isspace():
+            self._passed = False
         if self._pending:
             self.parts.append(self._pending)
             self._length += len(self._pending)
@@ -590,6 +615,8 @@ class _Reader:
         if group.math or (group.env and group.name in MATH_ENVIRONMENTS):
             if self._math == "source":
                 self._writer.write(group.arg().strip(), group)
+            else:
+                self._writer.passed_over()
             return
         if not group.env:
             self._inner(group)
@@ -646,6 +673,8 @@ class _Reader:
                 if self._math == "source":
                     formula = argument.arg() if isinstance(argument, TexGroup) else str(argument)
                     self._writer.write(formula.strip(), argument)
+                else:
+                    self._writer.passed_over()
             else:
                 self._argument(argument)
 

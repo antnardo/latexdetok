@@ -204,3 +204,50 @@ class TestExpandedView:
     def test_the_body_of_a_macro_is_typeset(self, developed):
         source = "\\newcommand{\\rmq}[1]{Remarque : #1}\n\\rmq{attention}\n"
         assert developed(source).text.strip() == "Remarque : attention"
+
+
+class TestASkippedFormulaMeetsItsBlanks:
+    """`math="skip"` takes the formula away, and the blanks it parted become one.
+
+    An ordinary blank merges of itself — it is asked for, not written — but a
+    control space and a `~` are written, and used to leave two spaces where the
+    source had one word between two others. A spelling checker reads that as a
+    mistake.
+    """
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "The space $x$ is.",
+            "The space $x$\\ is.",
+            "The space $x$~is.",
+            "The space~$x$ is.",
+            "The space\\ $x$ is.",
+            "The space \\ensuremath{x}\\ is.",
+            "The space \\(x\\)\\ is.",
+            "The space $$x$$\\ is.",
+        ],
+    )
+    def test_one_space_wherever_the_blanks_are_written(self, text, source):
+        assert text(source + "\n", math="skip").text.strip() == "The space is."
+
+    def test_two_formulas_in_a_row(self, text):
+        assert text("The $x$\\ $y$\\ is.\n", math="skip").text.strip() == "The is."
+
+    def test_a_tie_that_carries_punctuation(self, text):
+        assert text("A $x$, et $y$~: fin.\n", math="skip").text.strip() == "A , et : fin."
+
+    @pytest.mark.parametrize("source", ["The word \\ is.", "The word~ is."])
+    def test_with_no_formula_the_two_spaces_are_texs_own(self, text, source):
+        # A blank of the source followed by a space written by hand: TeX sets both.
+        assert text(source + "\n", math="skip").text.strip() == "The word  is."
+
+    def test_the_default_mode_is_untouched(self, text):
+        assert text("The space $x$\\ is.\n").text.strip() == "The space x is."
+
+    def test_every_character_still_knows_where_it_comes_from(self, text):
+        composed = text("The space $x$\\ is.\n", math="skip")
+        assert [composed.position(offset) for offset in range(len(composed.text.rstrip()))] == [
+            (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8),
+            (1, 9), (1, 15), (1, 16), (1, 17),
+        ]  # fmt: skip

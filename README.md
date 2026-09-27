@@ -357,6 +357,11 @@ cd editors/vscode && npm install && npx @vscode/vsce package -o latexdetok.vsix
 code --install-extension latexdetok.vsix
 ```
 
+Installed this way it belongs to the user, not to a folder: every window of
+that VS Code has it — after a reload for the ones already open, and once per
+profile. In a dev container or on a remote it runs on that side, where the
+files it reads live, so the server has to be installed there too.
+
 Then `latexdetok.serverPath` in the settings, with the whole path of the
 server. It is worth setting even when `latexdetok-lsp` is on the `PATH` VS Code
 sees: the command is installed by `latexdetok` itself, extra or no extra, so

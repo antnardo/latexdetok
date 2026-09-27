@@ -24,6 +24,24 @@ npx @vscode/vsce package -o latexdetok.vsix
 code --install-extension latexdetok.vsix
 ```
 
+## Where it applies
+
+Installed this way, the extension belongs to the user, not to a folder: every
+window of that VS Code has it, whatever is open. Four things are worth knowing.
+
+- A window **already open** when it is installed keeps the extension host it
+  started with. It picks the extension up on the next *Developer: Reload
+  Window*, or in a new window.
+- VS Code **profiles** carry their own set of extensions: installing it in one
+  does not install it in the others.
+- In a **dev container, or on a remote** (SSH, WSL), the extension runs on that
+  side, because that is where the files it reads live — the neighbours a
+  document loads, and the texmf trees. The server has to be installed there
+  too, and `latexdetok.serverPath` set in the settings of that remote.
+- In a workspace one has **not approved**, it still underlines. Only
+  `latexdetok.serverPath` coming from that workspace is ignored, so a folder
+  one has just cloned cannot choose what process gets started.
+
 ## Settings
 
 | Setting | Default | Role |

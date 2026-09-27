@@ -415,7 +415,7 @@ class _Reader:
                     token_frame = replace(frame, trusted=False)
                 if token_frame.trusted:
                     self._command(node, token_frame, group, index, previous, lefts)
-                if frame.lists is False and _unknown(node):
+                if frame.lists is False and _unknown(node) and not _control_symbol(node):
                     # An unknown command may have opened a list (`\vrbitem`): we no longer know.
                     frame = replace(frame, lists=None)
             elif isinstance(node, TexGroup):
@@ -892,6 +892,16 @@ def _typesets(command: TexCommand) -> bool:
 
 def _unknown(node: TexCommand) -> bool:
     return node.signature is None and node.macro is None and node.role is None
+
+
+def _control_symbol(node: TexCommand) -> bool:
+    """`\\%`, `\\&`, `\\~`: a backslash and one character that is not a letter.
+
+    TeX reads it as that character, or as a space; whatever the tables hold of
+    it, it opens nothing. Counting one as a command that might have opened a
+    list made `40\\% of the paper` a reason to stop checking the rest.
+    """
+    return len(node.base_name) == 1 and not node.base_name.isalpha()
 
 
 def _math_columns(table: TexGroup) -> bool:

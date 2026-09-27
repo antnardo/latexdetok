@@ -312,3 +312,26 @@ class TestInvalidInMath:
         # The mode of the environment is a guess; a `$` opened by hand is not.
         (diagnostic,) = meaning(document("\\begin{inconnu}\n$\\item a$\n\\end{inconnu}\n"))
         assert diagnostic.code == "invalid-in-math"
+
+
+class TestWhatCloudsAList:
+    """An unknown command may have opened a list (`\\vrbitem`), and then `\\item` is not judged.
+
+    That guard is right, and it was firing on `\\%`: a backslash and one character
+    that is not a letter is a character, not a macro. One `40\\%` in a paper and
+    the rest of the document went unchecked.
+    """
+
+    @pytest.mark.parametrize("escaped", ["\\%", "\\&", "\\#", "\\_", "\\$", "\\{a\\}", "\\,", "\\;"])
+    def test_an_escaped_character_clouds_nothing(self, meaning, escaped):
+        (diagnostic,) = meaning(document(f"40{escaped} de la copie\n\\item a\n"))
+        assert diagnostic.code == "item-outside-list"
+
+    @pytest.mark.parametrize("symbol", ["\\degree", "\\celsius", "\\ohm", "\\micro"])
+    def test_the_symbols_of_gensymb_are_known(self, meaning, symbol):
+        (diagnostic,) = meaning(document(f"20{symbol}\n\\item a\n"))
+        assert diagnostic.code == "item-outside-list"
+
+    def test_a_command_nobody_defined_still_clouds_it(self, meaning):
+        # The guard is kept: `\vrbitem` of the corpus really does open a list.
+        assert meaning(document("\\vrbitem\n\\item a\n")) == []

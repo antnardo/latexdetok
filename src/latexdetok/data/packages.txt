@@ -191,6 +191,13 @@
 \setlistdepth               any   m
 \restartlist                any   m
 
+# gensymb: four symbols and a sign, in text and in math alike.
+\degree                     any   -
+\celsius                    any   -
+\ohm                        any   -
+\micro                      any   -
+\perthousand                any   -
+
 # siunitx (v2 and v3): arguments of numbers and units, never typeset as they stand
 \SI                         any   o m m
 \si                         any   o m

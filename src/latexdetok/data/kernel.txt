@@ -188,6 +188,11 @@
 \sloppy                     text  -
 \fussy                      text  -
 \hyphenation                any   m
+\%                          any   -
+\&                          any   -
+\#                          any   -
+\{                          any   -
+\}                          any   -
 \,                          any   -
 \;                          any   -
 \:                          any   -

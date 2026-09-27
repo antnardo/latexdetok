@@ -9,7 +9,7 @@ import pytest
 from lsprotocol import types
 
 from latexdetok.diagnostics import Severity
-from latexdetok.server import SEVERITIES, diagnose, server, settings
+from latexdetok.server import SEVERITIES, code_actions, diagnose, server, settings
 
 FAUTIF = "\\documentclass{article}\n\\begin{document}\nSoit $x\n\nla suite.\n\\end{document}\n"
 
@@ -107,6 +107,47 @@ class TestColumns:
         assert found.range.start.character == expected
 
 
+class TestQuickFixes:
+    """The fix, offered as an edit the editor applies: ⌥⌘. on the place at fault."""
+
+    @staticmethod
+    def span(line, character=0):
+        place = types.Position(line=line, character=character)
+        return types.Range(start=place, end=place)
+
+    def test_the_fix_is_offered_on_the_place_at_fault(self, tmp_path):
+        uri = uri_of(tmp_path / "cours.tex")
+        (action,) = code_actions(FAUTIF, uri, self.span(2, 5))
+        assert (action.title, action.kind) == (
+            "close it with “$” before the blank line",
+            types.CodeActionKind.QuickFix,
+        )
+
+    def test_it_carries_the_edit_that_settles_it(self, tmp_path):
+        uri = uri_of(tmp_path / "cours.tex")
+        (action,) = code_actions(FAUTIF, uri, self.span(2, 5))
+        (edit,) = action.edit.changes[uri]
+        assert (edit.range.start, edit.range.end, edit.new_text) == (
+            types.Position(line=2, character=7),
+            types.Position(line=2, character=7),
+            "$",
+        )
+
+    def test_it_names_the_diagnostic_it_answers(self, tmp_path):
+        uri = uri_of(tmp_path / "cours.tex")
+        (action,) = code_actions(FAUTIF, uri, self.span(2, 5))
+        (answered,) = action.diagnostics
+        assert answered.code == "unclosed-math"
+
+    def test_nothing_is_offered_elsewhere_in_the_document(self, tmp_path):
+        assert code_actions(FAUTIF, uri_of(tmp_path / "cours.tex"), self.span(5)) == []
+
+    def test_a_diagnostic_with_no_repair_offers_nothing(self, tmp_path):
+        # `\item` outside a list: where the list should open is anyone's guess.
+        source = "\\begin{document}\n\\item hors liste\n\\end{document}\n"
+        assert code_actions(source, uri_of(tmp_path / "cours.tex"), self.span(1)) == []
+
+
 def test_the_features_the_editor_talks_to_are_registered():
     # Renaming a handler without its decorator would silently stop the underlining.
     assert set(server.protocol.fm.features) >= {
@@ -115,6 +156,7 @@ def test_the_features_the_editor_talks_to_are_registered():
         "textDocument/didChange",
         "textDocument/didSave",
         "textDocument/didClose",
+        "textDocument/codeAction",
     }
 
 

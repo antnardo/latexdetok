@@ -53,11 +53,11 @@ except ImportError as error:  # pragma: no cover - the message is what is tested
 from latexdetok import __version__
 from latexdetok.analyse import TexFile
 from latexdetok.checks import check
-from latexdetok.diagnostics import Severity, TexDiagnostic
+from latexdetok.diagnostics import Repair, Severity, TexDiagnostic
 from latexdetok.messages import set_language
 from latexdetok.resolution import split_lines
 
-__all__ = ["SEVERITIES", "diagnose", "main", "server"]
+__all__ = ["SEVERITIES", "code_actions", "diagnose", "main", "server"]
 
 # The language server protocol has four severities, the package three.
 SEVERITIES = {
@@ -132,8 +132,8 @@ def _diagnostic(found: TexDiagnostic, uri: str, lines: list[str]) -> types.Diagn
     )
 
 
-def diagnose(text: str, uri: str) -> list[types.Diagnostic]:
-    """The diagnostics of a buffer, ready to be published.
+def _read(text: str, uri: str) -> tuple[list[str], list[TexDiagnostic]]:
+    """The lines of the buffer, and what is wrong in it.
 
     `uri` says where the document lives: its folder is where the inclusions are
     looked for. An untitled buffer has none, and is read on its own.
@@ -142,8 +142,44 @@ def diagnose(text: str, uri: str) -> list[types.Diagnostic]:
     path = uris.to_fs_path(uri)
     tex = TexFile(lines, path=Path(path) if path else None)
     tex.analyse(follow_inputs=settings.follow_inputs)
-    found = check(tex, follow_inputs=settings.follow_inputs, expanded=settings.expand)
+    return lines, check(tex, follow_inputs=settings.follow_inputs, expanded=settings.expand)
+
+
+def diagnose(text: str, uri: str) -> list[types.Diagnostic]:
+    """The diagnostics of a buffer, ready to be published."""
+    lines, found = _read(text, uri)
     return [_diagnostic(diagnostic, uri, lines) for diagnostic in found]
+
+
+def _edit(repair: Repair, lines: list[str]) -> types.TextEdit:
+    return types.TextEdit(range=_range(repair.start, repair.end, lines), new_text=repair.text)
+
+
+def code_actions(text: str, uri: str, span: types.Range) -> list[types.CodeAction]:
+    """The quick fixes offered over `span`: one per diagnostic that knows how to repair itself.
+
+    The buffer is read again rather than remembered: it costs the same as a
+    keystroke, and what is edited is then certainly what is on screen.
+    """
+    lines, found = _read(text, uri)
+    actions = []
+    for diagnostic in found:
+        if not diagnostic.repairs or not diagnostic.suggestion:
+            continue
+        shown = _diagnostic(diagnostic, uri, lines)
+        if shown.range.end < span.start or span.end < shown.range.start:
+            continue
+        actions.append(
+            types.CodeAction(
+                title=diagnostic.suggestion,
+                kind=types.CodeActionKind.QuickFix,
+                diagnostics=[shown],
+                edit=types.WorkspaceEdit(
+                    changes={uri: [_edit(repair, lines) for repair in diagnostic.repairs]}
+                ),
+            )
+        )
+    return actions
 
 
 def _publish(uri: str, diagnostics: list[types.Diagnostic]) -> None:
@@ -176,6 +212,15 @@ def _schedule(uri: str, delay: float = DEBOUNCE) -> None:
     if waiting is not None:
         waiting.cancel()
     _pending[uri] = asyncio.get_event_loop().create_task(_analyse(uri, delay))
+
+
+@server.feature(
+    types.TEXT_DOCUMENT_CODE_ACTION,
+    types.CodeActionOptions(code_action_kinds=[types.CodeActionKind.QuickFix]),
+)
+def _code_action(params: types.CodeActionParams) -> list[types.CodeAction]:
+    document = server.workspace.get_text_document(params.text_document.uri)
+    return code_actions(document.source, params.text_document.uri, params.range)
 
 
 @server.feature(types.INITIALIZE)

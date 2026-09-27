@@ -6,6 +6,8 @@ import pytest
 
 from latexdetok import Severity, TexFile
 from latexdetok.checks import check
+from latexdetok.diagnostics import Repair
+from latexdetok.export import Edit, rewrite
 
 BEQ = "\\documentclass{article}\n\\def\\beq{\\begin{equation}}\n\\begin{document}\n\\beq x=1\n\n\\end{document}\n"
 
@@ -139,3 +141,64 @@ class TestWhatOneMistakeHides:
         assert [d.code for d in check(tex)] == ["unclosed-math"]
         settled = parse("\\begin{document}\nSoit $x$\n\nsuite.\n\\item hors liste\n\\end{document}\n")
         assert [d.code for d in check(settled)] == ["item-outside-list"]
+
+
+REPAIR_CASES = {
+    "math cut by a blank line": "\\begin{document}\nSoit $x\n\nsuite.\n\\end{document}\n",
+    "math cut by a closing brace": "\\begin{document}\n\\section{Le $x titre}\na\n\\end{document}\n",
+    "math cut by an \\end": "\\begin{document}\n\\begin{center}\n$x\n\\end{center}\n\\end{document}\n",
+    "brace cut by a blank line": "\\begin{document}\n\\emph{a\n\nsuite.\n\\end{document}\n",
+    "brace cut by an \\end": "\\begin{document}\n\\begin{center}\n\\emph{a\n\\end{center}\n\\end{document}\n",
+    "environment never closed": "\\begin{document}\n\\begin{center}\na\n\\end{document}\n",
+    "bracket never closed": "\\begin{document}\n\\includegraphics[width=2cm\n\na\n\\end{document}\n",
+    "brace too many": "\\begin{document}\na}\nsuite.\n\\end{document}\n",
+}
+
+
+class TestRepairs:
+    """What `suggestion` says in words, `repairs` says as edits — and applying it settles it."""
+
+    @pytest.mark.parametrize("source", REPAIR_CASES.values(), ids=list(REPAIR_CASES))
+    def test_applying_the_repair_settles_the_diagnostic(self, source):
+        tex = TexFile(source.splitlines(keepends=True), name="c.tex")
+        repaired = 0
+        for diagnostic in check(tex):
+            if not diagnostic.repairs:
+                continue
+            repaired += 1
+            edits = [Edit(repair.start, repair.end, repair.text) for repair in diagnostic.repairs]
+            written = rewrite(tex, edits).splitlines(keepends=True)
+            again = check(TexFile(written, name="c.tex"))
+            assert diagnostic.code not in [found.code for found in again]
+        assert repaired == 1
+
+    def test_the_closing_lands_where_the_message_says(self):
+        source = "\\begin{document}\nSoit $x\n\nsuite.\n\\end{document}\n"
+        tex = TexFile(source.splitlines(keepends=True), name="c.tex")
+        (diagnostic,) = [found for found in check(tex) if found.repairs]
+        # Not on the blank line, which would stop being blank and weld two paragraphs.
+        assert diagnostic.repairs == (Repair((2, 7), (2, 7), "$"),)
+
+    def test_an_info_carries_no_repair(self):
+        # `\newcommand{\beq}{\begin{equation}}` is how that kind of macro is written:
+        # repairing it would close the environment inside the definition and break it.
+        source = "\\newcommand{\\beq}{\\begin{equation}}\n\\begin{document}\n\\beq x\n\\end{document}\n"
+        found = check(TexFile(source.splitlines(keepends=True), name="c.tex"))
+        assert [d.severity for d in found if d.repairs] == []
+
+    def test_what_a_macro_body_wrote_is_not_repaired_in_the_source(self):
+        # The place to repair is the definition, in another file's business.
+        source = "\\newcommand{\\beq}{\\begin{equation}}\n\\begin{document}\n\\beq x\n\\end{document}\n"
+        (error,) = [
+            d for d in check(TexFile(source.splitlines(keepends=True))) if d.severity is Severity.ERROR
+        ]
+        assert (error.code, error.repairs) == ("unclosed-environment", ())
+
+    def test_a_brace_that_hides_in_a_comment_is_not_repaired(self):
+        # The message offers another reading — that “}” freed of its “%” — and a repair
+        # elsewhere would close the group against it.
+        source = "\\begin{document}\n\\emph{a\n% et }\nsuite.\n\\end{document}\n"
+        (diagnostic,) = [
+            d for d in check(TexFile(source.splitlines(keepends=True))) if d.code == "unclosed-brace"
+        ]
+        assert diagnostic.repairs == ()

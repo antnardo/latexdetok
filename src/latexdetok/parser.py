@@ -252,7 +252,7 @@ class TexParser:
         self.diagnostics: list[TexDiagnostic] = []
         # With no `\documentclass`, no `document` and no `% !TEX root`: a file another one includes.
         self.fragment = False
-        self._report = StructureReport(self._name)
+        self._report = StructureReport(self._name, self._lines)
         # A `\documentclass` or a `document` read: a document, not a fragment included by another.
         self._document_seen = False
         # Math where a `$` has already been reported.

@@ -22,7 +22,7 @@ from os import PathLike
 
 from latexdetok.analyse import TexFile
 from latexdetok.classes import Position
-from latexdetok.diagnostics import Related, TexDiagnostic
+from latexdetok.diagnostics import Related, Repair, TexDiagnostic
 from latexdetok.expansion import ExpandedFile, Expansion, expand
 from latexdetok.messages import say
 from latexdetok.resolution import TexmfResolver
@@ -91,8 +91,26 @@ def in_source(view: ExpandedFile, diagnostics: Iterable[TexDiagnostic]) -> list[
         related = tuple(
             Related(*_locate(view, item.start, item.end)[:2], item.message) for item in diagnostic.related
         )
+        # The repairs were computed on the view, whose lines are not the source's. They come
+        # back the same way the span does — and only for what the source itself wrote: inside
+        # a macro body, the place to repair is the definition, which is another file's business.
+        repairs = (
+            ()
+            if author is not None
+            else tuple(
+                Repair(*_locate(view, repair.start, repair.end)[:2], repair.text)
+                for repair in diagnostic.repairs
+            )
+        )
         moved = TexDiagnostic(
-            diagnostic.code, diagnostic.severity, message, start, end, related, diagnostic.suggestion
+            diagnostic.code,
+            diagnostic.severity,
+            message,
+            start,
+            end,
+            related,
+            diagnostic.suggestion,
+            repairs,
         )
         located.setdefault((moved.code, moved.message, start, end), moved)
     return _sorted(located.values())

@@ -256,8 +256,35 @@ A frozen dataclass.
 | `start`, `end` | `Position` | the span at fault, end excluded |
 | `related` | `tuple[Related, ...]` | the other useful places: the opening, what cut it short, the likely cause |
 | `suggestion` | `str \| None` | the fix, when it is known |
+| `repairs` | `tuple[Repair, ...]` | the same fix as edits, when writing it down is enough to apply it |
 
 `str()` returns `line:column: severity [code] message`, the column counted from 1.
+
+### `Repair`
+
+```python
+Repair(start: Position, end: Position, text: str)
+```
+
+A span of the source to replace: `start == end` inserts, an empty `text`
+deletes. The same three fields as an [`Edit`](#export-editing-a-source), which
+is what applies it — `diagnostics` sits below `export` in the package and does
+not import it.
+
+Five codes carry one: `unclosed-math`, `unclosed-brace`, `unclosed-bracket`,
+`unclosed-environment` and `extra-brace`. The others describe a mistake whose
+repair is anyone's guess, and offer nothing rather than guess — an `\item`
+outside a list does not say where the list should open.
+
+Three rules hold everywhere:
+
+- a closing lands at the end of what is written before the cut, never on the
+  blank line that cuts a paragraph, which would stop being blank and weld two
+  paragraphs into one, and never before the opening it closes;
+- an **info** never carries a repair: it reports LaTeX that is valid, and
+  `\newcommand{\beq}{\begin{equation}}` is how that kind of macro is written;
+- what a **macro body** wrote carries none either: the place to repair is the
+  definition, which the document does not own.
 
 ```pycon
 >>> from latexdetok import Related, Severity, TexDiagnostic
@@ -1220,7 +1247,8 @@ process, which is the whole reason it is a server.
 | Name | Role |
 | --- | --- |
 | `diagnose(text, uri)` | the diagnostics of a buffer as `lsprotocol` writes them; the folder of `uri` is where the inclusions are looked for, and an untitled buffer has none |
-| `server` | the `LanguageServer`, with the four notifications an editor sends: open, change, save, close |
+| `code_actions(text, uri, span)` | the quick fixes offered over `span`: one per diagnostic that carries a `Repair`, with the edit the editor applies |
+| `server` | the `LanguageServer`: the four notifications an editor sends — open, change, save, close — and the quick fixes it asks for |
 | `settings` | what `initializationOptions` may change: `language` (`en`, `fr`), `followInputs`, `expand` |
 | `SEVERITIES` | the three severities of the package, in the four of the protocol |
 | `main()` | `server.start_io()`, what the console script runs |

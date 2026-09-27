@@ -4,6 +4,9 @@ Underlines what is wrong in a LaTeX source while it is being typed: unclosed
 braces and environments, math that never closes, an `\item` outside a list, a
 missing argument — with the opening at fault, and the fix.
 
+Where the fix is not a guess — an opening that never closes, a brace too many —
+**⌥⌘.** applies it.
+
 The extension does almost nothing itself. It starts
 [latexdetok](https://github.com/antnardo/latexdetok)'s language server and
 hands it the buffer; everything that reads LaTeX happens there, in Python.

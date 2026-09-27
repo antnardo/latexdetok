@@ -49,6 +49,7 @@ __all__ = [
     "Cause",
     "Context",
     "Related",
+    "Repair",
     "Severity",
     "StructureReport",
     "TexDiagnostic",
@@ -92,13 +93,28 @@ class Related:
 
 
 @dataclass(frozen=True, slots=True)
+class Repair:
+    """A span of the source to replace: what applying the fix does.
+
+    The same three fields as an `export.Edit`, which is what applies it — but
+    `diagnostics` sits below `export` in the package and does not import it.
+    `start == end` inserts, an empty `text` deletes.
+    """
+
+    start: Position
+    end: Position
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
 class TexDiagnostic:
     """What is wrong, where, and what goes with it.
 
     `code` is stable (see `CATALOGUE`): it is what one filters on, not the
     message. `start` and `end`: the span at fault, end excluded. `related`: the
     other useful places, in the order to read them; `suggestion`: the fix, when
-    it is known.
+    it is known, and `repairs` the same fix written as edits, when writing it
+    down is enough to apply it. An info never carries one.
     """
 
     code: str
@@ -108,6 +124,14 @@ class TexDiagnostic:
     end: Position
     related: tuple[Related, ...] = ()
     suggestion: str | None = None
+    # What `suggestion` says, written as edits — when saying it is enough to do it.
+    repairs: tuple[Repair, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.severity is Severity.INFO and self.repairs:
+            # An info reports LaTeX that is valid: `\newcommand{\beq}{\begin{equation}}` is
+            # how a macro of that kind is written. Repairing it would break what works.
+            object.__setattr__(self, "repairs", ())
 
     def __str__(self) -> str:
         line, col = self.start
@@ -189,6 +213,8 @@ class StructureReport:
     """
 
     name: str = "<source>"
+    # The source, to find where a closing goes: at the end of what is written before the cut.
+    lines: Sequence[str] = ()
     document: bool = False
     _unclosed: list[_Unclosed] = field(default_factory=list)
     _strays: list[_StrayEnd] = field(default_factory=list)
@@ -357,7 +383,8 @@ class StructureReport:
                 event = unclosed.get(id(brace))
                 context = event.context if event is not None else stray.context
                 reason = Related(stray.start, stray.end, say("related.end-before-closing", closing=closing))
-                found.append(self._brace(brace, owner, context, (reason,), document=True))
+                # The `\end` read here is what cuts the brace short: the closing goes before it.
+                found.append(self._brace(brace, owner, context, (reason,), stray.start, document=True))
             return found
         crossed = next(
             (
@@ -447,6 +474,7 @@ class StructureReport:
             (position[0], position[1] + 1),
             related,
             say("extra-brace.fix"),
+            (Repair(position, (position[0], position[1] + 1), ""),),
         )
 
     def _unclosed_diagnostic(self, event: _Unclosed) -> TexDiagnostic:
@@ -455,9 +483,11 @@ class StructureReport:
         if event.at is not None and event.cause is not Cause.END_OF_FILE:
             reasons = (Related(*event.at, _cut_by(event)),)
         at_end = event.cause is Cause.END_OF_FILE
+        # Where the closing goes: before what cut the group short, or at the end of the file.
+        cut = event.at[0] if event.at is not None and not at_end else None
         if group.bracket:
             return self._brace(
-                group, event.owner, event.context, reasons, document=self.document or not at_end
+                group, event.owner, event.context, reasons, cut, document=self.document or not at_end
             )
         opening = group.enclosures()[0]
         doubtful = at_end and not self.document
@@ -469,6 +499,7 @@ class StructureReport:
                 *_opening_span(group),
                 reasons,
                 say("unclosed-bracket.fix"),
+                _closing_repair(self.lines, _opening_span(group)[1], cut, "]"),
             )
         if group.math:
             closing = group.enclosures()[1]
@@ -480,6 +511,7 @@ class StructureReport:
                 *_opening_span(group),
                 reasons,
                 say(f"unclosed-math.fix{blank}", closing=closing),
+                _closing_repair(self.lines, _opening_span(group)[1], cut, closing),
             )
         return TexDiagnostic(
             "unclosed-environment",
@@ -488,6 +520,7 @@ class StructureReport:
             *_opening_span(group),
             reasons,
             say("unclosed-environment.fix", closing=f"\\end{{{group.name}}}"),
+            _closing_repair(self.lines, _opening_span(group)[1], cut, f"\n\\end{{{group.name}}}"),
         )
 
     def _brace(
@@ -496,16 +529,61 @@ class StructureReport:
         owner: TexCommand | None,
         context: Context,
         reasons: tuple[Related, ...],
+        cut: Position | None,
         document: bool,
     ) -> TexDiagnostic:
+        clues = _brace_clues(group)
+        # The message says the brace is probably missing before the first blank line:
+        # the fix must not close it somewhere else, further down the paragraph after it.
+        paragraph = next((clue for clue in clues if clue.start == clue.end), None)
+        if paragraph is not None and (cut is None or paragraph.start < cut):
+            cut = paragraph.start
+        # A “}” sitting in a comment: what is meant is probably that one, freed of its “%”.
+        # Adding another elsewhere would close the group against the reading we just offered.
+        in_comment = any(clue.start != clue.end for clue in clues)
+        repairs = () if in_comment else _closing_repair(self.lines, _opening_span(group)[1], cut, "}")
         return TexDiagnostic(
             "unclosed-brace",
             _severity(Severity.ERROR, context, doubtful=not document),
             _owned("unclosed-brace", owner),
             *_opening_span(group),
-            tuple(sorted((*reasons, *_brace_clues(group)), key=lambda item: item.start)),
+            tuple(sorted((*reasons, *clues), key=lambda item: item.start)),
             say("unclosed-brace.fix"),
+            repairs,
         )
+
+
+def _closing_place(lines: Sequence[str], opening_end: Position, cut: Position | None) -> Position:
+    """Where a missing closing goes: at the end of what is written before the cut.
+
+    Not on the blank line that cuts a paragraph, which would stop being blank
+    and weld two paragraphs into one; not before the `\\end` that closes the
+    environment around it either. The last line that carries anything, and
+    never before the opening itself — a closing that lands ahead of what it
+    closes would make a worse source than the one it repairs.
+    """
+    last = len(lines)
+    if cut is not None:
+        line, column = cut
+        head = lines[line - 1][:column].rstrip() if 1 <= line <= len(lines) else ""
+        # The cut may fall in the middle of a line: `\section{Le $x titre}` closes on its `}`.
+        if head and (line, len(head)) >= opening_end:
+            return (line, len(head))
+        last = line - 1
+    for number in range(min(last, len(lines)), opening_end[0] - 1, -1):
+        content = lines[number - 1].rstrip()
+        if content:
+            return (number, max(len(content), opening_end[1] if number == opening_end[0] else 0))
+    return opening_end
+
+
+def _closing_repair(
+    lines: Sequence[str], opening_end: Position, cut: Position | None, text: str
+) -> tuple[Repair, ...]:
+    if not lines:
+        return ()
+    place = _closing_place(lines, opening_end, cut)
+    return (Repair(place, place, text),)
 
 
 def _owned(key: str, owner: TexCommand | None) -> str:

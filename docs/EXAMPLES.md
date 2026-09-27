@@ -531,6 +531,52 @@ folder.
 }
 ```
 
+## Applying a fix
+
+A diagnostic says what is wrong in words (`suggestion`), and — when saying it
+is enough to do it — as edits (`repairs`). Five codes carry one: the four
+openings that never close, and the brace too many. The rest describe a mistake
+whose repair is anyone's guess, and offer nothing rather than guess.
+
+```pycon
+>>> from latexdetok import Edit, check, rewrite
+>>> brouillon = TexFile(
+...     ["\\begin{document}\n", "Soit $x\n", "\n", "suite.\n", "\\end{document}\n"], name="brouillon.tex"
+... )
+>>> (faute,) = [found for found in check(brouillon) if found.repairs]
+>>> faute.suggestion
+'close it with “$” before the blank line'
+>>> faute.repairs
+(Repair(start=(2, 7), end=(2, 7), text='$'),)
+>>> corrige = rewrite(brouillon, [Edit(r.start, r.end, r.text) for r in faute.repairs])
+>>> print(corrige.splitlines()[1])
+Soit $x$
+
+```
+
+The closing lands at the end of what is written before the cut — never on the
+blank line, which would stop being blank and weld two paragraphs into one. And
+the proof that it is the right place: the diagnostic is gone.
+
+```pycon
+>>> [found.code for found in check(TexFile(corrige.splitlines(keepends=True)))]
+[]
+
+```
+
+An info never carries a repair: it reports LaTeX that is valid.
+`\newcommand{\beq}{\begin{equation}}` is how that kind of macro is written, and
+closing the environment inside the definition would break it.
+
+```pycon
+>>> macro = TexFile(
+...     ["\\newcommand{\\beq}{\\begin{equation}}\n", "\\begin{document}\n", "\\beq x\n", "\\end{document}\n"]
+... )
+>>> [(found.severity.value, found.repairs) for found in check(macro)]
+[('info', ()), ('error', ())]
+
+```
+
 ## Looking for a sentence
 
 `to_text` renders the typeset text: blanks collapsed, accents composed, labels

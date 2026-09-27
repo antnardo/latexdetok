@@ -5,6 +5,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-27
+
+### Added
+
+- **Quick fixes.** A diagnostic that knows how to repair itself carries the
+  repair as edits, `repairs`, and not only as a sentence. In an editor, ⌥⌘. on
+  the place at fault closes the `$`, the brace, the bracket or the environment,
+  or removes the brace too many — `textDocument/codeAction` on the server side,
+  `code_actions(text, uri, span)` for whoever wants it in Python.
+- `Repair(start, end, text)`, the same three fields as an `Edit`, which is what
+  applies it.
+
+Five codes carry a repair: `unclosed-math`, `unclosed-brace`,
+`unclosed-bracket`, `unclosed-environment` and `extra-brace`. The others
+describe a mistake whose repair is anyone's guess — an `\item` outside a list
+does not say where the list should open — and offer nothing rather than guess.
+
+Three rules, each one a way of not making the source worse than it was. A
+closing lands at the end of what is written before the cut: never on the blank
+line that cuts a paragraph, which would stop being blank and weld two
+paragraphs into one, and never before the opening it closes. An info never
+carries a repair, because it reports LaTeX that is valid —
+`\newcommand{\beq}{\begin{equation}}` is how that kind of macro is written, and
+closing it inside the definition would break it. And what a macro body wrote
+carries none either: the place to repair is the definition, which the document
+does not own.
+
+A test applies every repair and checks the diagnostic is gone.
+
 ## [0.4.3] — 2026-09-27
 
 ### Changed

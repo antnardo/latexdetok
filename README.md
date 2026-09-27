@@ -97,6 +97,9 @@ intro.tex:8:1: error [crossed-environment] “\begin{itemize}” closed by “\e
   to look for a sentence in it; every character keeps its node and its position.
 - **Translatable messages**: the diagnostics read in English or in French
   (`set_language`, `LATEXDETOK_LANG`); the codes, for their part, do not move.
+- **Fixes**: the openings that never close carry their repair as an edit, not
+  only as a sentence: ⌥⌘. in the editor closes the `$` at the right place, and
+  the diagnostic is gone.
 - **Edits**: a modified output drawn from the analysis, the rest of the source
   identical byte for byte, line endings and byte order mark included — for a
   minimal diff.
@@ -345,6 +348,13 @@ import, then the first search through `kpsewhich`. The server pays that once.
 
 Settings travel in `initializationOptions`: `language` (`en`, `fr`),
 `followInputs` and `expand`.
+
+It also offers **quick fixes**: where a diagnostic knows how to repair itself —
+the four openings that never close, and the brace too many — the editor's ⌥⌘.
+applies the edit. The closing lands at the end of what is written before the
+cut, never on the blank line that would stop being blank. A diagnostic whose
+repair is anyone's guess offers nothing, and an info, which reports LaTeX that
+is valid, never carries one.
 
 ### VS Code
 

@@ -786,6 +786,74 @@ class TestCompilable:
             expand(parse(source)).compilable()
         assert "tag" in caplog.text and "writable=True" in caplog.text
 
+    SHOW_OPT = (
+        "\\ExplSyntaxOn\n"
+        "\\cs_new:Npn \\ShowOpt #1 { \\tl_if_novalue:nTF {#1} { [none] } { [#1] } }\n"
+        "\\ExplSyntaxOff\n"
+    )
+
+    @pytest.mark.parametrize(
+        ("definitions", "uses", "expected", "expanded"),
+        [
+            (
+                "\\NewDocumentCommand{\\opt}{o m}{#2 \\ShowOpt{#1}}\n",
+                "\\opt{a} and \\opt[b]{c}.",
+                "\\opt{a} and c \\ShowOpt{b}.",
+                ["opt"],
+            ),
+            # Through a macro that receives it as a value: the use that did not get the optional stays.
+            (
+                "\\NewDocumentCommand{\\inner}{o}{\\ShowOpt{#1}}\n\\NewDocumentCommand{\\outr}{o}{<\\inner[#1]>}\n",
+                "\\outr{} and \\outr[b].",
+                "\\outr{} and <\\ShowOpt{b}>.",
+                ["outr", "inner"],
+            ),
+            # An environment stays at every use: expanded or not, its `\\begin` would be in the view.
+            (
+                "\\NewDocumentEnvironment{boxa}{o}{\\ShowOpt{#1}}{.}\n",
+                "\\begin{boxa}x\\end{boxa} and \\begin{boxa}[f]y\\end{boxa}",
+                "\\begin{boxa}x\\end{boxa} and \\begin{boxa}[f]y\\end{boxa}",
+                [],
+            ),
+            (
+                "\\NewDocumentEnvironment{boxb}{o}{(}{\\ShowOpt{#1})}\n",
+                "\\begin{boxb}x\\end{boxb} and \\begin{boxb}[g]y\\end{boxb}",
+                "\\begin{boxb}x\\end{boxb} and \\begin{boxb}[g]y\\end{boxb}",
+                [],
+            ),
+        ],
+        ids=["expl3", "through-a-macro", "begin-code", "end-code"],
+    )
+    def test_a_missing_optional_passed_to_a_command_that_stays_leaves_the_use_when_writable(
+        self, parse, definitions, uses, expected, expanded
+    ):
+        # Written out, `-NoValue-` is text: `\\tl_if_novalue:nTF` would find a value there.
+        developed = expand(parse(self.SHOW_OPT + definitions + uses + "\n"), writable=True)
+        written = developed.compilable().splitlines()[-1]
+        assert ([item.name for item in developed.expansions], written) == (expanded, expected)
+
+    def test_a_missing_optional_passed_to_a_kept_macro_leaves_the_use_when_writable(self, parse):
+        source = (
+            "\\newcommand{\\show}[1]{[#1]}\n\\NewDocumentCommand{\\opt}{o}{\\show{#1}}\n\\opt and \\opt[b].\n"
+        )
+        developed = expand(parse(source), keep={"show"}, writable=True)
+        assert developed.compilable().splitlines()[-1] == "\\opt and \\show{b}."
+
+    def test_a_missing_optional_in_a_discarded_branch_is_expanded_when_writable(self, parse):
+        definition = "\\NewDocumentCommand{\\pick}{o}{\\IfValueTF{#1}{\\ShowOpt{#1}}{none}}\n"
+        developed = expand(parse(self.SHOW_OPT + definition + "\\pick{} and \\pick[c].\n"), writable=True)
+        assert developed.compilable().splitlines()[-1] == "none{} and \\ShowOpt{c}."
+
+    def test_a_missing_optional_passed_to_a_command_that_stays_is_reported(self, parse, caplog):
+        source = self.SHOW_OPT + "\\NewDocumentCommand{\\opt}{o m}{#2 \\ShowOpt{#1}}\n\\opt{a}\n"
+        with caplog.at_level("WARNING", logger="latexdetok"):
+            written = expand(parse(source)).compilable()
+        assert (written.splitlines()[-1], "-NoValue-" in caplog.text, "opt" in caplog.text) == (
+            "a \\ShowOpt{-NoValue-}",
+            True,
+            True,
+        )
+
 
 class TestCatcodes:
     def test_a_body_is_read_under_the_table_of_its_definition(self, view):

@@ -27,8 +27,10 @@ of a `\\let`, the token following `\\noexpand`, `\\string` or `\\ifx`. Nor what
 the caller keeps (`keep`), nor, for a view meant to be written back
 (`writable`), a body TeX would not run the same in the document: written under
 `\\makeatletter`, `\\@title` is one command in the body, `\\@` and “title” in
-the document; and an `\\ignorespacesafterend` is only read by the `\\end` of its
-environment, which the written view no longer has (see `compilable`).
+the document; an `\\ignorespacesafterend` is only read by the `\\end` of its
+environment, which the written view no longer has (see `compilable`); and the
+`-NoValue-` a use passes on to a command that stays is text once written, where
+ltcmd passed its own marker.
 
 Definitions made by a body. `\\newcommand{\\setauthor}[1]{\\renewcommand{\\theauthor}{#1}}`
 defines `\\theauthor` where `\\setauthor` is used, not before (see `TexParser`).
@@ -260,7 +262,9 @@ class _Piece:
     piece, the one that substituted that argument; for a piece written by a body,
     the one in whose body that use was substituted. It is not necessarily the use
     that surrounds it in the source: the end code of an environment takes up an
-    argument written at the `\\begin`, macros included.
+    argument written at the `\\begin`, macros included. `novalue`: the
+    `-NoValue-` a body writes for a missing optional argument, which is not
+    ltcmd's own marker once written out.
     """
 
     start: int
@@ -270,6 +274,7 @@ class _Piece:
     catcodes: CatcodeTable | None = None
     branches: tuple[Side, ...] = ()
     within: Expansion | None = None
+    novalue: bool = False
 
 
 class SourceMap:
@@ -506,19 +511,20 @@ class ExpandedFile(TexFile):
         the next paragraph is indented. A conditional with arguments that was
         decided (`\\IfValueTF`, `\\IfBooleanTF`, `\\ifstrempty`…) gives way to the
         inside of its branch taken: `-NoValue-` written out is not ltcmd's marker, and
-        `\\IfValueTF{-NoValue-}` would take the other branch. The branch of an
-        `\\@ifstar` or an `\\@ifnextchar` that the use did not take goes too. The
-        primitive conditionals stay as written: TeX decides them again, the same
-        way.
+        `\\IfValueTF{-NoValue-}` would take the other branch. For the same reason,
+        a `-NoValue-` passed on to a command that stays (a package's, expl3's, one
+        `keep` names) cannot be written. The branch of an `\\@ifstar` or an
+        `\\@ifnextchar` that the use did not take goes too. The primitive
+        conditionals stay as written: TeX decides them again, the same way.
 
         `edits` are drawn from the view (`Edit.of(node, …)` on its nodes): to
         remove the definitions of what was expanded, for instance. The text is in
         `\\n`, as the view is; to write it, `encoding=tex.encoding`. A body that
         TeX would read otherwise in the document (`\\@title` of a
-        `\\makeatletter`), or an environment that sets `\\ignorespacesafterend`
-        anywhere but at the end of its end code, is written as it stands, with a
-        warning in the log: `expand(tex, writable=True)` keeps such macros
-        unexpanded.
+        `\\makeatletter`), an environment that sets `\\ignorespacesafterend`
+        anywhere but at the end of its end code, or a use that passes on a missing
+        optional argument, is written as it stands, with a warning in the log:
+        `expand(tex, writable=True)` leaves them unexpanded.
         """
         if not self.writable:
             foreign = self._foreign_bodies()
@@ -529,9 +535,39 @@ class ExpandedFile(TexFile):
                     self.name,
                     ", ".join(foreign),
                 )
+            passing = sorted({expansion.name for expansion in self._passing_no_value()})
+            if passing:
+                logger.warning(
+                    "%s: -NoValue- written out for %s, where a command that stays would take it for a value;"
+                    " expand(tex, writable=True) keeps these uses",
+                    self.name,
+                    ", ".join(passing),
+                )
         own: list[Edit] = []
         self._written_back(self.container, own)
         return rewrite(self, [*own, *edits])
+
+    def _passing_no_value(self) -> set[Expansion]:
+        """The uses whose `-NoValue-` `compilable` would write out: passed to a command that stays.
+
+        Out of a decided test and out of a discarded branch, which go when the view
+        is written back, the marker of a missing optional argument reaches a command
+        of a package, of expl3 or one kept by `keep`; written out, it is text, and
+        `\\tl_if_novalue:nTF` or `\\IfValueTF` there would find a value.
+        """
+        pieces = [piece for piece in self.source_map.pieces if piece.novalue]
+        if not pieces:
+            return set()
+        own: list[Edit] = []
+        self._written_back(self.container, own)
+        removed = [(edit.start, edit.end) for edit in own]
+        position = self.source_map.target.position
+        passing: set[Expansion] = set()
+        for piece in pieces:
+            start, end = position(piece.start), position(piece.end)
+            if piece.expansion is not None and not any(a <= start and end <= b for a, b in removed):
+                passing.add(piece.expansion)
+        return passing
 
     def _written_back(self, group: TexGroup, edits: list[Edit]) -> None:
         """The edits that write back what the view keeps for the analysis only (see `compilable`)."""
@@ -714,8 +750,35 @@ def expand(
     (`ExpandedFile.compilable`): a body that TeX would read otherwise in the
     document, because it was defined under other catcodes and uses them, is not
     expanded either, nor an environment that sets `\\ignorespacesafterend`
-    anywhere but at the end of its end code.
+    anywhere but at the end of its end code; nor a use that passes a missing
+    optional argument on to a command that stays, which only ltcmd's own marker
+    tells from a value: the view is made again without expanding it — that use
+    of a command, every use of an environment.
     """
+    kept = frozenset(keep)
+    refused: frozenset[Expansion] = frozenset()
+    view = _expanded(tex, max_depth, kept, writable, refused)
+    # Refusing a use can only change what follows it: a few rounds at most, bounded all the same.
+    for _ in range(MAX_PASSES):
+        passing = view._passing_no_value() if writable else set()
+        if not passing:
+            break
+        # An environment keeps its `\begin` and `\end` in the view, expanded or not: left alone at one
+        # use and expanded at another, nothing would tell which of its `\begin` still need its definition.
+        refused |= {expansion for expansion in passing if not expansion.environment}
+        kept |= {expansion.name for expansion in passing if expansion.environment}
+        view = _expanded(tex, max_depth, kept, writable, refused)
+    return view
+
+
+def _expanded(
+    tex: TexFile,
+    max_depth: int,
+    kept: frozenset[str],
+    writable: bool,
+    refused: frozenset[Expansion],
+) -> ExpandedFile:
+    """The view of `expand`, leaving the uses of `refused` as they are."""
     source_map = SourceMap.identity(tex.lines)
     limit = MAX_GROWTH * len(source_map.source.text) + GROWTH_MARGIN
     current: TexFile = tex
@@ -723,9 +786,10 @@ def expand(
     conditions: list[Condition] = []
     # Starts of the expanded environments and of the decided conditionals, in the text of the pass.
     done: set[int] = set()
-    kept = frozenset(keep)
     for _ in range(MAX_PASSES):
-        uses = _collect(current.container, source_map, done, current.signatures, max_depth, kept, writable)
+        uses = _collect(
+            current.container, source_map, done, current.signatures, max_depth, kept, writable, refused
+        )
         if not uses:
             break
         writer = _Writer(source_map, uses, done, current.signatures)
@@ -768,6 +832,7 @@ def _collect(
     max_depth: int,
     keep: frozenset[str] = frozenset(),
     writable: bool = False,
+    refused: frozenset[Expansion] = frozenset(),
 ) -> list[_Use | _Decision]:
     """Uses to expand and conditionals to decide in the tree of one pass, in the order of the text.
 
@@ -828,7 +893,15 @@ def _collect(
             if node.macro is None or ("command", node.macro.name) in redefined:
                 continue
             use = _use(
-                node, id(node) in token_arguments, source_map, max_depth, content, index, keep, writable
+                node,
+                id(node) in token_arguments,
+                source_map,
+                max_depth,
+                content,
+                index,
+                keep,
+                writable,
+                refused,
             )
             if use is not None:
                 collected(use)
@@ -980,6 +1053,7 @@ def _use(
     index: int,
     keep: frozenset[str] = frozenset(),
     writable: bool = False,
+    refused: frozenset[Expansion] = frozenset(),
 ) -> _Use | None:
     macro = command.macro
     if macro is None or command.start_position is None or command.end_position is None:
@@ -1009,7 +1083,7 @@ def _use(
         values = _values(macro.parameters, found, source_map, star=command.star if macro.starred else None)
     parent = source_map.producer(start)
     expansion = Expansion(macro.name, source_map.source_start(start), source_map.source_end(end), parent)
-    if expansion.depth > max_depth:
+    if expansion.depth > max_depth or expansion in refused:
         return None
     text = offsets.text
     # The use ends on a control word (its own name, or an argument taken without braces): TeX skips
@@ -1480,7 +1554,7 @@ class _Writer:
             if isinstance(value, tuple):
                 self.write_range(*value)
             elif value is not None:
-                self._write(value, use.expansion, use.catcodes)
+                self._write(value, use.expansion, use.catcodes, novalue=value == NO_VALUE)
 
     def _copy(self, start: int, end: int) -> None:
         """Copy the text of the previous pass, with what we know of where it comes from."""
@@ -1509,17 +1583,25 @@ class _Writer:
                     catcodes=piece.catcodes,
                     branches=branches,
                     within=piece.within,
+                    novalue=piece.novalue,
                 )
             start = stop
             index += 1
 
-    def _write(self, text: str, expansion: Expansion, catcodes: CatcodeTable | None = None) -> None:
+    def _write(
+        self, text: str, expansion: Expansion, catcodes: CatcodeTable | None = None, novalue: bool = False
+    ) -> None:
         if not text:
             return
         self._separate(text[0], expansion)
         self.parts.append(self._join(text))
         self._note(
-            len(text), expansion=expansion, catcodes=catcodes, branches=self._branches, within=self._context
+            len(text),
+            expansion=expansion,
+            catcodes=catcodes,
+            branches=self._branches,
+            within=self._context,
+            novalue=novalue,
         )
 
     def _join(self, text: str) -> str:
@@ -1551,6 +1633,7 @@ class _Writer:
         catcodes: CatcodeTable | None = None,
         branches: tuple[Side, ...] = (),
         within: Expansion | None = None,
+        novalue: bool = False,
     ) -> None:
         if length <= 0:
             return
@@ -1563,11 +1646,18 @@ class _Writer:
                 and last.expansion is expansion
                 and last.catcodes is catcodes
             )
-            if (contiguous_copy or same_writer) and last.branches == branches and last.within is within:
+            if (
+                (contiguous_copy or same_writer)
+                and last.branches == branches
+                and last.within is within
+                and last.novalue == novalue
+            ):
                 last.end += length
                 self._length += length
                 return
         self.pieces.append(
-            _Piece(self._length, self._length + length, source, expansion, catcodes, branches, within)
+            _Piece(
+                self._length, self._length + length, source, expansion, catcodes, branches, within, novalue
+            )
         )
         self._length += length

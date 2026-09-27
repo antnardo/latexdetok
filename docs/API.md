@@ -1042,8 +1042,12 @@ TeX would read otherwise in the document: defined under other catcodes
 (`\makeatletter`, `\ExplSyntaxOn`), and using them — `\@title` is one command in
 the body, `\@` and “title” in the document. Nor an environment that sets
 `\ignorespacesafterend` anywhere but at the end of its end code: `compilable`
-only puts back the `\ignorespaces` of the one that ends it. That is the view to
-write back (`ExpandedFile.compilable`).
+only puts back the `\ignorespaces` of the one that ends it. Nor a use that passes
+a missing optional argument on to a command that stays (a package's, expl3's, one
+`keep` names): only ltcmd's own marker tells it from a value, and `-NoValue-`
+written out is text. The view is then made again without expanding that use —
+every use, for an environment, which keeps its `\begin` in the view either way.
+That is the view to write back (`ExpandedFile.compilable`).
 
 A body that defines a macro defines it where it is used:
 `\newcommand{\setauthor}[1]{\renewcommand{\theauthor}{#1}}` leaves
@@ -1101,8 +1105,9 @@ of a list or a `center` that ends the environment (no indent after it) crosses
 the brace since LaTeX 2024-11-01; with an older kernel, the next paragraph is
 indented. A decided conditional with arguments (`\IfValueTF`, `\IfBooleanTF`,
 `\ifstrempty`…) gives way to the inside of the branch taken: `-NoValue-` written out is not ltcmd's marker, and
-`\IfValueTF{-NoValue-}` would take the other branch. The branch of an
-`\@ifstar` or `\@ifnextchar` the use did not take goes too. Primitive
+`\IfValueTF{-NoValue-}` would take the other branch; for the same reason, a
+`-NoValue-` passed on to a command that stays cannot be written. The branch of
+an `\@ifstar` or `\@ifnextchar` the use did not take goes too. Primitive
 conditionals stay as written: TeX decides them again, the same way. The text is
 in `\n`, like the view; `edits` are drawn from the view's nodes — to remove the
 definitions of what was expanded, for instance. A body TeX would not run the

@@ -29,6 +29,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   thought to lose — no indent after an environment that ends on a list or a
   `center` — crosses the braces since LaTeX 2024-11-01; it is only lost with an
   older kernel.
+- `compilable()` wrote out the `-NoValue-` of a missing optional argument passed
+  on to a command that stays — of a package, of expl3, or kept by `keep`. It is
+  text there, not ltcmd's marker: with
+  `\NewDocumentCommand{\opt}{o m}{#2 \ShowOpt{#1}}`, `\opt{a}` became
+  `a \ShowOpt{-NoValue-}`, and the `\tl_if_novalue:nTF` of `\ShowOpt` printed
+  “[-NoValue-]” instead of “[none]”. `expand(tex, writable=True)` now leaves such
+  a use unexpanded, with its macro — `\opt[b]{c}` still expands. For an
+  environment, every use stays: its `\begin` is in the view whether expanded or
+  not, and a script that removes the definitions of what was expanded (the
+  answer to question 1509799) must keep the definition of any `\begin` left.
+  A `-NoValue-` that a decided `\IfValueTF` tests, or that sits in a branch it
+  discards, still expands. `compilable()` warns about such uses in a view not
+  built so.
 
 ## [0.6.0] — 2026-09-28
 

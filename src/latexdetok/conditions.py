@@ -29,6 +29,11 @@ What can be decided, and how:
   enough.
 
 The rest (`\\ifx`, `\\ifdim`, `\\ifdefined`, `\\ifthenelse`…) is not decided.
+Nor is a test that holds a parameter, `#1` or `##1`: its value only comes with
+the use of the body it belongs to. The bodies of the definitions the tokeniser
+recognises are never decided anyway; but those of the others (etoolbox's
+`\\csdef`, expl3's `\\cs_new:Npn`) read like text, where `\\ifstrempty{#1}` would
+be false and `\\IfValueTF{#1}` true whatever the use passes.
 """
 
 import re
@@ -96,8 +101,11 @@ PRIMITIVE_CONDITIONALS = frozenset(
     }
 )
 
-# `\ifnum <number> <relation> <number>`: TeX eats one space after the second number.
-IFNUM_TEST = re.compile(r"\s*([+-]?\d+)\s*([<=>])\s*([+-]?\d+)(?!\d) ?")
+# `\ifnum <number> <relation> <number>`: TeX eats one space after the second number. A parameter
+# right after it would add its digits to it (`2#1`).
+IFNUM_TEST = re.compile(r"\s*([+-]?\d+)\s*([<=>])\s*([+-]?\d+)(?![\d#]) ?")
+# A parameter, `#1`, or that of a body within a body, `##1`; `\#` is a character.
+PARAMETER = re.compile(r"\\.|#+[1-9]", re.DOTALL)
 COMPARE: dict[str, Callable[[int, int], bool]] = {
     "<": lambda a, b: a < b,
     "=": lambda a, b: a == b,
@@ -163,8 +171,18 @@ def setter(name: str, is_boolean: Callable[[str], bool]) -> tuple[str, bool] | N
     return None
 
 
+def _holds_parameter(text: str) -> bool:
+    """Does `text` hold a parameter of a body, `#1` or `##1`?"""
+    return any(match.group().startswith("#") for match in PARAMETER.finditer(text))
+
+
 def argument_test_value(name: str, test: str) -> bool | None:
-    """The value of a conditional with arguments, from the text of its first argument; None if undecidable."""
+    """The value of a conditional with arguments, from the text of its first argument; None if undecidable.
+
+    A test that holds a parameter is undecidable: the use of the body gives it its value.
+    """
+    if _holds_parameter(test):
+        return None
     stripped = test.strip()
     if name.startswith("IfBoolean"):
         if stripped == BOOLEAN_TRUE:

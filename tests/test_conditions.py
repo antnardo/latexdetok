@@ -71,3 +71,27 @@ def test_setter(name, expected):
 )
 def test_conditional_with_arguments(name, test, value):
     assert argument_test_value(name, test) == value
+
+
+@pytest.mark.parametrize(
+    ("name", "test"),
+    [
+        ("ifstrempty", "#1"),
+        ("ifblank", " #2 "),
+        ("IfValueTF", "#1"),
+        ("IfNoValueT", "a#1"),
+        ("ifstrempty", "##1"),
+    ],
+)
+def test_a_test_holding_a_parameter_is_undecided(name, test):
+    # `\csdef{Fill}#1{\ifstrempty{#1}…}`: only the use of the body gives `#1` a value.
+    assert argument_test_value(name, test) is None
+
+
+def test_an_escaped_hash_is_decided_as_a_character():
+    assert argument_test_value("ifstrempty", "\\#1") is False
+
+
+def test_ifnum_on_a_number_a_parameter_goes_on_is_undecided():
+    # With `#1` = 3, TeX compares 1 with 23.
+    assert ifnum_test("1<2#1 A") is None

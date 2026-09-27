@@ -708,6 +708,25 @@ class TestCompilable:
             expand(parse(TestKeep.AT_TITLE)).compilable()
         assert "ptitle" in caplog.text and "writable=True" in caplog.text
 
+    @pytest.mark.parametrize(
+        "definition",
+        [
+            "\\csdef{Fill}#1{\\ifstrempty{#1}{(empty)}{#1}}",
+            "\\newrobustcmd{\\Fill}[1]{\\ifstrempty{#1}{(empty)}{#1}}",
+            "\\ExplSyntaxOn \\cs_new:Npn \\Fill #1 { \\ifstrempty{#1}{(empty)}{#1} } \\ExplSyntaxOff",
+            "\\ExplSyntaxOn \\cs_new_protected:Npn \\Fill #1 { \\IfValueTF{#1}{[#1]}{[none]} } \\ExplSyntaxOff",
+            "\\csdef{make}{\\csdef{Fill}##1{\\ifstrempty{##1}{(empty)}{##1}}}",
+        ],
+        ids=["csdef", "newrobustcmd", "cs_new", "cs_new_protected", "nested"],
+    )
+    def test_a_conditional_in_a_body_the_tokeniser_does_not_recognise_is_written_as_it_stands(
+        self, parse, definition
+    ):
+        # Read like text, the body is written back; its test on `#1` is the use's, not the definition's.
+        source = f"\\usepackage{{etoolbox}}\n{definition}\n\\Fill{{}} and \\Fill{{x}}\n"
+        developed = expand(parse(source), writable=True)
+        assert (developed.conditions, developed.compilable()) == ([], source)
+
 
 class TestCatcodes:
     def test_a_body_is_read_under_the_table_of_its_definition(self, view):

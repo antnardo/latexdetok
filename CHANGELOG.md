@@ -5,6 +5,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Fixed
+
+- A conditional on a parameter was decided in the body of a definition the
+  tokeniser does not recognise. The bodies of `\csdef` and `\newrobustcmd`
+  (etoolbox), `\cs_new:Npn` and `\cs_new_protected:Npn` (expl3) or
+  `\newtcolorbox` read like text, where `\ifstrempty{#1}` was false and
+  `\IfValueTF{#1}` true whatever the use passes, and `compilable()` wrote the
+  branch it had chosen: `\csdef{Fill}#1{\ifstrempty{#1}{(empty)}{#1}}` became
+  `\csdef{Fill}#1{#1}`, and the document lost its “(empty)”. A test that holds a
+  parameter, `#1` or `##1`, is no longer decided, in any body; nor is an
+  `\ifnum` whose second number a parameter goes on (`\ifnum 1<2#1`). Found by
+  the bench of the Stack Overflow question 1509799.
+
 ## [0.6.0] — 2026-09-28
 
 ### Added

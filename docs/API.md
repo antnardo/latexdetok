@@ -959,9 +959,9 @@ unbound type stops the binding.
 | Function | Returns |
 | --- | --- |
 | `conditional_role(name, following, is_boolean, known)` | the role of `\name` in a primitive conditional, `None` otherwise; `following` is the rest of the line, `known` says whether the registry knows the command |
-| `ifnum_test(following)` | `(value, length of the test)` for `\ifnum` followed by two written numbers; `None` otherwise |
+| `ifnum_test(following)` | `(value, length of the test)` for `\ifnum` followed by two written numbers; `None` otherwise, and when a parameter goes on the second (`2#1`) |
 | `setter(name, is_boolean)` | `("prof", True)` for the `\proftrue` of a known boolean; `None` otherwise |
-| `argument_test_value(name, test)` | the value of a conditional with arguments from the text of its first argument; `None` if undecidable |
+| `argument_test_value(name, test)` | the value of a conditional with arguments from the text of its first argument; `None` if undecidable, as a test that holds a parameter is |
 
 ## `resolution`: loaded files
 
@@ -1060,7 +1060,10 @@ for its optional argument there and skipped the blanks.
 
 What is decided: `\iftrue`, `\iffalse`, the booleans of `\newif`, `\ifnum` on
 written numbers, `\ifmmode`, `\IfBooleanTF`, `\IfValueTF`, `\IfNoValueTF`,
-`\ifstrempty`, `\ifblank`, and the branches of `\@ifstar`/`\@ifnextchar`.
+`\ifstrempty`, `\ifblank`, and the branches of `\@ifstar`/`\@ifnextchar`. Never
+a test that holds a parameter, `#1` or `##1`: the body of a definition the
+tokeniser does not recognise (etoolbox's `\csdef`, expl3's `\cs_new:Npn`) reads
+like text, and only the use gives the parameter its value.
 
 `MAX_DEPTH = 8`, `MAX_PASSES = 16`.
 

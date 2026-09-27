@@ -83,7 +83,7 @@ intro.tex:8:1: error [crossed-environment] “\begin{itemize}” closed by “\e
   twice.
 - **Signatures**: the commands of the LaTeX2e kernel bind their arguments
   (`\section`: `s o m`), and a hand-written table covers the common packages
-  (amsmath, graphicx, siunitx, beamer, booktabs, enumitem…); the definitions of
+  (amsmath, graphicx, siunitx, gensymb, beamer, booktabs, enumitem…); the definitions of
   the file (`\newcommand`, `\def`, `\NewDocumentCommand`, `\newenvironment`…)
   are learned while reading, and end with their group, as in TeX.
 - **Catcodes**: `\makeatletter`, `\catcode`, `\ExplSyntaxOn`, group by group.

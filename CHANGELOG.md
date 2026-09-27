@@ -5,6 +5,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Fixed
+
+- An escaped character no longer stops `\item` outside a list from being
+  reported. The guard behind it is right — an unknown command may have opened
+  one — but `\%` is not a command: a backslash and one character that is not a
+  letter is that character. One `40\%` in a paper and the rest of the document
+  went unchecked.
+- `\%`, `\&`, `\#`, `\{` and `\}` join the kernel table, where `\_`, `\$`, `\,`
+  and `\;` already were: the harvest does not catch the way `latex.ltx` defines
+  them.
+- The symbols of gensymb — `\degree`, `\celsius`, `\ohm`, `\micro`,
+  `\perthousand` — are known.
+
 ## [0.6.2] — 2026-09-29
 
 ### Fixed

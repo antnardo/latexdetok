@@ -1040,8 +1040,10 @@ after `\noexpand`, `\string`, `\ifx`, `\expandafter`. Nor the macros and
 environments `keep` names, without backslash. With `writable`, nor a body that
 TeX would read otherwise in the document: defined under other catcodes
 (`\makeatletter`, `\ExplSyntaxOn`), and using them — `\@title` is one command in
-the body, `\@` and “title” in the document. That is the view to write back
-(`ExpandedFile.compilable`).
+the body, `\@` and “title” in the document. Nor an environment that sets
+`\ignorespacesafterend` anywhere but at the end of its end code: `compilable`
+only puts back the `\ignorespaces` of the one that ends it. That is the view to
+write back (`ExpandedFile.compilable`).
 
 A body that defines a macro defines it where it is used:
 `\newcommand{\setauthor}[1]{\renewcommand{\theauthor}{#1}}` leaves
@@ -1091,16 +1093,21 @@ queries are the view's.
 
 `compilable` removes what the view keeps for the analysis only. A user
 environment whose code was inserted becomes a group, `{…}`, without its
-arguments, which the code took up. A decided conditional with arguments
-(`\IfValueTF`, `\IfBooleanTF`, `\ifstrempty`…) gives way to the inside of the
-branch taken: `-NoValue-` written out is not ltcmd's marker, and
+arguments, which the code took up. Its `\end` ran `\ignorespaces` after the
+group if `\ignorespacesafterend` asked for it: one that ends the environment
+moves after the brace, as `\ignorespaces` — left inside, the global flag it sets
+would make the next `\end{…}` of the document eat its spaces. The `\@doendpe`
+of a list or a `center` that ends the environment (no indent after it) crosses
+the brace since LaTeX 2024-11-01; with an older kernel, the next paragraph is
+indented. A decided conditional with arguments (`\IfValueTF`, `\IfBooleanTF`,
+`\ifstrempty`…) gives way to the inside of the branch taken: `-NoValue-` written out is not ltcmd's marker, and
 `\IfValueTF{-NoValue-}` would take the other branch. The branch of an
 `\@ifstar` or `\@ifnextchar` the use did not take goes too. Primitive
 conditionals stay as written: TeX decides them again, the same way. The text is
 in `\n`, like the view; `edits` are drawn from the view's nodes — to remove the
-definitions of what was expanded, for instance. A body TeX would read otherwise
-in the document is written as it stands, with a warning in the log: build the
-view with `writable=True`.
+definitions of what was expanded, for instance. A body TeX would not run the
+same in the document is written as it stands, with a warning in the log: build
+the view with `writable=True`.
 
 ```pycon
 >>> from latexdetok import TexFile, expand

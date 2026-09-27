@@ -727,6 +727,65 @@ class TestCompilable:
         developed = expand(parse(source), writable=True)
         assert (developed.conditions, developed.compilable()) == ([], source)
 
+    TAG = "\\newenvironment{tag}{[}{]\\ignorespacesafterend}\n"
+
+    @pytest.mark.parametrize(
+        ("source", "expected"),
+        [
+            (TAG + "A \\begin{tag}x\\end{tag} b.\n", "A {[x]}\\ignorespaces b."),
+            (TAG + "A \\begin{tag}x\\end{tag}b.\n", "A {[x]}\\ignorespaces b."),
+            (TAG + "A \\begin{tag}x\\end{tag}\nb.\n", "A {[x]}\\ignorespaces\nb."),
+            # What follows it in the end code: blanks go with it, a comment stays.
+            (
+                "\\newenvironment{tag}{[}{]\\ignorespacesafterend\n  }\nA \\begin{tag}x\\end{tag} b.\n",
+                "A {[x]}\\ignorespaces b.",
+            ),
+            (
+                "\\newenvironment{tag}{[}{]\\ignorespacesafterend % c\n}\nA \\begin{tag}x\\end{tag} b.\n",
+                "A {[x]% c\n}\\ignorespaces b.",
+            ),
+            (
+                "\\NewDocumentEnvironment{tag}{o}{(}{)\\ignorespacesafterend}\nA \\begin{tag}[y]x\\end{tag} b.\n",
+                "A {(x)}\\ignorespaces b.",
+            ),
+        ],
+        ids=["space", "letter", "line-end", "blanks", "comment", "ltcmd"],
+    )
+    def test_an_environment_ending_on_ignorespacesafterend_ignores_the_spaces_after_its_brace(
+        self, parse, source, expected
+    ):
+        # `\end` ran `\ignorespaces` after the group; left in the braces, the global flag of
+        # `\ignorespacesafterend` would make the next `\end{…}` of the document eat its spaces.
+        definition = source[: source.index("\nA ") + 1]
+        assert expand(parse(source), writable=True).compilable() == definition + expected + "\n"
+
+    @pytest.mark.parametrize(
+        "definition",
+        [
+            "\\newenvironment{tag}{[}{\\ignorespacesafterend]}",
+            "\\newenvironment{tag}{\\ignorespacesafterend[}{]}",
+        ],
+        ids=["end-code", "begin-code"],
+    )
+    def test_an_environment_setting_ignorespacesafterend_elsewhere_stays_when_writable(
+        self, parse, definition
+    ):
+        source = f"{definition}\nA \\begin{{tag}}x\\end{{tag}} b.\n"
+        developed = expand(parse(source), writable=True)
+        assert (developed.expansions, developed.compilable()) == ([], source)
+
+    def test_an_environment_calling_a_longer_name_is_expanded_when_writable(self, parse):
+        source = "\\newenvironment{tag}{[}{\\ignorespacesafterendhook]}\nA \\begin{tag}x\\end{tag} b.\n"
+        assert last_line(expand(parse(source), writable=True)) == (
+            "A \\begin{tag}[x\\ignorespacesafterendhook]\\end{tag} b."
+        )
+
+    def test_an_environment_setting_ignorespacesafterend_elsewhere_is_reported(self, parse, caplog):
+        source = "\\newenvironment{tag}{[}{\\ignorespacesafterend]}\nA \\begin{tag}x\\end{tag} b.\n"
+        with caplog.at_level("WARNING", logger="latexdetok"):
+            expand(parse(source)).compilable()
+        assert "tag" in caplog.text and "writable=True" in caplog.text
+
 
 class TestCatcodes:
     def test_a_body_is_read_under_the_table_of_its_definition(self, view):

@@ -25,9 +25,10 @@ Nothing else: kernel commands, primitives and package commands stay as they
 are. Nothing either where TeX does not expand: the arguments of a definition or
 of a `\\let`, the token following `\\noexpand`, `\\string` or `\\ifx`. Nor what
 the caller keeps (`keep`), nor, for a view meant to be written back
-(`writable`), a body TeX would read otherwise in the document: written under
+(`writable`), a body TeX would not run the same in the document: written under
 `\\makeatletter`, `\\@title` is one command in the body, `\\@` and “title” in
-the document.
+the document; and an `\\ignorespacesafterend` is only read by the `\\end` of its
+environment, which the written view no longer has (see `compilable`).
 
 Definitions made by a body. `\\newcommand{\\setauthor}[1]{\\renewcommand{\\theauthor}{#1}}`
 defines `\\theauthor` where `\\setauthor` is used, not before (see `TexParser`).
@@ -168,6 +169,11 @@ MAX_CALLED = 200
 LOOKAHEAD_TESTS = frozenset({"@ifstar", "@ifnextchar"})
 # Control words without arguments that look at what follows all the same, and decide about a space.
 READS_AHEAD = frozenset({"ignorespaces", "xspace"})
+# Sets a flag the `\end` of the environment reads after its group: then it ignores the spaces that follow.
+IGNORE_AFTER_END = "ignorespacesafterend"
+SETS_IGNORE_AFTER_END = re.compile(r"\\ignorespacesafterend(?![A-Za-z@])")
+# The same at the end of a code, where only blanks and comments follow it.
+ENDS_ON_IGNORE_AFTER_END = re.compile(r"\\ignorespacesafterend(?![A-Za-z@])(?:\s|%[^\n]*)*\Z")
 
 
 @dataclass(frozen=True, slots=True)
@@ -491,9 +497,15 @@ class ExpandedFile(TexFile):
         The view keeps, for the analysis, what TeX would run twice or read
         otherwise once written; this is where it goes. A user environment whose
         code was inserted becomes a group, `{…}`, without its arguments, which
-        the code has taken up. A conditional with arguments that was decided
-        (`\\IfValueTF`, `\\IfBooleanTF`, `\\ifstrempty`…) gives way to the inside of
-        its branch taken: `-NoValue-` written out is not ltcmd's marker, and
+        the code has taken up. Its `\\end` ran `\\ignorespaces` after the group if
+        `\\ignorespacesafterend` asked for it: one that ends the environment moves
+        after the brace, as `\\ignorespaces` — left inside, the global flag it sets
+        would make the next `\\end{…}` of the document eat its spaces. The
+        `\\@doendpe` of a list or a `center` that ends the environment (no indent
+        after it) crosses the brace since LaTeX 2024-11-01; with an older kernel,
+        the next paragraph is indented. A conditional with arguments that was
+        decided (`\\IfValueTF`, `\\IfBooleanTF`, `\\ifstrempty`…) gives way to the
+        inside of its branch taken: `-NoValue-` written out is not ltcmd's marker, and
         `\\IfValueTF{-NoValue-}` would take the other branch. The branch of an
         `\\@ifstar` or an `\\@ifnextchar` that the use did not take goes too. The
         primitive conditionals stay as written: TeX decides them again, the same
@@ -503,14 +515,16 @@ class ExpandedFile(TexFile):
         remove the definitions of what was expanded, for instance. The text is in
         `\\n`, as the view is; to write it, `encoding=tex.encoding`. A body that
         TeX would read otherwise in the document (`\\@title` of a
-        `\\makeatletter`) is written as it stands, with a warning in the log:
-        `expand(tex, writable=True)` keeps such macros unexpanded.
+        `\\makeatletter`), or an environment that sets `\\ignorespacesafterend`
+        anywhere but at the end of its end code, is written as it stands, with a
+        warning in the log: `expand(tex, writable=True)` keeps such macros
+        unexpanded.
         """
         if not self.writable:
             foreign = self._foreign_bodies()
             if foreign:
                 logger.warning(
-                    "%s: %s written back under the catcodes of the document, which read the body otherwise;"
+                    "%s: %s written back as they stand, where the document would not run them the same;"
                     " expand(tex, writable=True) keeps them",
                     self.name,
                     ", ".join(foreign),
@@ -530,7 +544,17 @@ class ExpandedFile(TexFile):
             and group.start_position is not None
             and offsets.offset(group.start_position) in self._done
         ):
-            edits += [Edit.opening(group, "{"), Edit.closing(group, "}")]
+            closing = "}"
+            ignoring = self._ignoring_after_end(group)
+            if ignoring is not None:
+                # `\end` ran `\ignorespaces` after the group, and `}` does not: it moves there. Left in the
+                # group, the flag it sets would make the next `\end{…}` of the document eat its spaces.
+                command, stop = ignoring
+                assert command.start_position is not None and group.end_position is not None
+                edits.append(Edit(command.start_position, stop, ""))
+                removed.add(id(command))
+                closing += "\\ignorespaces" + (" " if self._letter_at(group.end_position) else "")
+            edits += [Edit.opening(group, "{"), Edit.closing(group, closing)]
             for argument in group.arguments:
                 if argument is not None:
                     edits.append(Edit.of(argument, ""))
@@ -561,18 +585,31 @@ class ExpandedFile(TexFile):
                     edits += [Edit.opening(branch, ""), Edit.closing(branch, self._closing(node, branch))]
                     self._written_back(branch, edits)
 
+    def _ignoring_after_end(self, group: TexGroup) -> tuple[TexCommand, Position] | None:
+        """The final `\\ignorespacesafterend` of an environment, comments aside, and where its blanks end."""
+        content = group.content
+        for index in range(len(content) - 1, -1, -1):
+            node = content[index]
+            if node.is_comment():
+                continue
+            if not (isinstance(node, TexCommand) and node.base_name == IGNORE_AFTER_END):
+                return None
+            following = content[index + 1] if index + 1 < len(content) else group
+            stop = following.start_position if following is not group else group.inner_end
+            assert stop is not None
+            return node, stop
+        return None
+
+    def _letter_at(self, position: Position) -> bool:
+        line, column = position
+        return line <= len(self.lines) and bool(LETTER.match(self.lines[line - 1][column : column + 1]))
+
     def _parting(self, node: TexContainer, following: Position | None) -> str:
         """What replaces a node removed: a space, if a control word before it would glue to a letter after."""
         assert node.start_position is not None and following is not None
         line, column = node.start_position
         before = self.lines[line - 1][:column][-CONTROL_WORD_TAIL:]
-        after_line, after_column = following
-        after = (
-            self.lines[after_line - 1][after_column : after_column + 1]
-            if after_line <= len(self.lines)
-            else ""
-        )
-        return " " if ENDS_WITH_CONTROL_WORD.search(before) and LETTER.match(after) else ""
+        return " " if ENDS_WITH_CONTROL_WORD.search(before) and self._letter_at(following) else ""
 
     def _closing(self, test: TexCommand, branch: TexBranch) -> str:
         """The brace of a branch taken, written back: `{}` if a control word would eat the space after it."""
@@ -676,7 +713,8 @@ def expand(
     backslash. `writable` builds a view to be written back
     (`ExpandedFile.compilable`): a body that TeX would read otherwise in the
     document, because it was defined under other catcodes and uses them, is not
-    expanded either.
+    expanded either, nor an environment that sets `\\ignorespacesafterend`
+    anywhere but at the end of its end code.
     """
     source_map = SourceMap.identity(tex.lines)
     limit = MAX_GROWTH * len(source_map.source.text) + GROWTH_MARGIN
@@ -1154,17 +1192,26 @@ def _following(content: list[TexContainer], index: int, count: int) -> int:
 
 
 def _writable(macro: Macro | EnvironmentMacro) -> bool:
-    """Does the body read the same under the document's catcodes as under those of its definition?
+    """Once written in the document, does the body run as it did where the macro is used?
 
-    Only the characters the body holds count: `\\newcommand{\\R}{\\mathbb{R}}` in a
-    `.sty` is written anywhere, `\\newcommand{\\ptitle}{\\@title}` of a
-    `\\makeatletter` is not.
+    It must read the same under the document's catcodes as under those of its
+    definition. Only the characters the body holds count:
+    `\\newcommand{\\R}{\\mathbb{R}}` in a `.sty` is written anywhere,
+    `\\newcommand{\\ptitle}{\\@title}` of a `\\makeatletter` is not. And an
+    environment may only set `\\ignorespacesafterend` at the end of its end code,
+    the one place where `compilable` can put back, as `\\ignorespaces`, what the
+    `\\end` did with it.
     """
     texts = [macro.begin, macro.end] if isinstance(macro, EnvironmentMacro) else [macro.body]
     if isinstance(macro, Macro) and macro.otherwise is not None:
         texts.append(macro.otherwise)
     foreign = _foreign_characters(macro.catcodes)
-    return not any(character in foreign for text in texts for character in text)
+    if any(character in foreign for text in texts for character in text):
+        return False
+    return not isinstance(macro, EnvironmentMacro) or not (
+        SETS_IGNORE_AFTER_END.search(macro.begin)
+        or (SETS_IGNORE_AFTER_END.search(macro.end) and not ENDS_ON_IGNORE_AFTER_END.search(macro.end))
+    )
 
 
 @cache

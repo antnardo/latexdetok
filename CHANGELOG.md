@@ -17,6 +17,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   parameter, `#1` or `##1`, is no longer decided, in any body; nor is an
   `\ifnum` whose second number a parameter goes on (`\ifnum 1<2#1`). Found by
   the bench of the Stack Overflow question 1509799.
+- `compilable()` lost the `\ignorespacesafterend` of an environment. Written as
+  `}`, its `\end` no longer ignored the spaces after it —
+  `\newenvironment{tag}{[}{]\ignorespacesafterend}` gave “A [x] b.” for
+  `A \begin{tag}x\end{tag} b.`, where LaTeX prints “A [x]b.” — and the global
+  flag it sets, left in the braces, made the next `\end{…}` of the document eat
+  the spaces after it. An `\ignorespacesafterend` that ends the environment
+  moves after the brace, as `\ignorespaces`; `expand(tex, writable=True)` leaves
+  unexpanded an environment that sets it anywhere else, and `compilable()` warns
+  about one in a view not built so. The `\@doendpe` the same rewriting was
+  thought to lose — no indent after an environment that ends on a list or a
+  `center` — crosses the braces since LaTeX 2024-11-01; it is only lost with an
+  older kernel.
 
 ## [0.6.0] — 2026-09-28
 

@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+## [0.4.3] — 2026-09-27
+
+### Changed
+
+- The client's README says where the extension applies: installed for the user,
+  every window has it, but one already open keeps the extension host it started
+  with, profiles carry their own extensions, and in a dev container or on a
+  remote it runs on that side — where the files it reads live, so the server
+  has to be installed there too. A release is what carries a README to PyPI.
+
 ## [0.4.2] — 2026-09-27
 
 ### Fixed

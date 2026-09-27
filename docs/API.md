@@ -1042,7 +1042,10 @@ TeX would read otherwise in the document: defined under other catcodes
 (`\makeatletter`, `\ExplSyntaxOn`), and using them — `\@title` is one command in
 the body, `\@` and “title” in the document. Nor an environment that sets
 `\ignorespacesafterend` anywhere but at the end of its end code: `compilable`
-only puts back the `\ignorespaces` of the one that ends it. Nor a use that passes
+only puts back the `\ignorespaces` of the one that ends it. Nor an environment
+the document hangs a hook on — `\AddToHook{env/x/begin}` and the four of
+etoolbox — whose code the name alone calls, and which written out as a brace
+would go with it. Nor a use that passes
 a missing optional argument on to a command that stays (a package's, expl3's, one
 `keep` names): only ltcmd's own marker tells it from a value, and `-NoValue-`
 written out is text. The view is then made again without expanding that use —
@@ -1096,7 +1099,9 @@ queries are the view's.
 | `compilable(edits=())` | the view written back as a source TeX compiles like the original, `edits` applied with it |
 
 `compilable` removes what the view keeps for the analysis only. A user
-environment whose code was inserted becomes a group, `{…}`, without its
+environment whose code was inserted becomes a group — `{…}`, or
+`\begingroup … \endgroup` in math, where a brace would be an Ord atom and TeX
+would space it as it spaces none of what `\begin{x}` opens — without its
 arguments, which the code took up. Its `\end` ran `\ignorespaces` after the
 group if `\ignorespacesafterend` asked for it: one that ends the environment
 moves after the brace, as `\ignorespaces` — left inside, the global flag it sets
@@ -1202,6 +1207,12 @@ calls it. A reference gives a stand-in of the kind TeX prints (`REFERENCES`):
 `\ref`, `\pageref`, `\vref`, `\cref` “1”, `\eqref` “(1)”, `\cite` and the citations
 of natbib and biblatex “[1]”, `\citeyear` “1”; `\footcite`, a note, nothing.
 `\ensuremath{…}` is a formula: as written, or skipped with `math="skip"`.
+
+A formula skipped takes its place with it, and the blanks it parted become one:
+`The space $x$\ is.` gives “The space is.”, not two spaces. A blank of the
+source merges of itself, being asked for and not written; a control space and a
+`~` are written, and are merged here. What no formula parted is left alone —
+`The word \ is.` really does print two spaces, and TeX sets both.
 
 ### `TexText`
 

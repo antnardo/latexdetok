@@ -5,6 +5,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Fixed
+
+- `to_text(math="skip")` left two spaces where a skipped formula parted a blank
+  from a control space or a `~`: `The space $x$\ is.` gave “The space  is.”,
+  which a spelling checker reads as a mistake. The blanks the formula parted
+  become one; what no formula parted is left alone, `The word \ is.` printing
+  two spaces in TeX as well.
+- `compilable()` wrote an environment out as `{…}` in math, where a brace is an
+  Ord atom: `$a{-}b$` sets the sign tight where the source set it as a binary
+  operator, and the page changed. In math the group is now
+  `\begingroup … \endgroup`, which is what `\begin{x}` opens.
+- An environment the document hangs a hook on (`\AddToHook{env/x/begin}`, and
+  the four of etoolbox) is no longer expanded under `writable=True`: written
+  out as a brace it took the hook's code away with it, silently.
+
+Both `compilable()` fixes were measured against pdflatex, before and after,
+pixel for pixel.
+
 ## [0.6.1] — 2026-09-28
 
 ### Fixed

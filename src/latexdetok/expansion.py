@@ -569,8 +569,13 @@ class ExpandedFile(TexFile):
                 passing.add(piece.expansion)
         return passing
 
-    def _written_back(self, group: TexGroup, edits: list[Edit]) -> None:
-        """The edits that write back what the view keeps for the analysis only (see `compilable`)."""
+    def _written_back(self, group: TexGroup, edits: list[Edit], math: bool = False) -> None:
+        """The edits that write back what the view keeps for the analysis only (see `compilable`).
+
+        `math`: we are inside math, where braces are not a neutral wrapping —
+        `{…}` is an Ord atom, and TeX spaces an atom as it spaces none of what
+        `\\begin{x}` opens. `\\begingroup` groups without becoming one.
+        """
         offsets = self.source_map.target
         content = group.content
         removed: set[int] = set()
@@ -580,7 +585,8 @@ class ExpandedFile(TexFile):
             and group.start_position is not None
             and offsets.offset(group.start_position) in self._done
         ):
-            closing = "}"
+            # In math, braces would make an atom of the body and move what surrounds it.
+            opening, closing = ("\\begingroup ", "\\endgroup ") if math else ("{", "}")
             ignoring = self._ignoring_after_end(group)
             if ignoring is not None:
                 # `\end` ran `\ignorespaces` after the group, and `}` does not: it moves there. Left in the
@@ -589,8 +595,9 @@ class ExpandedFile(TexFile):
                 assert command.start_position is not None and group.end_position is not None
                 edits.append(Edit(command.start_position, stop, ""))
                 removed.add(id(command))
-                closing += "\\ignorespaces" + (" " if self._letter_at(group.end_position) else "")
-            edits += [Edit.opening(group, "{"), Edit.closing(group, closing)]
+                closing = closing.rstrip() + "\\ignorespaces"
+                closing += " " if self._letter_at(group.end_position) else ""
+            edits += [Edit.opening(group, opening), Edit.closing(group, closing)]
             for argument in group.arguments:
                 if argument is not None:
                     edits.append(Edit.of(argument, ""))
@@ -601,7 +608,7 @@ class ExpandedFile(TexFile):
             if isinstance(node, TexBranch) and not node.taken and node.condition.test in LOOKAHEAD_TESTS:
                 edits.append(Edit.of(node, self._parting(node, node.end_position)))
             elif isinstance(node, TexGroup):
-                self._written_back(node, edits)
+                self._written_back(node, edits, math or node.math)
             elif isinstance(node, TexCommand) and node.base_name in ARGUMENT_TESTS and node.arguments:
                 test, *branches = [argument for argument in node.arguments if argument is not None]
                 # Decided, with its branches whole: one that spilled out melted into the stream.
@@ -619,7 +626,7 @@ class ExpandedFile(TexFile):
                         edits.append(Edit.of(branch, ""))
                         continue
                     edits += [Edit.opening(branch, ""), Edit.closing(branch, self._closing(node, branch))]
-                    self._written_back(branch, edits)
+                    self._written_back(branch, edits, math)
 
     def _ignoring_after_end(self, group: TexGroup) -> tuple[TexCommand, Position] | None:
         """The final `\\ignorespacesafterend` of an environment, comments aside, and where its blanks end."""
@@ -749,13 +756,15 @@ def expand(
     backslash. `writable` builds a view to be written back
     (`ExpandedFile.compilable`): a body that TeX would read otherwise in the
     document, because it was defined under other catcodes and uses them, is not
-    expanded either, nor an environment that sets `\\ignorespacesafterend`
+    expanded either, nor an environment the document hangs a hook on
+    (`\\AddToHook{env/x/begin}`, `\\AtBeginEnvironment`), whose code the name alone
+    calls; nor an environment that sets `\\ignorespacesafterend`
     anywhere but at the end of its end code; nor a use that passes a missing
     optional argument on to a command that stays, which only ltcmd's own marker
     tells from a value: the view is made again without expanding it — that use
     of a command, every use of an environment.
     """
-    kept = frozenset(keep)
+    kept = frozenset(keep) | (_hooked(tex) if writable else set())
     refused: frozenset[Expansion] = frozenset()
     view = _expanded(tex, max_depth, kept, writable, refused)
     # Refusing a use can only change what follows it: a few rounds at most, bounded all the same.
@@ -769,6 +778,35 @@ def expand(
         kept |= {expansion.name for expansion in passing if expansion.environment}
         view = _expanded(tex, max_depth, kept, writable, refused)
     return view
+
+
+# Commands that hang code on an environment by name: the kernel's hooks and etoolbox's.
+# `\\AddToHook` names it as `env/<name>/begin`; the others take the name alone.
+ENVIRONMENT_HOOKS = frozenset(
+    {"AtBeginEnvironment", "AtEndEnvironment", "BeforeBeginEnvironment", "AfterEndEnvironment"}
+)
+HOOK_COMMANDS = frozenset({"AddToHook", "AddToHookNext", "AddToHookWithArguments", *ENVIRONMENT_HOOKS})
+
+
+def _hooked(tex: TexFile) -> set[str]:
+    """The environments the document hangs code on: expanded, that code would never run.
+
+    A hook is attached to the name, not to the body: `\\begin{x}` written out as
+    `{` takes the hook's text away with it, silently. Nothing here can put it
+    back — where it goes is the kernel's business, before or after, inside the
+    group or outside — so these environments are left as they are.
+    """
+    names: set[str] = set()
+    for found in tex.get_commands_arguments(sorted(HOOK_COMMANDS)):
+        if len(found) < 2:
+            continue
+        name = found[0].base_name
+        argument = found[1].arg()
+        if name in ENVIRONMENT_HOOKS:
+            names.add(argument)
+        elif argument.startswith("env/"):
+            names.add(argument.split("/")[1])
+    return names - {""}
 
 
 def _expanded(

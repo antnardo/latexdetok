@@ -927,3 +927,72 @@ def test_a_use_in_a_substituted_argument_has_the_substituter_as_parent(parse):
         (2, 6),
         (2, 12),
     )
+
+
+def written(source):
+    """What `compilable()` writes for a whole document."""
+    tex = TexFile(source.splitlines(keepends=True), name="c.tex")
+    tex.analyse()
+    return expand(tex, writable=True).compilable()
+
+
+class TestGroupingInMath:
+    """`{…}` is an Ord atom: TeX spaces it as it spaces none of what `\\begin{x}` opens."""
+
+    MATH = (
+        "\\documentclass{article}\n\\newenvironment{neutre}{}{}\n"
+        "\\begin{document}\n$a\\begin{neutre}-\\end{neutre}b$\n\\end{document}\n"
+    )
+
+    def test_an_environment_in_math_groups_without_an_atom(self):
+        # `$a{-}b$` sets the sign tight, as an ordinary symbol: the source spaces it as a binary
+        # operator, and the two documents printed differently — measured, pixel for pixel.
+        assert "$a\\begingroup -\\endgroup b$" in written(self.MATH)
+
+    def test_outside_math_the_braces_stay(self):
+        source = (
+            "\\documentclass{article}\n\\newenvironment{tag}{[}{]}\n"
+            "\\begin{document}\nA \\begin{tag}x\\end{tag} b.\n\\end{document}\n"
+        )
+        assert "A {[x]} b." in written(source)
+
+
+class TestHookedEnvironments:
+    """A hook hangs on the name: written out as `{`, the environment takes its code away."""
+
+    @pytest.mark.parametrize(
+        "hook",
+        [
+            "\\AddToHook{env/tag/begin}{HOOK}",
+            "\\AddToHook{env/tag/end}{HOOK}",
+            "\\AtBeginEnvironment{tag}{HOOK}",
+            "\\AtEndEnvironment{tag}{HOOK}",
+            "\\BeforeBeginEnvironment{tag}{HOOK}",
+            "\\AfterEndEnvironment{tag}{HOOK}",
+        ],
+    )
+    def test_an_environment_with_a_hook_is_left_alone(self, hook):
+        source = (
+            f"\\documentclass{{article}}\n\\newenvironment{{tag}}{{[}}{{]}}\n{hook}\n"
+            "\\begin{document}\nA \\begin{tag}x\\end{tag} b.\n\\end{document}\n"
+        )
+        assert "\\begin{tag}x\\end{tag}" in written(source)
+
+    def test_a_hook_on_another_environment_changes_nothing(self):
+        source = (
+            "\\documentclass{article}\n\\newenvironment{tag}{[}{]}\n"
+            "\\AddToHook{env/autre/begin}{HOOK}\n"
+            "\\begin{document}\nA \\begin{tag}x\\end{tag} b.\n\\end{document}\n"
+        )
+        assert "A {[x]} b." in written(source)
+
+    def test_only_a_view_to_be_written_back_holds_off(self, parse):
+        source = (
+            "\\documentclass{article}\n\\newenvironment{tag}{[}{]}\n"
+            "\\AddToHook{env/tag/begin}{HOOK}\n"
+            "\\begin{document}\nA \\begin{tag}x\\end{tag} b.\n\\end{document}\n"
+        )
+        tex = TexFile(source.splitlines(keepends=True), name="c.tex")
+        tex.analyse()
+        # The ordinary view expands the body as it always did: it is read, not written back.
+        assert "A \\begin{tag}[x]\\end{tag} b." in expand(tex).content()

@@ -5,6 +5,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-09-27
+
+### Fixed
+
+- The server counts columns in the unit the client chose when it started, not
+  always in UTF-16. pygls takes the client's first choice: UTF-16 for VS Code,
+  which offers nothing else, but UTF-8 for Neovim and Helix, and UTF-32 for
+  Emacs. In Neovim the underline started a place early for every `é` before it
+  on the line, and the quick fixes of 0.5.0 edited the wrong place: closing
+  `Réponse été déjà : $x+1` gave `Réponse été déjà :$ $x+1`. Emacs was wrong
+  only past the basic plane, on a `𝔸` or an emoji. VS Code was never affected.
+  `diagnose` and `code_actions` take the unit as `encoding`, UTF-16 by default.
+
+### Changed
+
+- The README gives the lines that start the server in Neovim, Emacs (Eglot)
+  and Helix, instead of saying there was nothing to configure.
+
 ## [0.5.0] — 2026-09-27
 
 ### Added

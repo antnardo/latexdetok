@@ -1246,8 +1246,8 @@ process, which is the whole reason it is a server.
 
 | Name | Role |
 | --- | --- |
-| `diagnose(text, uri)` | the diagnostics of a buffer as `lsprotocol` writes them; the folder of `uri` is where the inclusions are looked for, and an untitled buffer has none |
-| `code_actions(text, uri, span)` | the quick fixes offered over `span`: one per diagnostic that carries a `Repair`, with the edit the editor applies |
+| `diagnose(text, uri, encoding="utf-16")` | the diagnostics of a buffer as `lsprotocol` writes them, columns counted in `encoding`; the folder of `uri` is where the inclusions are looked for, and an untitled buffer has none |
+| `code_actions(text, uri, span, encoding="utf-16")` | the quick fixes offered over `span`: one per diagnostic that carries a `Repair`, with the edit the editor applies, `span` and edits counted in `encoding` |
 | `server` | the `LanguageServer`: the four notifications an editor sends — open, change, save, close — and the quick fixes it asks for |
 | `settings` | what `initializationOptions` may change: `language` (`en`, `fr`), `followInputs`, `expand` |
 | `SEVERITIES` | the three severities of the package, in the four of the protocol |
@@ -1256,15 +1256,23 @@ process, which is the whole reason it is a server.
 What crosses over, and what is converted. A `TexDiagnostic` already carries
 what the protocol asks for — a span with its two ends, a severity, a stable
 code, a message, the related places, the fix. Two things change on the way:
-the column, counted here in characters and there in UTF-16 code units, which
-differ on anything outside the basic plane; and the fix, which has no field of
-its own and becomes the second line of the message.
+the column, counted here in characters and there in the unit the client chose
+at `initialize`; and the fix, which has no field of its own and becomes the
+second line of the message.
+
+The unit is `utf-16` for VS Code, which offers nothing else, `utf-8` for Neovim
+and Helix, `utf-32` for Emacs: pygls takes the first the client offers, and the
+server passes it to `diagnose` and `code_actions`. It is not a detail. Counted
+in UTF-16 for a client that counts bytes, the underline starts a place early
+for every `é` before it, and a quick fix edits the wrong place: closing
+`Réponse été déjà : $x+1` gave `Réponse été déjà :$ $x+1`.
 
 A document being typed is wrong most of the time, half-written commands and
 environments not yet closed: that is what the tolerance of the package is for.
 
 The client for VS Code is in `editors/vscode/`; any other LSP editor points its
-client at `latexdetok-lsp`, over stdio, for the `latex` language.
+client at `latexdetok-lsp`, over stdio, for the `latex` language — the README
+gives the lines for Neovim, Emacs and Helix.
 
 ## Scripts
 

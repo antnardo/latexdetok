@@ -11,8 +11,11 @@ Why nothing is translated here. A `TexDiagnostic` already carries what the
 protocol asks for: a span with its two ends, a severity, a stable code, a
 message, the places that explain it, and the fix. This module moves them
 across, and that is all — the one real conversion is the column, counted here
-in characters and there in UTF-16 code units, which differ on anything outside
-the basic plane.
+in characters and there in the unit the client chose when it started: UTF-16
+for VS Code, UTF-8 for Neovim and Helix, UTF-32 for Emacs. pygls takes the
+client's first choice. Counted in UTF-16 for a client that counts bytes, a
+column puts the underline a place too early for every `é` before it, and a
+quick fix in the wrong place.
 
 What the editor holds is a buffer, not a file: `TexFile(lines, path=…)` reads
 the lines given and only uses the path to find the neighbours (`\\input`,
@@ -39,6 +42,7 @@ try:
     from lsprotocol import types
     from pygls import uris
     from pygls.lsp.server import LanguageServer
+    from pygls.workspace import PositionCodec
 except ImportError as error:  # pragma: no cover - the message is what is tested
     # An entry point cannot depend on an extra: `pip install latexdetok` installs
     # `latexdetok-lsp` all the same, and an editor that finds it on the PATH would
@@ -92,29 +96,27 @@ server = LanguageServer(SOURCE, __version__, text_document_sync_kind=types.TextD
 _pending: dict[str, asyncio.Task[None]] = {}
 
 
-def _utf16(line: str, column: int) -> int:
-    """The column in UTF-16 code units, which is how the protocol counts by default.
+def _range(
+    start: tuple[int, int], end: tuple[int, int], lines: list[str], codec: PositionCodec
+) -> types.Range:
+    """A span of the source, `(line from 1, column from 0)`, as the client counts it.
 
-    A character outside the basic plane — an emoji, a `𝔸` — takes two units and
-    one character: without this, everything after it on the line is off by one.
+    The package counts columns in characters, the client in the unit of `codec`.
+    They part on the first `é` for a client that counts UTF-8 bytes, and on the
+    first `𝔸` for one that counts UTF-16 code units.
     """
-    return len(line[:column].encode("utf-16-le")) // 2
-
-
-def _range(start: tuple[int, int], end: tuple[int, int], lines: list[str]) -> types.Range:
-    """A span of the source, `(line from 1, column from 0)`, as the protocol writes it."""
 
     def position(line: int, column: int) -> types.Position:
         text = lines[line - 1] if 1 <= line <= len(lines) else ""
-        return types.Position(line=line - 1, character=_utf16(text, column))
+        return types.Position(line=line - 1, character=codec.client_num_units(text[:column]))
 
     return types.Range(start=position(*start), end=position(*end))
 
 
-def _diagnostic(found: TexDiagnostic, uri: str, lines: list[str]) -> types.Diagnostic:
+def _diagnostic(found: TexDiagnostic, uri: str, lines: list[str], codec: PositionCodec) -> types.Diagnostic:
     related = [
         types.DiagnosticRelatedInformation(
-            location=types.Location(uri=uri, range=_range(place.start, place.end, lines)),
+            location=types.Location(uri=uri, range=_range(place.start, place.end, lines, codec)),
             message=place.message,
         )
         for place in found.related
@@ -123,7 +125,7 @@ def _diagnostic(found: TexDiagnostic, uri: str, lines: list[str]) -> types.Diagn
     # second line of the message, where the editor shows it on hover.
     message = f"{found.message}\n{found.suggestion}" if found.suggestion else found.message
     return types.Diagnostic(
-        range=_range(found.start, found.end, lines),
+        range=_range(found.start, found.end, lines, codec),
         message=message,
         severity=SEVERITIES[found.severity],
         code=found.code,
@@ -145,28 +147,38 @@ def _read(text: str, uri: str) -> tuple[list[str], list[TexDiagnostic]]:
     return lines, check(tex, follow_inputs=settings.follow_inputs, expanded=settings.expand)
 
 
-def diagnose(text: str, uri: str) -> list[types.Diagnostic]:
-    """The diagnostics of a buffer, ready to be published."""
+def diagnose(text: str, uri: str, encoding: str = types.PositionEncodingKind.Utf16) -> list[types.Diagnostic]:
+    """The diagnostics of a buffer, ready to be published.
+
+    `encoding` is the unit the client counts columns in, agreed at `initialize`:
+    `utf-16`, the default of the protocol, or `utf-8`, or `utf-32`.
+    """
     lines, found = _read(text, uri)
-    return [_diagnostic(diagnostic, uri, lines) for diagnostic in found]
+    codec = PositionCodec(encoding)
+    return [_diagnostic(diagnostic, uri, lines, codec) for diagnostic in found]
 
 
-def _edit(repair: Repair, lines: list[str]) -> types.TextEdit:
-    return types.TextEdit(range=_range(repair.start, repair.end, lines), new_text=repair.text)
+def _edit(repair: Repair, lines: list[str], codec: PositionCodec) -> types.TextEdit:
+    return types.TextEdit(range=_range(repair.start, repair.end, lines, codec), new_text=repair.text)
 
 
-def code_actions(text: str, uri: str, span: types.Range) -> list[types.CodeAction]:
+def code_actions(
+    text: str, uri: str, span: types.Range, encoding: str = types.PositionEncodingKind.Utf16
+) -> list[types.CodeAction]:
     """The quick fixes offered over `span`: one per diagnostic that knows how to repair itself.
 
+    `span` and the edits are counted in `encoding`, like the diagnostics: an edit
+    counted in another unit than the client's lands in the wrong place.
     The buffer is read again rather than remembered: it costs the same as a
     keystroke, and what is edited is then certainly what is on screen.
     """
     lines, found = _read(text, uri)
+    codec = PositionCodec(encoding)
     actions = []
     for diagnostic in found:
         if not diagnostic.repairs or not diagnostic.suggestion:
             continue
-        shown = _diagnostic(diagnostic, uri, lines)
+        shown = _diagnostic(diagnostic, uri, lines, codec)
         if shown.range.end < span.start or span.end < shown.range.start:
             continue
         actions.append(
@@ -175,11 +187,16 @@ def code_actions(text: str, uri: str, span: types.Range) -> list[types.CodeActio
                 kind=types.CodeActionKind.QuickFix,
                 diagnostics=[shown],
                 edit=types.WorkspaceEdit(
-                    changes={uri: [_edit(repair, lines) for repair in diagnostic.repairs]}
+                    changes={uri: [_edit(repair, lines, codec) for repair in diagnostic.repairs]}
                 ),
             )
         )
     return actions
+
+
+def _encoding() -> str:
+    """The unit the client counts columns in: the first it offered at `initialize` that pygls knows."""
+    return server.workspace.position_encoding or types.PositionEncodingKind.Utf16
 
 
 def _publish(uri: str, diagnostics: list[types.Diagnostic]) -> None:
@@ -192,7 +209,7 @@ async def _analyse(uri: str, delay: float) -> None:
         if delay:
             await asyncio.sleep(delay)
         document = server.workspace.get_text_document(uri)
-        _publish(uri, await asyncio.to_thread(diagnose, document.source, uri))
+        _publish(uri, await asyncio.to_thread(diagnose, document.source, uri, _encoding()))
     except asyncio.CancelledError:
         raise
     except Exception:  # a server that dies stops underlining anything at all
@@ -220,7 +237,7 @@ def _schedule(uri: str, delay: float = DEBOUNCE) -> None:
 )
 def _code_action(params: types.CodeActionParams) -> list[types.CodeAction]:
     document = server.workspace.get_text_document(params.text_document.uri)
-    return code_actions(document.source, params.text_document.uri, params.range)
+    return code_actions(document.source, params.text_document.uri, params.range, _encoding())
 
 
 @server.feature(types.INITIALIZE)

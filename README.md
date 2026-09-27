@@ -387,9 +387,53 @@ so rather than starting, but it does not start.
 
 ### Any other editor
 
-Neovim, Emacs, Kate, Helix: point their LSP client at the command
-`latexdetok-lsp`, over stdio, for the `latex` language. There is nothing else
-to configure, and nothing of VS Code in the server.
+There is nothing of VS Code in the server: every editor with an LSP client
+starts the same command, over stdio, for the `latex` language, and only the few
+lines that say so change. Each client also says, when it starts, how it counts
+columns — UTF-16 for VS Code, UTF-8 for Neovim and Helix, UTF-32 for Emacs —
+and the server answers in that unit, so an accented letter does not shift what
+follows it. As for VS Code, give the whole path of `latexdetok-lsp` when it is
+not on the `PATH` the editor sees.
+
+Neovim 0.11 or later, where `gra` applies a quick fix:
+
+```lua
+vim.lsp.config('latexdetok', {
+  cmd = { 'latexdetok-lsp' },
+  filetypes = { 'tex', 'plaintex' },
+  init_options = { language = 'fr' },
+})
+vim.lsp.enable('latexdetok')
+```
+
+Emacs 29 or later, with Eglot:
+
+```elisp
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs
+               '((LaTeX-mode latex-mode) . ("latexdetok-lsp" :initializationOptions (:language "fr")))))
+(add-hook 'LaTeX-mode-hook #'eglot-ensure)
+```
+
+Eglot runs one server per mode, so this entry takes the place of texlab or
+digestif in LaTeX buffers; lsp-mode, which runs several side by side, takes it
+as an add-on (`:add-on? t`).
+
+Helix, in `languages.toml`, beside texlab:
+
+```toml
+[language-server.latexdetok]
+command = "latexdetok-lsp"
+config = { language = "fr" }
+
+[[language]]
+name = "latex"
+language-servers = ["texlab", "latexdetok"]
+```
+
+Kate, Sublime Text's LSP package and the others ask for the same three things:
+the command, the language, and the options, which the protocol calls
+`initializationOptions`.
 
 ### Without a server
 

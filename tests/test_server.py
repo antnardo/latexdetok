@@ -12,6 +12,10 @@ from latexdetok.diagnostics import Severity
 from latexdetok.server import SEVERITIES, code_actions, diagnose, server, settings
 
 FAUTIF = "\\documentclass{article}\n\\begin{document}\nSoit $x\n\nla suite.\n\\end{document}\n"
+# `$` at the ninth character, after one wide in UTF-8 only (`É`, `é`) and one wide in both (`𝔸`).
+ACCENTUE = "\\begin{document}\nÉté 𝔸 : $x\n\n.\n\\end{document}\n"
+# The byte codec of each unit a client may count in, and its width.
+UNITS = {"utf-8": ("utf-8", 1), "utf-16": ("utf-16-le", 2), "utf-32": ("utf-32-le", 4)}
 
 
 @pytest.fixture(autouse=True)
@@ -23,6 +27,18 @@ def _reglages_par_defaut():
 
 def uri_of(path):
     return path.as_uri()
+
+
+def applied(line, edit, encoding):
+    """The line once `edit` is applied by a client that counts in `encoding`.
+
+    Cut in the middle of a character, the decoding raises: an edit counted in the
+    wrong unit can do worse than land in the wrong place.
+    """
+    codec, width = UNITS[encoding]
+    raw = line.encode(codec)
+    start, end = edit.range.start.character * width, edit.range.end.character * width
+    return (raw[:start] + edit.new_text.encode(codec) + raw[end:]).decode(codec)
 
 
 class TestDiagnose:
@@ -90,7 +106,7 @@ class TestDiagnose:
 
 
 class TestColumns:
-    """The protocol counts in UTF-16 code units, the package in characters."""
+    """The package counts in characters, the client in the unit it chose: UTF-16 unless it says so."""
 
     @pytest.mark.parametrize(
         ("before", "expected"),
@@ -104,6 +120,18 @@ class TestColumns:
     def test_a_column_after_a_wide_character(self, tmp_path, before, expected):
         source = f"\\begin{{document}}\n{before}Soit $x\n\n.\n\\end{{document}}\n"
         (found,) = diagnose(source, uri_of(tmp_path / "cours.tex"))
+        assert found.range.start.character == expected
+
+    @pytest.mark.parametrize(
+        ("encoding", "expected"),
+        [
+            ("utf-16", 9),  # VS Code, Sublime Text: `𝔸` counts two
+            ("utf-8", 13),  # Neovim, Helix: `É` and `é` count two, `𝔸` four
+            ("utf-32", 8),  # Emacs: one character, one unit
+        ],
+    )
+    def test_a_column_in_the_unit_the_client_chose(self, tmp_path, encoding, expected):
+        (found,) = diagnose(ACCENTUE, uri_of(tmp_path / "cours.tex"), encoding)
         assert found.range.start.character == expected
 
 
@@ -146,6 +174,24 @@ class TestQuickFixes:
         # `\item` outside a list: where the list should open is anyone's guess.
         source = "\\begin{document}\n\\item hors liste\n\\end{document}\n"
         assert code_actions(source, uri_of(tmp_path / "cours.tex"), self.span(1)) == []
+
+    @pytest.mark.parametrize("encoding", ["utf-16", "utf-8", "utf-32"])
+    @pytest.mark.parametrize(
+        ("line", "repaired"),
+        [
+            ("Été 𝔸 : $x", "Été 𝔸 : $x$"),  # a closing added at the end of the line
+            ("Été 𝔸 : a} b", "Été 𝔸 : a b"),  # a brace taken out of the middle
+        ],
+        ids=["closing-added", "brace-removed"],
+    )
+    def test_the_edit_lands_where_the_client_counts(self, tmp_path, line, repaired, encoding):
+        # Counted in UTF-16 for a client that counts bytes, the `$` went in before the colon.
+        uri = uri_of(tmp_path / "cours.tex")
+        source = f"\\begin{{document}}\n{line}\n\n.\n\\end{{document}}\n"
+        (found,) = diagnose(source, uri, encoding)
+        (action,) = code_actions(source, uri, found.range, encoding)
+        (edit,) = action.edit.changes[uri]
+        assert (edit.range.start.line, applied(line, edit, encoding)) == (1, repaired)
 
 
 def test_the_features_the_editor_talks_to_are_registered():
@@ -196,9 +242,8 @@ class TestOverTheProtocol:
                 length = int(value)
         return json.loads(process.stdout.read(length))
 
-    def test_a_document_opened_is_a_document_underlined(self, tmp_path):
-        path = tmp_path / "cours.tex"
-        uri = path.as_uri()
+    def talk(self, uri, text, capabilities):
+        """What an editor gets back: the answer to `initialize`, the diagnostics, the fixes over the first."""
         with subprocess.Popen(
             [sys.executable, "-m", "latexdetok.server"],
             stdin=subprocess.PIPE,
@@ -212,10 +257,10 @@ class TestOverTheProtocol:
                         "jsonrpc": "2.0",
                         "id": 1,
                         "method": "initialize",
-                        "params": {"processId": None, "rootUri": None, "capabilities": {}},
+                        "params": {"processId": None, "rootUri": None, "capabilities": capabilities},
                     },
                 )
-                self.receive(process)  # the answer to `initialize`
+                answer = self.receive(process)["result"]
                 self.send(process, {"jsonrpc": "2.0", "method": "initialized", "params": {}})
                 self.send(
                     process,
@@ -223,21 +268,57 @@ class TestOverTheProtocol:
                         "jsonrpc": "2.0",
                         "method": "textDocument/didOpen",
                         "params": {
-                            "textDocument": {"uri": uri, "languageId": "latex", "version": 1, "text": FAUTIF}
+                            "textDocument": {"uri": uri, "languageId": "latex", "version": 1, "text": text}
                         },
                     },
                 )
-                while (message := self.receive(process))["method"] != "textDocument/publishDiagnostics":
+                while (published := self.receive(process)).get("method") != "textDocument/publishDiagnostics":
+                    pass
+                first = published["params"]["diagnostics"][0]
+                self.send(
+                    process,
+                    {
+                        "jsonrpc": "2.0",
+                        "id": 2,
+                        "method": "textDocument/codeAction",
+                        "params": {
+                            "textDocument": {"uri": uri},
+                            "range": first["range"],
+                            "context": {"diagnostics": [first]},
+                        },
+                    },
+                )
+                while (fixes := self.receive(process)).get("id") != 2:
                     pass
             finally:
                 process.stdin.close()
                 process.kill()
-        (found,) = message["params"]["diagnostics"]
-        assert (message["params"]["uri"], found["code"], found["range"]["start"]) == (
+        return answer, published["params"], fixes["result"]
+
+    def test_a_document_opened_is_a_document_underlined(self, tmp_path):
+        uri = uri_of(tmp_path / "cours.tex")
+        _, published, _ = self.talk(uri, FAUTIF, {})
+        (found,) = published["diagnostics"]
+        assert (published["uri"], found["code"], found["range"]["start"]) == (
             uri,
             "unclosed-math",
             {"line": 2, "character": 5},
         )
+
+    def test_a_client_that_counts_bytes_gets_bytes(self, tmp_path):
+        # Neovim and Helix offer UTF-8 first, and pygls takes it. Counted in UTF-16, the
+        # underline began four bytes early, and the `$` of the fix went in before the colon.
+        uri = uri_of(tmp_path / "cours.tex")
+        answer, published, fixes = self.talk(
+            uri, ACCENTUE, {"general": {"positionEncodings": ["utf-8", "utf-16"]}}
+        )
+        (found,) = published["diagnostics"]
+        ((edit,),) = [fix["edit"]["changes"][uri] for fix in fixes]
+        assert (
+            answer["capabilities"]["positionEncoding"],
+            found["range"]["start"]["character"],
+            edit["range"]["start"]["character"],
+        ) == ("utf-8", 13, 15)
 
 
 def test_without_pygls_the_command_says_what_to_install():

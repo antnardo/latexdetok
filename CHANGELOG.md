@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+## [0.6.3] — 2026-09-27
+
 ### Fixed
 
 - An escaped character no longer stops `\item` outside a list from being
@@ -18,7 +20,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 - The symbols of gensymb — `\degree`, `\celsius`, `\ohm`, `\micro`,
   `\perthousand` — are known.
 
-## [0.6.2] — 2026-09-29
+## [0.6.2] — 2026-09-27
 
 ### Fixed
 
@@ -38,7 +40,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 Both `compilable()` fixes were measured against pdflatex, before and after,
 pixel for pixel.
 
-## [0.6.1] — 2026-09-28
+## [0.6.1] — 2026-09-27
 
 ### Fixed
 
@@ -78,7 +80,7 @@ pixel for pixel.
   discards, still expands. `compilable()` warns about such uses in a view not
   built so.
 
-## [0.6.0] — 2026-09-28
+## [0.6.0] — 2026-09-27
 
 ### Added
 

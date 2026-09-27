@@ -28,7 +28,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 ### Changed
 
 - The README gives the lines that start the server in Neovim, Emacs (Eglot)
-  and Helix, instead of saying there was nothing to configure.
+  and Helix, instead of saying there was nothing to configure. They were tried
+  as written, quick fixes included, in Neovim 0.12, Emacs 30 and 31 with and
+  without AUCTeX, and Helix 25.07. The Emacs lines hook both `LaTeX-mode`,
+  AUCTeX's, and `latex-mode`, the one Emacs comes with: hooked on the first
+  alone, an Emacs without AUCTeX never started the server.
 
 ## [0.5.0] — 2026-09-27
 

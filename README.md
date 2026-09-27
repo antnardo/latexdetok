@@ -412,12 +412,15 @@ Emacs 29 or later, with Eglot:
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
                '((LaTeX-mode latex-mode) . ("latexdetok-lsp" :initializationOptions (:language "fr")))))
-(add-hook 'LaTeX-mode-hook #'eglot-ensure)
+(add-hook 'LaTeX-mode-hook #'eglot-ensure)   ; AUCTeX
+(add-hook 'latex-mode-hook #'eglot-ensure)   ; the mode Emacs comes with
 ```
 
-Eglot runs one server per mode, so this entry takes the place of texlab or
-digestif in LaTeX buffers; lsp-mode, which runs several side by side, takes it
-as an add-on (`:add-on? t`).
+Both hooks, because a `.tex` opens in AUCTeX's `LaTeX-mode` when it is
+installed, and in `latex-mode` otherwise: with the first hook alone, an Emacs
+without AUCTeX never starts the server. Eglot runs one server per mode, so this
+entry takes the place of texlab or digestif in LaTeX buffers; lsp-mode, which
+runs several side by side, takes it as an add-on (`:add-on? t`).
 
 Helix, in `languages.toml`, beside texlab:
 
@@ -430,6 +433,9 @@ config = { language = "fr" }
 name = "latex"
 language-servers = ["texlab", "latexdetok"]
 ```
+
+These lines were tried as written, quick fixes included, in Neovim 0.12, in
+Emacs 30 and 31 with and without AUCTeX, and in Helix 25.07.
 
 Kate, Sublime Text's LSP package and the others ask for the same three things:
 the command, the language, and the options, which the protocol calls

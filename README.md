@@ -95,7 +95,9 @@ intro.tex:8:1: error [crossed-environment] “\begin{itemize}” closed by “\e
 - **Conditionals**: the ones that can be decided without compiling are, and both
   their branches stay in the tree.
 - **Typeset text**: `to_text` renders the prose of a document, accents included,
-  to look for a sentence in it; every character keeps its node and its position.
+  to look for a sentence in it or to check its spelling — notes set apart,
+  references given a stand-in; every character keeps its node and its
+  position.
 - **Translatable messages**: the diagnostics read in English or in French
   (`set_language`, `LATEXDETOK_LANG`); the codes, for their part, do not move.
 - **Fixes**: the openings that never close carry their repair as an edit, not

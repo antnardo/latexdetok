@@ -139,7 +139,7 @@
 \cellcolor                  any   o m o o
 \columncolor                any   o m o o
 
-# hyperref, cleveref
+# hyperref, cleveref, varioref
 \hyperref                   any   o m
 \autoref                    any   s m
 \nameref                    any   m
@@ -153,6 +153,9 @@
 \cpageref                   any   m
 \crefrange                  any   m m
 \labelcref                  any   m
+\vref                       any   s m
+\Vref                       any   s m
+\vpageref                   any   s o o m
 
 # booktabs, array, tabularx, longtable, multirow, makecell
 \toprule                    text  o
@@ -352,12 +355,27 @@
 \lstinputlisting            any   o m
 \lstdefinestyle             any   m m
 \inputminted                any   o m m
-\citep                      any   o o m
-\citet                      any   o o m
-\citealt                    any   o o m
-\parencite                  any   o o m
-\textcite                   any   o o m
-\autocite                   any   o o m
+\citep                      any   s o o m
+\citet                      any   s o o m
+\citealt                    any   s o o m
+\citealp                    any   s o o m
+\citenum                    any   m
+\citeauthor                 any   s o o m
+\citeyear                   any   s o o m
+\Citet                      any   s o o m
+\Citep                      any   s o o m
+\Citeauthor                 any   s o o m
+\parencite                  any   s o o m
+\Parencite                  any   s o o m
+\textcite                   any   s o o m
+\Textcite                   any   s o o m
+\autocite                   any   s o o m
+\Autocite                   any   s o o m
+\smartcite                  any   s o o m
+\footcite                   any   s o o m
+\footcitetext               any   s o o m
+\fullcite                   any   s o o m
+\citetitle                  any   s o o m
 \addbibresource             any   o m
 \printbibliography          any   o
 

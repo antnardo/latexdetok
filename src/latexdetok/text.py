@@ -11,8 +11,16 @@ What is rendered: the text, the mandatory arguments of the commands that
 typeset, the body of the environments, the verbatim, the common substitutions
 (`\\og`, `\\LaTeX`, `\\ldots`) and the accents — `\\'e` becomes “é”. The blanks of
 the source are reduced to one space: a sentence cut by a line ending becomes a
-sentence again, and that is the whole point. The breaks that matter stay: blank
-line, `\\\\`, `\\item`, titles, environments.
+sentence again, and that is the whole point. The blanks TeX skips are skipped
+too: after a control word (`c\\oe ur` is “cœur”, and `\\LaTeX is` prints
+“LaTeXis”, the mistake the PDF shows), and after a comment, which takes its line
+ending with it. The breaks that matter stay: blank line, `\\\\`, `\\item`, titles,
+environments.
+
+A note (`\\footnote`, `\\marginpar`, `\\todo`) is not where it is called: TeX
+sets it at the foot of the page, and read at its call it would cut the sentence
+in two. It comes out as a paragraph of its own at the next break — the end of
+the paragraph, of the item, of the title — and keeps its positions.
 
 What is not: comments, arguments that name something (`\\label`,
 `\\includegraphics`), the bodies of definitions, key-value settings, drawings
@@ -20,11 +28,14 @@ What is not: comments, arguments that name something (`\\label`,
 An unknown command disappears, but not its braces: their content is text until
 proven otherwise, and that is the package's tolerant stance.
 
-What we cannot render is what TeX computes: a `\\ref` does not give its number, a
-formula is not laid out — it is rendered as written, or skipped (`math`) —, a
-`\\multicolumn` aligns nothing. On a source that is not expanded, both branches
-of a conditional are rendered; on the expanded view (`expand`), only the one TeX
-reads.
+What we cannot render is what TeX computes: a formula is not laid out — it is
+rendered as written, or skipped (`math`), `\\ensuremath{…}` included —, a
+`\\multicolumn` aligns nothing, and a reference does not give its number. It
+gives a stand-in of the same kind rather than nothing: `\\ref` is “1”,
+`\\eqref` “(1)”, a citation “[1]”, so that “Figure~\\ref{f} and” stays a sentence
+for a grammar checker instead of “Figure  and”. On a source that is not
+expanded, both branches of a conditional are rendered; on the expanded view
+(`expand`), only the one TeX reads.
 
 For the export. The map designates **nodes**, not only positions: a search leads
 to the element of the tree, whose exact positions say what to edit in the source.
@@ -38,6 +49,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from latexdetok.analyse import TexFile
+from latexdetok.characters import is_control_word
 from latexdetok.classes import (
     Position,
     TexBranch,
@@ -48,7 +60,7 @@ from latexdetok.classes import (
     TexGroup,
     TexVerbatim,
 )
-from latexdetok.conditions import MATH_ENVIRONMENTS
+from latexdetok.conditions import MATH_ARGUMENT_COMMANDS, MATH_ENVIRONMENTS
 from latexdetok.definitions import DEFINING_COMMANDS
 from latexdetok.parser import UNTYPESET_ARGUMENTS
 from latexdetok.semantics import NAME_ARGUMENTS
@@ -70,6 +82,8 @@ SECTIONS = frozenset(
         "title",
     }
 )
+# Commands that start a new line of their own, like the item of a list.
+ITEMS = frozenset({"item", "bibitem"})
 # Commands that break the line, and by how much.
 BREAKS = {
     "\\": 1,
@@ -147,8 +161,6 @@ SETTINGS = frozenset(
         "movie",
     }
 )
-# Everything none of whose arguments is typeset where it is written.
-SILENT_COMMANDS = NAME_ARGUMENTS | UNTYPESET_ARGUMENTS | DEFINING_COMMANDS | SETTINGS
 # Environments whose content is a drawing or code, not text.
 SILENT_ENVIRONMENTS = frozenset(
     {
@@ -169,10 +181,12 @@ SILENT_ENVIRONMENTS = frozenset(
         "asy",
     }
 )
-# Commands worth one character. The symbols of the kernel are too many to enter here.
+# Commands worth one character. The symbols of the kernel are too many to enter here. The quotes of
+# babel-french bring their no-break space with them: TeX skips the blank after `\og`, and `\fg`
+# removes the one before it.
 SUBSTITUTIONS = {
-    "og": "«",
-    "fg": "»",
+    "og": "« ",
+    "fg": " »",
     "guillemotleft": "«",
     "guillemotright": "»",
     "LaTeX": "LaTeX",
@@ -236,6 +250,60 @@ SUBSTITUTIONS = {
     "!": "",
     "-": "",
 }
+# What a reference prints is computed by TeX: a stand-in of the same kind keeps the sentence whole.
+REFERENCES = {
+    **dict.fromkeys(
+        (
+            "ref",
+            "pageref",
+            "vref",
+            "Vref",
+            "vpageref",
+            "autoref",
+            "nameref",
+            "cref",
+            "Cref",
+            "cpageref",
+            "labelcref",
+            "crefrange",
+            "citenum",
+            "citeyear",
+        ),
+        "1",
+    ),
+    "eqref": "(1)",
+    **dict.fromkeys(
+        (
+            "cite",
+            "citep",
+            "citet",
+            "citealt",
+            "citealp",
+            "citeauthor",
+            "Citet",
+            "Citep",
+            "Citeauthor",
+            "parencite",
+            "Parencite",
+            "textcite",
+            "Textcite",
+            "autocite",
+            "Autocite",
+            "smartcite",
+            "fullcite",
+            "citetitle",
+        ),
+        "[1]",
+    ),
+}
+# Everything none of whose arguments is typeset where it is written.
+SILENT_COMMANDS = NAME_ARGUMENTS | UNTYPESET_ARGUMENTS | DEFINING_COMMANDS | SETTINGS | frozenset(REFERENCES)
+# A note is set apart from the sentence that calls it (see the module header).
+NOTES = frozenset({"footnote", "footnotetext", "marginpar", "marginnote", "todo"})
+# Horizontal space that parts two words, whatever the blanks of the source around it.
+SPACES = frozenset({"hfill", "hfil", "hss", "hspace", "enskip", "dotfill", "hrulefill"})
+# Accents over `\\i` and `\\j`, which TeX writes without their dot: the composed letter is the dotted one.
+DOTLESS = {"ı": "i", "ȷ": "j"}
 # Accents: the combining mark that follows the letter. `\\'e` writes “e” then U+0301, composed into “é”.
 ACCENTS = {
     "'": "́",
@@ -368,6 +436,7 @@ def to_text(source: TexFile | TexContainer, math: str = "source") -> TexText:
     container = source.container if isinstance(source, TexFile) else source
     reader = _Reader(math)
     reader.read(container.content if container.list_container else [container])
+    reader.notes()
     return TexText(reader.text(), tuple(reader.marks))
 
 
@@ -394,7 +463,7 @@ def _inside(node: TexContainer, delta: int) -> Position:
 class _Writer:
     """Puts the text together: blanks are asked for, not written, and the strongest wins."""
 
-    __slots__ = ("_accent", "_cursor", "_length", "_pending", "marks", "parts")
+    __slots__ = ("_accent", "_cursor", "_eaten", "_length", "_pending", "marks", "parts")
 
     def __init__(self) -> None:
         self.parts: list[str] = []
@@ -403,20 +472,29 @@ class _Writer:
         self._pending = ""
         self._accent = ""
         self._cursor: Position | None = None
+        # The node just left ends on a control word, or is a comment: TeX skips the blanks after it.
+        self._eaten = False
 
     def arrive(self, position: Position | None) -> None:
         """Before reading a node: a blank if the source has one, nothing if it touches the previous one."""
-        if self._cursor is not None and position != self._cursor:
+        if self._cursor is not None and position != self._cursor and not self._eaten:
             self.blank(" ")
 
-    def leave(self, position: Position | None) -> None:
+    def leave(self, position: Position | None, eats: bool = False) -> None:
+        """After a node, which ends at `position`; `eats`: TeX skips the blanks that follow it."""
         if position is not None:
             self._cursor = position
+            self._eaten = eats
 
     def blank(self, blank: str) -> None:
         # Nothing written yet: no blank at the head of the text.
         if self.parts and BLANKS[blank] > BLANKS[self._pending]:
             self._pending = blank
+
+    def unskip(self) -> None:
+        """Forget a space asked for, as `\\unskip` removes the last one."""
+        if self._pending == " ":
+            self._pending = ""
 
     def accent(self, combining: str) -> None:
         self._accent = combining
@@ -425,7 +503,9 @@ class _Writer:
         if not chunk:
             return
         if self._accent:
-            composed = unicodedata.normalize("NFC", chunk[0] + self._accent) + chunk[1:]
+            composed = (
+                unicodedata.normalize("NFC", DOTLESS.get(chunk[0], chunk[0]) + self._accent) + chunk[1:]
+            )
             # `\\'z` does not compose: the mark stays one character more, and the map would not follow.
             faithful = faithful and len(composed) == len(chunk)
             chunk, self._accent = composed, ""
@@ -448,6 +528,8 @@ class _Reader:
         self._math = math
         self._writer = _Writer()
         self.marks = self._writer.marks
+        # The arguments of the notes called since the last break, to set apart (see the module header).
+        self._notes: list[TexContainer] = []
 
     def text(self) -> str:
         return self._writer.text()
@@ -458,11 +540,25 @@ class _Reader:
         for node in nodes:
             # An argument already read by its command: we only move on, with no blank in its place.
             if id(node) in bound:
-                self._writer.leave(node.end_position)
+                self._writer.leave(node.end_position, _eats_blanks(node))
                 continue
             self._writer.arrive(node.start_position)
             self._node(node, bound)
-            self._writer.leave(node.end_position)
+            self._writer.leave(node.end_position, _eats_blanks(node))
+
+    def notes(self) -> None:
+        """Set the notes called so far apart, each a paragraph of its own."""
+        notes, self._notes = self._notes, []
+        for note in notes:
+            self._writer.blank("\n\n")
+            self._argument(note)
+            self._writer.blank("\n\n")
+
+    def _break(self, blank: str) -> None:
+        """A break of the text: the notes called before it come out first."""
+        if self._notes and BLANKS[blank] >= BLANKS["\n"]:
+            self.notes()
+        self._writer.blank(blank)
 
     def _node(self, node: TexContainer, bound: set[int]) -> None:
         if isinstance(node, TexComment):
@@ -478,7 +574,7 @@ class _Reader:
         elif isinstance(node, TexContent) and node.command:
             self._command(node, bound)
         elif node.is_par():
-            self._writer.blank("\n\n")
+            self._break("\n\n")
         elif node.list_container:
             self.read(node.content)
         else:
@@ -500,25 +596,31 @@ class _Reader:
             return
         if group.name in SILENT_ENVIRONMENTS:
             return
-        self._writer.blank("\n")
+        self._break("\n")
         self._inner(group, {id(argument) for argument in group.arguments if argument is not None})
-        self._writer.blank("\n")
+        self._break("\n")
 
     def _command(self, command: TexContent, bound: set[int]) -> None:
         name = command.base_name if isinstance(command, TexCommand) else command.content
-        if name in SECTIONS or name == "item":
-            self._writer.blank("\n")
+        if name in SECTIONS or name in ITEMS:
+            self._break("\n")
         elif name in BREAKS:
-            self._writer.blank("\n" * BREAKS[name])
+            self._break("\n" * BREAKS[name])
         elif name in ACCENTS:
             self._writer.accent(ACCENTS[name])
         elif name in SUBSTITUTIONS:
+            if name == "fg":
+                self._writer.unskip()
             self._writer.write(SUBSTITUTIONS[name], command)
+        elif name in REFERENCES:
+            self._writer.write(REFERENCES[name], command)
+        elif name in SPACES:
+            self._writer.blank(" ")
         # The command is read: its arguments are not parted from it, not even by a blank of the source.
         self._writer.leave(command.end_position)
         self._arguments(command, bound, silent=name in SILENT_COMMANDS, labelled=name == "item")
         if name in SECTIONS:
-            self._writer.blank("\n")
+            self._break("\n")
 
     def _arguments(self, command: TexContent, bound: set[int], silent: bool, labelled: bool) -> None:
         """The bound arguments: the mandatory ones are typeset, the others carry settings.
@@ -526,19 +628,38 @@ class _Reader:
         `labelled` is for `\\item`, whose optional argument is the label one reads.
         An unknown command has nothing bound (`arguments` is `None`): its braces
         stay siblings, and their content is read as text — the package's tolerant
-        stance.
+        stance. The argument of a note waits for the next break; that of
+        `\\ensuremath` is a formula.
         """
         if not isinstance(command, TexCommand) or command.arguments is None or command.signature is None:
             return
+        name = command.base_name
         for spec, argument in zip(command.signature.arguments, command.arguments, strict=False):
             if argument is None:
                 continue
             bound.add(id(argument))
             if silent or not (spec.mandatory or labelled):
                 continue
-            if isinstance(argument, TexGroup):
-                self._inner(argument)
+            if name in NOTES:
+                self._notes.append(argument)
+            elif name in MATH_ARGUMENT_COMMANDS:
+                if self._math == "source":
+                    formula = argument.arg() if isinstance(argument, TexGroup) else str(argument)
+                    self._writer.write(formula.strip(), argument)
             else:
-                # An argument in tokens (`\\'e`): the blank that announces it is not typeset.
-                self._writer.leave(argument.start_position)
-                self.read([argument])
+                self._argument(argument)
+
+    def _argument(self, argument: TexContainer) -> None:
+        if isinstance(argument, TexGroup):
+            self._inner(argument)
+        else:
+            # An argument in tokens (`\\'e`): the blank that announces it is not typeset.
+            self._writer.leave(argument.start_position)
+            self.read([argument])
+
+
+def _eats_blanks(node: TexContainer) -> bool:
+    """Does TeX skip the blanks after `node`? After a control word; after a comment, its line ending too."""
+    if isinstance(node, TexComment):
+        return True
+    return isinstance(node, TexContent) and node.command and is_control_word(node.content)

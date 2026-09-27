@@ -74,6 +74,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   left `\ifAMC@qbloc` false, where TeX has it true when the option is given. Its
   value is now unknown, as it already was in the first argument. On the corpus,
   59 conditionals of automultiplechoice are no longer decided.
+- `to_text` glued a footnote to the word before it: `point.\footnote{See…}`
+  gave “point.See”, one spelling mistake and one broken sentence per note. A
+  note (`\footnote`, `\footnotetext`, `\marginpar`, `\marginnote`, `\todo`) now
+  comes out as a paragraph of its own at the next break, where it keeps its
+  positions.
+- `to_text` printed the keys of `\eqref`, `\vref`, `\citeauthor`, `\citeyear`,
+  `\footcite` and `\bibitem` (“As in eq:rest”). They are declared (varioref,
+  natbib and biblatex citations, with their star) and their keys are names, not
+  text: `check` no longer takes the `_` of `\eqref{eq_a}` or `\bibitem{k_84}`
+  for a subscript outside math.
+- `to_text` kept the formula of `\ensuremath{…}` with `math="skip"`.
+- `to_text` kept the blank after a control word, which TeX skips: `c\oe ur`
+  gave “cœ ur”, `Stra\ss e` “Straß e”, and `\LaTeX is` hid the “LaTeXis” the
+  PDF shows. The same after a comment, which takes its line ending with it.
+  `\og` and `\fg` bring their no-break space, as babel-french does, and
+  `\hfill`, `\hspace` still part the words around them.
+- `\"\i` and `\'\i` gave a dotless ı and a combining accent, not “ï” and “í”.
+
+### Changed
+
+- `to_text` gives a reference a stand-in of the kind TeX prints, rather than
+  nothing: `\ref`, `\pageref`, `\vref`, `\cref` “1”, `\eqref` “(1)”, the
+  citations “[1]”, `\citeyear` “1”. “Figure~\ref{fig:a} and” read “Figure  and”,
+  and “Einstein~\cite{e05}.” “Einstein .”: two false positives for a grammar
+  checker in every such sentence.
 
 ## [0.5.1] — 2026-09-27
 

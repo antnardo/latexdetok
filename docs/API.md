@@ -1172,11 +1172,21 @@ A dataclass: `kind`, `label`, `start`, `end` (lines), `children`, `stats`
 
 Typeset: the text, the mandatory arguments of the commands that typeset, the
 body of the environments, the verbatim, the substitutions (`\og`, `\LaTeX`,
-`\ldots`) and the accents (`\'e` becomes “é”). Not typeset: comments, arguments
-that name something (`NAME_ARGUMENTS`), the bodies of definitions
-(`DEFINING_COMMANDS`), settings (`SETTINGS`), drawings (`SILENT_ENVIRONMENTS`)
-and optional arguments. The blanks of the source are reduced to one space; the
-breaks stay (blank line, `\\`, `\item`, titles, environments).
+`\ldots`) and the accents (`\'e` becomes “é”, `\"\i` “ï”). Not typeset:
+comments, arguments that name something (`NAME_ARGUMENTS`), the bodies of
+definitions (`DEFINING_COMMANDS`), settings (`SETTINGS`), drawings
+(`SILENT_ENVIRONMENTS`) and optional arguments. The blanks of the source are
+reduced to one space, and those TeX skips are skipped: after a control word
+(`c\oe ur` is “cœur”, `\LaTeX is` “LaTeXis”, as the PDF prints it) and after a
+comment, line ending included. The breaks stay (blank line, `\\`, `\item`,
+`\bibitem`, titles, environments).
+
+A note (`\footnote`, `\footnotetext`, `\marginpar`, `\marginnote`, `\todo`)
+comes out as a paragraph of its own at the next break, not in the sentence that
+calls it. A reference gives a stand-in of the kind TeX prints (`REFERENCES`):
+`\ref`, `\pageref`, `\vref`, `\cref` “1”, `\eqref` “(1)”, `\cite` and the citations
+of natbib and biblatex “[1]”, `\citeyear` “1”; `\footcite`, a note, nothing.
+`\ensuremath{…}` is a formula: as written, or skipped with `math="skip"`.
 
 ### `TexText`
 

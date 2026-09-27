@@ -260,3 +260,55 @@ class TestTypos:
     )
     def test_what_is_not_a_typo(self, meaning, body):
         assert [d for d in meaning(document(body)) if d.code == "unknown-command"] == []
+
+
+class TestInvalidInMath:
+    """What LaTeX guards with `\\@inmatherr`: an error of its own, not a matter of taste.
+
+    A `$` is an opening and a closing at once, so a forgotten one does not leave
+    math open where it was forgotten: it pairs with the next `$`. With two
+    forgotten, the count is even again and the prose between them is read as
+    math — nothing was reported, and the file does not compile.
+    """
+
+    def test_an_item_that_math_swallowed(self, meaning):
+        # `\item` is the second one: the first `$` pairs with the `$` of the next item.
+        (diagnostic,) = meaning(
+            document("\\begin{itemize}\n\\item Soit $x\n\\item et $y ici\n\\end{itemize}\n")
+        )
+        assert (diagnostic.code, diagnostic.start, diagnostic.message) == (
+            "invalid-in-math",
+            (5, 0),
+            "“\\item” inside math, where LaTeX refuses it",
+        )
+
+    def test_it_points_at_the_math_still_open(self, meaning):
+        (diagnostic,) = meaning(
+            document("\\begin{itemize}\n\\item Soit $x\n\\item et $y ici\n\\end{itemize}\n")
+        )
+        assert related(diagnostic) == [((4, 11), "the math opened by “$” is still open here")]
+
+    def test_a_list_that_closes_its_math_says_nothing(self, meaning):
+        assert meaning(document("\\begin{itemize}\n\\item Soit $x$\n\\item et $y$\n\\end{itemize}\n")) == []
+
+    def test_an_item_outside_a_list_is_still_that_one(self, meaning):
+        # In text the reading is the other: the list is missing, not a `$`.
+        (diagnostic,) = meaning(document("\\item a\n"))
+        assert diagnostic.code == "item-outside-list"
+
+    def test_a_command_latex_refuses_in_math(self, meaning):
+        (diagnostic,) = meaning(document("$x \\circle{4} y$\n"))
+        assert (diagnostic.code, diagnostic.start) == ("invalid-in-math", (3, 3))
+
+    def test_the_same_command_in_text_says_nothing(self, meaning):
+        assert meaning(document("\\begin{picture}(4,4)\n\\circle{4}\n\\end{picture}\n")) == []
+
+    def test_nothing_where_the_mode_is_a_guess(self, meaning):
+        # Inside an unknown environment the mode is not known — a package may typeset its
+        # body in math (`tblr`) — and reporting there would invent errors by the hundred.
+        assert meaning(document("\\begin{inconnu}\n\\item a\n\\end{inconnu}\n")) == []
+
+    def test_an_explicit_dollar_is_math_wherever_it_is_written(self, meaning):
+        # The mode of the environment is a guess; a `$` opened by hand is not.
+        (diagnostic,) = meaning(document("\\begin{inconnu}\n$\\item a$\n\\end{inconnu}\n"))
+        assert diagnostic.code == "invalid-in-math"

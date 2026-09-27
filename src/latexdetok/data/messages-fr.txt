@@ -84,6 +84,9 @@ script-outside-math                             « {character} » hors des maths
 script-outside-math.fix                         des maths (« $x{character}2$ »), ou « {written} » pour le caractère
 math-command-in-text                            « {command} » hors des maths
 math-command-in-text.fix                        « {math} »
+invalid-in-math                                 « {command} » dans des maths, où LaTeX le refuse
+invalid-in-math.related                         les maths ouvertes par « {opening} » le sont encore ici
+invalid-in-math.fix                             fermer les maths avant, ou enlever le « $ » qui les a ouvertes trop tôt
 missing-argument                                « {command} » : il manque {count} sur {mandatory}
 missing-argument.count.one                      {count} argument obligatoire
 missing-argument.count.many                     {count} arguments obligatoires

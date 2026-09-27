@@ -5,6 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Added
+
+- `invalid-in-math`: a command LaTeX refuses in math mode, `\item` and
+  `\circle` — the two it guards with `\@inmatherr` in `latex.ltx`, so an error
+  of its own and not a matter of taste. A `$` is an opening and a closing at
+  once: a forgotten one does not leave math open where it was forgotten, it
+  pairs with the next `$`. Forget two and the count is even again, the prose
+  between them is read as math, and nothing was reported although the file does
+  not compile — `Command \item invalid in math mode`. The diagnostic lands on
+  the `\item`, as TeX's does, and points at the `$` that opened the math, which
+  TeX never says.
+
 ## [0.5.1] — 2026-09-27
 
 ### Fixed

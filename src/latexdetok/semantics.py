@@ -54,6 +54,7 @@ SEMANTIC_CATALOGUE: dict[str, str] = {
     "ampersand-outside-alignment": "“&” outside a table or an alignment",
     "script-outside-math": "“^” or “_” outside math",
     "math-command-in-text": "a command that only means something in math mode, written in text",
+    "invalid-in-math": "a command LaTeX refuses in math mode",
     "missing-argument": "a mandatory argument is missing",
     "left-without-right": "“\\left” without “\\right” in the same group",
     "right-without-left": "“\\right” without “\\left” in the same group",
@@ -241,6 +242,10 @@ TEXT_CONTAINERS = frozenset(
 )
 # A column specification that enters math (`>{$}c<{$}`) or inserts code.
 MATH_COLUMNS = re.compile(r"[$<>]|\\\(")
+# What LaTeX guards with `\@inmatherr` in latex.ltx: an error, not a matter of taste.
+# `\end{x}` is guarded there too, but a math that swallows an `\end` never closes,
+# and `unclosed-math` says so first.
+INVALID_IN_MATH = frozenset({"item", "circle"})
 # Tables whose columns are set by key-value pairs (tabularray, nicematrix).
 KEYVAL_TABLES = frozenset({"tblr", "longtblr", "talltblr", "NiceTabular"})
 BRACED = re.compile(r"\{[^{}]*\}")
@@ -318,6 +323,12 @@ class _Frame:
     alignment: bool | None
     trusted: bool
     environment: TexGroup | None = None
+    # The math open here, to point at its opening: outside math there is none to point at.
+    math: TexGroup | None = None
+
+    def __post_init__(self) -> None:
+        if self.mode is not Mode.MATH and self.math is not None:
+            object.__setattr__(self, "math", None)
 
 
 def read_meaning(tex: TexFile, files: FileFinder | None = None) -> list[TexDiagnostic]:
@@ -409,7 +420,7 @@ class _Reader:
         index: int,
     ) -> _Frame:
         if group.math:
-            return _Frame(Mode.MATH, frame.lists, False, frame.trusted, frame.environment)
+            return _Frame(Mode.MATH, frame.lists, False, frame.trusted, frame.environment, group)
         if group.env:
             return self._environment(group, frame)
         if isinstance(owner, TexGroup):
@@ -436,7 +447,7 @@ class _Reader:
         if mode is Mode.TEXT and name in ALIGNMENT_ENVIRONMENTS and _math_columns(group):
             mode = None  # `>{$}c<{$}`, or a column type defined elsewhere: cells in math
         lists = True if name in LIST_ENVIRONMENTS else False if name == "document" else frame.lists
-        return _Frame(mode, lists, name in ALIGNMENT_ENVIRONMENTS, frame.trusted, group)
+        return _Frame(mode, lists, name in ALIGNMENT_ENVIRONMENTS, frame.trusted, group, group)
 
     def _argument(self, command: TexCommand, frame: _Frame) -> _Frame:
         name = command.base_name
@@ -480,7 +491,9 @@ class _Reader:
         lefts: _Lefts,
     ) -> None:
         name = command.base_name
-        if name == "item" and frame.mode is Mode.TEXT and frame.lists is False:
+        if name in INVALID_IN_MATH and frame.mode is Mode.MATH and frame.trusted:
+            self._invalid_in_math(command, frame)
+        elif name == "item" and frame.mode is Mode.TEXT and frame.lists is False:
             self._item(command, frame)
         if self._files is not None and name in FILE_COMMANDS:
             self._file(command)
@@ -631,6 +644,20 @@ class _Reader:
                         group.inner_start or group.start_position,
                     )
                 )
+
+    def _invalid_in_math(self, command: TexCommand, frame: _Frame) -> None:
+        """What LaTeX itself refuses there — and what put it there is usually a `$` too many."""
+        related: tuple[Related, ...] = ()
+        if frame.math is not None:
+            opening = frame.math.enclosures()[0]
+            related = _opening(frame.math, say("invalid-in-math.related", opening=opening))
+        self._add(
+            "invalid-in-math",
+            say("invalid-in-math", command=f"\\{command.base_name}"),
+            command,
+            related,
+            say("invalid-in-math.fix"),
+        )
 
     def _item(self, command: TexCommand, frame: _Frame) -> None:
         related: tuple[Related, ...] = ()

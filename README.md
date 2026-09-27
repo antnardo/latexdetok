@@ -234,7 +234,7 @@ magnitude mean something.
 - **ChkTeX and lacheck** have decades of use behind them. lacheck runs an order
   of magnitude faster (57 MB/s), ChkTeX about as fast (6 MB/s), against some
   3.5 million characters per second here, 7 compiled — for less work, but a
-  quick check needs no more. ChkTeX has 49 warnings; latexdetok has 26
+  quick check needs no more. ChkTeX has 49 warnings; latexdetok has 27
   diagnostic codes, and TeXiFy-IDEA 75 inspections.
 - **texlab and TeXiFy-IDEA** live in the editor, with a language server or
   IntelliJ's incremental analysis. latexdetok is a command, and a VS Code task
@@ -280,7 +280,7 @@ private tools:
 
 | Project | Language | Tolerance | Catcodes | The document's own macros | Diagnostics |
 | --- | --- | --- | --- | --- | --- |
-| latexdetok | Python, stdlib | never raises, reports | a table per group | learned, expanded, mapped back | 26 codes, with the fix |
+| latexdetok | Python, stdlib | never raises, reports | a table per group | learned, expanded, mapped back | 27 codes, with the fix |
 | [pylatexenc 3](https://github.com/phfaist/pylatexenc) | Python, stdlib | recovery nodes | `@` settable | a parser to write oneself | exceptions |
 | [TexSoup](https://github.com/alvinwan/TexSoup) | Python | unclosed groups | `@` in names | no | no |
 | [plasTeX](https://github.com/plastex/plastex) | Python | little | real | executed | the engine's |

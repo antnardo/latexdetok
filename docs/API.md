@@ -355,7 +355,7 @@ starts with no list and no alignment known.
 
 | Name | Contents |
 | --- | --- |
-| `SEMANTIC_CATALOGUE` | code → description: `item-outside-list`, `ampersand-outside-alignment`, `script-outside-math`, `math-command-in-text`, `missing-argument`, `left-without-right`, `right-without-left`, `left-across-cells`, `line-break-without-line`, `file-not-found`, `unknown-command`, `unknown-environment` |
+| `SEMANTIC_CATALOGUE` | code → description: `item-outside-list`, `ampersand-outside-alignment`, `script-outside-math`, `math-command-in-text`, `invalid-in-math`, `missing-argument`, `left-without-right`, `right-without-left`, `left-across-cells`, `line-break-without-line`, `file-not-found`, `unknown-command`, `unknown-environment` |
 | `LIST_ENVIRONMENTS` | where `\item` is allowed: the kernel lists, and `center`, `quote`… built on `trivlist` |
 | `ALIGNMENT_ENVIRONMENTS` | where `&` separates cells: kernel and amsmath |
 | `NAME_ARGUMENTS` | commands whose arguments name something (`\label`, `\input`, `\setcounter`…): nothing is checked in them |

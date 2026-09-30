@@ -14,6 +14,10 @@
 \ProvidesPackage            any   m o
 \ProvidesClass              any   m o
 \ProvidesFile               any   m o
+# The expl3 declarations: four mandatory arguments, and `\ExplSyntaxOn` after them.
+\ProvidesExplPackage        any   m m m m
+\ProvidesExplClass          any   m m m m
+\ProvidesExplFile           any   m m m m
 \PassOptionsToPackage       any   m m
 \PassOptionsToClass         any   m m
 \DeclareOption              any   s m

@@ -207,3 +207,33 @@ class TestFiles:
         tex = TexFile(path)
         tex.analyse()
         assert tex.signatures.command("am@x") is None
+
+
+class TestImplicitExpl3:
+    """`\\ProvidesExplPackage` is the `\\ExplSyntaxOn` an expl3 package never writes."""
+
+    DECLARATION = "\\ProvidesExplPackage{monpaquet}{2026-09-30}{0.1.0}{Un essai}\n"
+
+    def package(self, tmp_path, text):
+        path = tmp_path / "monpaquet.sty"
+        path.write_text(self.DECLARATION + text, encoding="utf-8")
+        tex = TexFile(path)
+        tex.analyse()
+        return tex
+
+    def test_the_syntax_is_on_after_the_declaration(self, tmp_path):
+        tex = self.package(tmp_path, "\\l__monpaquet_nom_tl\n")
+        assert str(tex.container[-1]) == "\\l__monpaquet_nom_tl"
+
+    def test_the_change_is_noted_under_the_declaration(self, tmp_path):
+        tex = self.package(tmp_path, "")
+        assert {(change.command, change.character) for change in tex.catcode_changes} == {
+            ("ProvidesExplPackage", character) for character in "_: \t\r\n~"
+        }
+
+    def test_a_document_that_provides_nothing_reads_an_ordinary_underscore(self, tmp_path):
+        path = tmp_path / "cours.tex"
+        path.write_text("\\l__monpaquet_nom_tl\n", encoding="utf-8")
+        tex = TexFile(path)
+        tex.analyse()
+        assert str(tex.container[0]) == "\\l"

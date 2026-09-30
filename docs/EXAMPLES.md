@@ -271,6 +271,22 @@ line 3, column 0: \makeatother: '@' letter (11) → other (12)
 
 ```
 
+A package written in expl3 never writes `\ExplSyntaxOn`: the declaration that
+gives its name ends on it. Under it, `_` and `:` are letters, so `\l__pkg_x_tl`
+is one command and not `\l` followed by subscripts — which a document using
+that package would otherwise report outside math.
+
+```pycon
+>>> package = TexFile([
+...     "\\ProvidesExplPackage{monpaquet}{2026-09-30}{0.1.0}{Un essai}\n",
+...     "\\l__monpaquet_nom_tl\n",
+... ])
+>>> _ = package.analyse()
+>>> [str(node) for node in package.container.content][-1]
+'\\l__monpaquet_nom_tl'
+
+```
+
 ## A file on disk, and inclusions
 
 From a path, the encoding is found on its own (UTF-8, otherwise Latin-1), and

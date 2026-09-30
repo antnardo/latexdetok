@@ -86,7 +86,8 @@ intro.tex:8:1: error [crossed-environment] “\begin{itemize}” closed by “\e
   (amsmath, graphicx, siunitx, gensymb, beamer, booktabs, enumitem…); the definitions of
   the file (`\newcommand`, `\def`, `\NewDocumentCommand`, `\newenvironment`…)
   are learned while reading, and end with their group, as in TeX.
-- **Catcodes**: `\makeatletter`, `\catcode`, `\ExplSyntaxOn`, group by group.
+- **Catcodes**: `\makeatletter`, `\catcode`, `\ExplSyntaxOn` and the
+  `\ProvidesExplPackage` that implies it, group by group.
 - **Inclusions**: `\input`, `\usepackage`, `\documentclass` looked for the way
   TeX does (the folder, then `kpsewhich`), `% !TEX root` of chapters.
 - **Expanded view**: the user's macros replaced by their bodies, every node tied

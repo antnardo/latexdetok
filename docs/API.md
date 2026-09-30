@@ -758,6 +758,14 @@ it changes none. Understands `\makeatletter`, `\makeatother`, `\ExplSyntaxOn`,
 (`` `\@=11 ``, `64=11`, `"40`, `'100`, `` `\^^M ``, `\active`, `\@letter`,
 `\@other`). `CATCODE_COMMANDS` is the set of those commands.
 
+`EXPL_DECLARATIONS` holds the three others: `\ProvidesExplPackage`,
+`\ProvidesExplClass` and `\ProvidesExplFile`, which end on `\ExplSyntaxOn` —
+a package written in expl3 therefore never writes it, and nothing turns it off
+but the end of the file, a package restoring the categories of whoever loaded
+it. They are not in `CATCODE_COMMANDS` and `interpret` does not answer for
+them: their four arguments are read under the old categories, so the tokeniser
+applies `EXPL_SYNTAX` only once it has them.
+
 ## `signatures`: signatures, bodies, booleans
 
 ### `Mode`

@@ -25,7 +25,15 @@ from dataclasses import dataclass
 from enum import IntEnum
 from string import ascii_letters
 
-__all__ = ["CATCODE_COMMANDS", "CatcodeChange", "CatcodeTable", "Category", "interpret"]
+__all__ = [
+    "CATCODE_COMMANDS",
+    "EXPL_DECLARATIONS",
+    "EXPL_SYNTAX",
+    "CatcodeChange",
+    "CatcodeTable",
+    "Category",
+    "interpret",
+]
 
 
 class Category(IntEnum):
@@ -191,6 +199,14 @@ class CatcodeChange:
         )
 
 
+# `\ProvidesExplPackage{name}{date}{version}{description}` ends on `\ExplSyntaxOn`, and
+# nothing turns it off: the file is what closes it, a package restoring the categories of
+# whoever loaded it (see `resolution.include`). A package written in expl3 therefore never
+# writes `\ExplSyntaxOn` — and read without it, `\l__pkg_volume_fp` is `\l` followed by
+# subscripts, which a document using the macros of that package then reports outside math.
+# These four arguments are read before the switch, under the old categories, so they are not
+# `interpret`'s business: the parser applies `EXPL_SYNTAX` once it has them (see `parser`).
+EXPL_DECLARATIONS = frozenset({"ProvidesExplPackage", "ProvidesExplClass", "ProvidesExplFile"})
 # The commands `interpret` understands: for any other, no need to pass it the rest of the line.
 CATCODE_COMMANDS = frozenset(
     {"makeatletter", "makeatother", "ExplSyntaxOn", "ExplSyntaxOff", "@makeother", "catcode"}

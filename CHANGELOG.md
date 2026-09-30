@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Fixed
+
+- A package that declares itself with `\ProvidesExplPackage` is read in expl3.
+  That declaration ends on `\ExplSyntaxOn`, so a package written in expl3 never
+  writes it; read without it, `\l__pkg_volume_fp` in the body of one of its
+  macros is `\l` followed by subscripts, and every document using that macro
+  reported a `_` outside math — on a file that compiles. `\ProvidesExplClass`
+  and `\ProvidesExplFile` do the same, and the three have their signature
+  (four mandatory arguments), read before the switch: their own description
+  keeps its spaces.
+
 ## [0.6.3] — 2026-09-27
 
 ### Fixed

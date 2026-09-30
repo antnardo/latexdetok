@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from latexdetok import CatcodeTable, Category, TexCommand, TexFile, resolution
+from latexdetok import CatcodeTable, Category, TexCommand, TexFile, check, resolution
 from latexdetok.resolution import TexmfResolver, clear_caches, decode_lines, read_lines
 
 requires_kpsewhich = pytest.mark.skipif(shutil.which("kpsewhich") is None, reason="TeX Live absent")
@@ -228,6 +228,31 @@ class TestCatcodes:
         texmf("reglages.tex", "\\makeatletter\n")
         tex = document("\\input{reglages}\n\\a@b\n")
         assert str(tex.container[-1]) == "\\a@b"
+
+    @pytest.mark.parametrize("declaration", ["ProvidesExplPackage", "ProvidesExplClass", "ProvidesExplFile"])
+    def test_a_package_that_provides_itself_in_expl3_is_read_in_expl3(self, texmf, document, declaration):
+        # These declarations end on \ExplSyntaxOn, so a package written in expl3 never
+        # writes it. Read without it, `\l__monpaquet_nom_tl` is `\l` followed by subscripts,
+        # which the document using `\monmacro` then reports outside math.
+        texmf(
+            "monpaquet.sty",
+            f"\\{declaration}{{monpaquet}}{{2026-09-30}}{{0.1.0}}{{Un paquet d'essai}}\n"
+            "\\NewDocumentCommand \\monmacro { m }\n"
+            "  { \\tl_set:Nn \\l__monpaquet_nom_tl { #1 } \\tl_use:N \\l__monpaquet_nom_tl }\n",
+        )
+        tex = document("\\usepackage{monpaquet}\n\\monmacro{bonjour}\n")
+        assert check(tex) == []
+
+    def test_the_declaration_reads_its_arguments_before_turning_the_syntax_on(self, texmf):
+        # The switch is the last thing it does: its own description keeps its spaces,
+        # which the expl3 categories would have made ignored characters.
+        path = texmf(
+            "monpaquet.sty",
+            "\\ProvidesExplPackage{monpaquet}{2026-09-30}{0.1.0}{Un paquet bien décrit}\n",
+        )
+        sty = TexFile(path)
+        sty.analyse()
+        assert "{Un paquet bien décrit}" in str(sty.container)
 
     def test_an_input_is_read_with_the_includers_table(self, texmf, document):
         texmf("interne.tex", "\\newcommand\\am@x[1]{}\n")

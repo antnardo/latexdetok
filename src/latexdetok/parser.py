@@ -79,7 +79,15 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from latexdetok.binding import ArgumentBinding
-from latexdetok.catcodes import CATCODE_COMMANDS, CatcodeChange, CatcodeTable, Category, interpret
+from latexdetok.catcodes import (
+    CATCODE_COMMANDS,
+    EXPL_DECLARATIONS,
+    EXPL_SYNTAX,
+    CatcodeChange,
+    CatcodeTable,
+    Category,
+    interpret,
+)
 from latexdetok.characters import (
     MATH_DELIMITERS,
     MATHS_MODE_CAR,
@@ -819,6 +827,17 @@ class TexParser:
             return
         content = opening.group.content
         local = not (content and content[-1].is_command("global"))
+        self._apply_catcodes(opening, changes, name, position, local)
+
+    def _apply_catcodes(
+        self,
+        opening: _Opening,
+        changes: dict[str, Category],
+        name: str,
+        position: Position,
+        local: bool = True,
+    ) -> None:
+        """Note the changes `\name` makes and put them in force from `position`."""
         current = opening.catcodes
         self.catcode_changes.extend(
             CatcodeChange(position, character, current.category(character), category, name, local)
@@ -832,6 +851,20 @@ class TexParser:
         for target in self._pile:
             target.catcodes = target.catcodes.with_categories(changes)
             target.saved_catcodes = [table.with_categories(changes) for table in target.saved_catcodes]
+
+    def _declare_expl_syntax(self, opening: _Opening, command: TexCommand) -> None:
+        """`\\ProvidesExplPackage` and its two kin turn expl3 syntax on once read.
+
+        The switch is the last thing the declaration does (see `catcodes`), which is
+        why it is applied here, when the four arguments are in, and not when the
+        command was read: their own text is under the categories of the file.
+        """
+        position = command.start_position
+        if position is None or command.base_name not in EXPL_DECLARATIONS:
+            return
+        if opening.inactive or opening.in_definition or self._skipping():
+            return
+        self._apply_catcodes(opening, dict(EXPL_SYNTAX), command.base_name, position)
 
     def _command_signature(self, name: str) -> CommandSignature | None:
         signature = self.signatures.command(name)
@@ -1054,6 +1087,7 @@ class TexParser:
         binding.close()
         if isinstance(binding.target, TexCommand):
             self._learn(opening, binding.target)
+            self._declare_expl_syntax(opening, binding.target)
 
     def _learn(self, opening: _Opening, command: TexCommand) -> None:
         # Nothing runs in a discarded branch, nor in the body of a definition before it is expanded.

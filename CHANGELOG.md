@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+## [0.6.4] — 2026-09-30
+
 ### Fixed
 
 - A package that declares itself with `\ProvidesExplPackage` is read in expl3.

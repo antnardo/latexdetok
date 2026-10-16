@@ -89,6 +89,76 @@ double-superscript                              deux exposants de suite sur le m
 double-superscript.related                      son premier exposant
 double-superscript.fix                          « x^{ab} », « x^{a^b} » ou « {x^a}^b »
 double-superscript.fix.prime                    le prime d'abord, qui est lui-même un exposant : « f'^2 »
+script-without-argument                         « {script} » sans rien à prendre
+script-without-argument.fix                     « x{script}2 », ou « x{script}{} » pour un vide
+missing-delimiter                               « \{command} » suivi de « {written} », qui n'est pas un délimiteur
+missing-delimiter.fix                           un délimiteur — « ( », « [ », « \{ », « | »… — ou « \{command}. » pour aucun
+missing-delimiter.fix.brace                     « \{command}\{written} » : une accolade s'écrit « \{ » ou « \} » ici
+middle-without-left                             « \middle » sans « \left » dans le même groupe
+middle-without-left.fix                         « \left. … \middle| … \right. », ou « \mid » pour une barre de taille fixe
+limits-without-operator                         « \{command} » après « {atom} », qui n'est pas un opérateur
+limits-without-operator.start                   « \{command} » sans rien avant lui
+limits-without-operator.fix                     « \mathop{…}\{command} », ou pas de « \{command} »
+ambiguous-fraction                              un second « \{command} » dans le même groupe que « \{first} »
+ambiguous-fraction.related                      le premier
+ambiguous-fraction.fix                          « \frac{…}{…} », ou des accolades autour de l'une : « {a \over b} \over c »
+too-many-columns                                « & » au-delà des {count} colonnes de « {name} »
+too-many-columns.related                        « {name} » fixe ses colonnes ici
+too-many-columns.fix                            une colonne de plus dans la spécification, ou « \\ » pour finir la ligne avant
+too-many-columns.fix.matrix                     « \setcounter{MaxMatrixCols}{{needed}} » pour plus de colonnes
+display-in-math                                 « \begin{{name}} » dans des maths : il ouvre son propre affichage
+display-in-math.related                         les maths ouvertes par « {opening} »
+display-in-math.fix                             « aligned », « gathered » ou « split » dans l'affichage, ou fermer les maths avant
+blank-line-in-math                              une ligne blanche dans « {name} », où TeX termine les maths
+blank-line-in-math.related                      « {name} » ouvre les maths ici
+blank-line-in-math.fix                          l'enlever, ou y mettre un « % »
+multiple-labels                                 un second « \label » sur la même équation
+multiple-labels.related                         sa première étiquette
+multiple-labels.fix                             une étiquette par équation ; « \\ » en commence une autre
+multiple-tags                                   un second « \tag » sur la même équation
+multiple-tags.related                           son premier « \tag »
+multiple-tags.fix                               un « \tag » par équation
+tag-not-allowed                                 « \tag » dans « {place} », qui ne numérote rien
+tag-not-allowed.fix                             un affichage numéroté (« equation », « align »), le « \tag » au niveau de ses lignes
+invalid-length                                  « {text} » n'est pas une longueur
+invalid-length.fix                              un nombre et son unité : « 2pt », « 1.5em », « 0.5\linewidth »
+invalid-length.fix.row                          après « \\ », « [ » ouvre son espacement : « \\{}[0,1] » pour un crochet en début de ligne suivante
+misplaced-rule                                  « \{command} » au milieu d'une ligne : il ne peut qu'en commencer une
+misplaced-rule.fix                              « \\ » avant, pour finir la ligne
+misplaced-multicolumn                           « \{command} » après le début de sa cellule
+misplaced-multicolumn.fix                       en premier dans la cellule, le reste dans son dernier argument
+unknown-column                                  « {letter} » n'est pas un type de colonne
+unknown-column.fix                              « l », « c », « r » ou « p{largeur} » ; un autre type vient d'un paquet (« array », « tabularx ») ou de « \newcolumntype »
+text-before-item                                du texte avant le premier « \item » de « {name} »
+text-before-item.fix                            un « \item » avant, ou le texte avant « \begin{{name}} »
+too-deeply-nested                               « {name} » imbriqué sur {depth} niveaux : LaTeX s'arrête à {limit}
+too-deeply-nested.fix                           moins de niveaux, ou « \setlistdepth » et « \renewlist » d'enumitem
+preamble-only                                   « \{command} » après « \begin{document} » : LaTeX ne l'accepte que dans le préambule
+preamble-only.fix                               le placer avant « \begin{document} »
+text-in-preamble                                du texte avant « \begin{document} »
+text-in-preamble.fix                            après « \begin{document} », ou derrière un « % »
+illegal-parameter                               « #{digit} » dans « \{command} », dont la définition prend {count}
+illegal-parameter.count.none                    aucun argument
+illegal-parameter.count.one                     un argument
+illegal-parameter.count.many                    {count} arguments
+illegal-parameter.fix                           « [{digit}] » après le nom, ou « ##{digit} » pour une définition dans celle-ci
+already-defined                                 « {name} » est déjà défini
+already-defined.related                         défini d'abord ici
+already-defined.fix                             « \renewcommand », ou un autre nom
+already-defined.fix.environment                 « \renewenvironment », ou un autre nom
+not-a-command-name                              « {text} » n'est pas un nom de commande
+not-a-command-name.fix                          « \{text} »
+verb-in-argument                                « \verb » dans l'argument de « \{command} »
+verb-in-argument.related                        « \{command} » le lit
+verb-in-argument.fix                            « \texttt{…} », avec « \textbackslash » ou « \{ » pour les caractères spéciaux
+float-in-box                                    « \begin{{name}} » dans « {box} », où un flottant ne peut pas s'ouvrir
+float-in-box.related                            « {box} » ouvert ici
+float-in-box.fix                                le flottant hors de la boîte, ou « \captionof » dedans (paquets caption, capt-of)
+caption-outside-float                           « \caption » hors d'un flottant
+caption-outside-float.fix                       une « figure » ou une « table » autour, ou « \captionof{figure}{…} » (paquets caption, capt-of)
+blank-line-in-argument                          une ligne blanche dans l'argument de « \{command} », qui ne peut pas en contenir
+blank-line-in-argument.related                  « \{command} » le lit
+blank-line-in-argument.fix                      l'enlever, ou y mettre un « % »
 math-command-in-text                            « {command} » hors des maths
 math-command-in-text.fix                        « {math} »
 invalid-in-math                                 « {command} » dans des maths, où LaTeX le refuse

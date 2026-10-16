@@ -359,15 +359,47 @@ right after it (`f'^2`, but not `f' ^2`). Anything TeX makes an atom of starts a
 new nucleus — a character, a group even empty, a command — except blanks,
 comments, `\limits`, `\nolimits` and `\relax`. What cannot be followed (an
 unknown command as an argument, a symbol written as several atoms like `\neq`)
-starts a new nucleus too, so that a doubt never becomes an error.
+starts a new nucleus too, so that a doubt never becomes an error. The same
+reading finds a script with nothing to take (`x^` at the end, `x__b`), `\limits`
+after what is no operator, a second `\over` in one group.
+
+The rest of what LaTeX refuses is read where it opens or where it is written:
+a display environment inside math, a blank line inside one, a math-only
+environment in text; the cells of a row against the columns of its table (a
+`*{n}{…}` counted, `\multicolumn` spanning), a rule or a `\multicolumn` that
+does not start its row or its cell; two `\label` or two `\tag` on one equation,
+`\tag` where nothing is numbered; a delimiter after `\left` or `\big`; a length
+that is none (`\\[0,1]`, `\hspace{2}`); text before the first `\item`, lists
+deeper than LaTeX goes; a preamble command in the body, text in the preamble; a
+`#n` beyond the arguments of a definition, a `\newcommand` of a name taken, one
+without its backslash; `\verb` in an argument, a float in a box, `\caption`
+outside a float, a blank line in an argument that refuses one.
+
+Each rule rests on cases compiled by LuaLaTeX, kept in `tests/fixtures/refused.json`
+and checked again by `scripts/oracle.py`. Where a rule depends on what we cannot
+read, it is silent: a column type, a list depth from a class or a package beyond
+the standard ones; a `\label` twice in `equation` without amsmath loaded.
 
 | Name | Contents |
 | --- | --- |
-| `SEMANTIC_CATALOGUE` | code → description: `item-outside-list`, `ampersand-outside-alignment`, `script-outside-math`, `double-subscript`, `double-superscript`, `math-command-in-text`, `invalid-in-math`, `missing-argument`, `left-without-right`, `right-without-left`, `left-across-cells`, `line-break-without-line`, `file-not-found`, `unknown-command`, `unknown-environment` |
+| `SEMANTIC_CATALOGUE` | code → description: `item-outside-list`, `ampersand-outside-alignment`, `script-outside-math`, `double-subscript`, `double-superscript`, `script-without-argument`, `missing-delimiter`, `middle-without-left`, `limits-without-operator`, `ambiguous-fraction`, `too-many-columns`, `display-in-math`, `blank-line-in-math`, `multiple-labels`, `multiple-tags`, `tag-not-allowed`, `invalid-length`, `misplaced-rule`, `misplaced-multicolumn`, `unknown-column`, `text-before-item`, `too-deeply-nested`, `preamble-only`, `text-in-preamble`, `illegal-parameter`, `already-defined`, `not-a-command-name`, `verb-in-argument`, `float-in-box`, `caption-outside-float`, `blank-line-in-argument`, `math-command-in-text` (a command or a math-only environment, `cases`, `aligned`…), `invalid-in-math`, `missing-argument`, `left-without-right`, `right-without-left`, `left-across-cells`, `line-break-without-line`, `file-not-found`, `unknown-command`, `unknown-environment` |
 | `LIST_ENVIRONMENTS` | where `\item` is allowed: the kernel lists, and `center`, `quote`… built on `trivlist` |
 | `ALIGNMENT_ENVIRONMENTS` | where `&` separates cells: kernel and amsmath |
 | `NAME_ARGUMENTS` | commands whose arguments name something (`\label`, `\input`, `\setcounter`…): nothing is checked in them |
 | `FileFinder` | a protocol: `exists(extension, name) -> bool \| None` |
+
+## `refusals`: lengths, column types, parameters
+
+What a piece of text may be, wherever it stands, and the lists of commands that
+behave apart — each one compiled with LuaLaTeX or read in the kernel.
+
+| Name | Contents |
+| --- | --- |
+| `is_length(text)` | `True` for a length TeX reads (`2pt`, `-1.5em plus 1fil`, `0.5\linewidth`), `False` for one it refuses, `None` when a command we do not follow is in it |
+| `columns(spec, extra=None, array=False)` | `Columns(count, unknown)`: the columns of a `tabular` specification, `None` when they cannot be known, and the offset of every letter that is no column type; `extra`: the letters packages add, `array`: whether the array package is loaded |
+| `parameters(text)` | `(offset, digit)` of every `#1`… of a definition body, not `##1` |
+| `xparse_count(spec)` | the arguments of an xparse specification, `None` if it cannot be read |
+| `PREAMBLE_ONLY`, `SHORT_ARGUMENTS`, `DISPLAY_ENVIRONMENTS`, `INNER_MATH_ENVIRONMENTS`, `KERNEL_ENVIRONMENTS`, `CLASS_ENVIRONMENTS`, `KERNEL_OPERATORS`, `FRACTIONS`… | the lists, each with where it comes from in its comment |
 
 ## Command line
 
@@ -1408,4 +1440,6 @@ In `scripts/`, to be run from the root of the repository.
 | `fingerprints.py FOLDER` | a fingerprint of everything the analysis and the view produce, file by file | `--inputs`, `--expand`, `-o JSON`, `--compare JSON` |
 | `bench.py TARGET` | the speed of a file (median) or of a folder | `--inputs`, `--expand`, `--repeat N`, `--profile [N]`, `--memory` |
 | `compile.py` | compiles the core with mypyc, for the interpreter that runs it | `--clean` |
-| `harvest.py` | harvests the kernel signatures from TeX Live (`data/kernel-harvested.txt`) | |
+| `harvest.py` | harvests the kernel signatures from TeX Live (`data/kernel-harvested.txt`): declarations first, then the plain `\def`, `\let` and registers a document still has | |
+| `primitives.py` | asks LuaTeX and pdfTeX for their primitives, and LaTeX which ones it keeps and which are math only (`data/primitives.txt`); some twenty minutes | |
+| `oracle.py [RULE…]` | compiles the cases of `tests/fixtures/refused.json` with LuaLaTeX: are the refused ones refused, the others accepted? | |

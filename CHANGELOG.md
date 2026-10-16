@@ -16,6 +16,47 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   a group, even empty, or a command starts a new nucleus, `f'^2` takes the
   superscript in but `f' ^2` does not. Checked against LuaLaTeX on 62 cases,
   each one agreeing.
+- Twenty-six more refusals of LaTeX, each one an error where TeX stops, and
+  said where TeX does not:
+  - in math: a script with nothing to take (`x^`, `x__b`, “Missing {
+    inserted”); `\left{`, `\big a` (“Missing delimiter”: one diagnostic per
+    brace, no longer three); `\middle` without `\left`; `\limits` after what
+    is no operator; two `\over` in one group; a display environment inside
+    math (`align` in `\[ \]`, `equation` in `$`); a blank line inside one;
+    `cases`, `aligned`, `pmatrix`… in text (under `math-command-in-text`);
+    two `\label` or two `\tag` on one equation, `\tag` where nothing is
+    numbered;
+  - in tables: a cell beyond the columns (`*{n}{…}` counted, `\multicolumn`
+    spanning, `cases`, `matrix` and `alignat` too); `\hline` in the middle of
+    a row, `\multicolumn` after the start of its cell; a letter that is no
+    column type;
+  - lengths that are none: `\\[0,1]` — an interval at the start of a row read
+    as the spacing of `\\` —, `\hspace{2}`, `\vspace{}`; text before the first
+    `\item`; lists deeper than LaTeX goes; a preamble command in the body,
+    text in the preamble; `#2` in a definition that takes one argument; a
+    `\newcommand` of a name the kernel or the document has; `\newcommand{foo}`;
+    `\verb` in an argument; a float in a box; `\caption` outside a float; a
+    blank line in an argument that refuses one (`\section`, `\textbf`).
+
+  Each rule rests on cases compiled by LuaLaTeX — 124 refused, 115 accepted —
+  kept in `tests/fixtures/refused.json`; `scripts/oracle.py` compiles them
+  again, and TeX agrees with all 239. A rule that depends on what is not read keeps quiet: a column type or
+  a list depth from a class or a package beyond the standard ones.
+- The 825 primitives of TeX, e-TeX, pdfTeX and LuaTeX (`data/primitives.txt`),
+  asked of the engines themselves by `scripts/primitives.py`, with the 59 that
+  TeX refuses outside math; and the 489 commands the kernel defines in plain
+  TeX (`\def`, `\let`, the registers), which `scripts/harvest.py` now reads too.
+- `refusals`: `is_length`, `columns`, `parameters`, `xparse_count`, and the
+  lists the rules rest on.
+
+### Fixed
+
+- `\relax`, `\hskip`, `\kern`, `\leavevmode`, `\strut`… were unknown commands:
+  after one of them, an `\item` outside a list was no longer reported, for the
+  rest of its group. 95 of 142 everyday primitives and kernel commands were
+  missing from the tables; the 26 left unknown are so on purpose — the
+  conditionals, which `conditions` reads, and those whose braces come after
+  other tokens (`\write\@auxout{…}`, `\toks0={…}`, `\csname`).
 
 ## [0.6.4] — 2026-09-30
 

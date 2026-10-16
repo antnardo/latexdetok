@@ -1,0 +1,1206 @@
+{
+ "about": "Each case compiled with LuaLaTeX (TeX Live 2026) in an article with amsmath: the refused ones stop on an error, the others compile. scripts/oracle.py checks it again.",
+ "template": "\\documentclass{article}\n\\usepackage{amsmath}\n{preamble}\\begin{document}\n{body}\n\\end{document}\n",
+ "cases": [
+  {
+   "rule": "missing-delimiter",
+   "refused": true,
+   "body": "$\\left{ x \\right\\}$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": true,
+   "body": "$\\left\\{ x \\right}$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": true,
+   "body": "$\\left a + b \\right)$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": true,
+   "body": "$\\bigl{ x \\bigr\\}$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": false,
+   "body": "$\\left( x \\right)$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": false,
+   "body": "$\\left. x \\right|$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": false,
+   "body": "$\\left\\langle x \\right\\rangle$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": false,
+   "body": "$\\left< x \\right>$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": false,
+   "body": "$\\left[ x \\right]$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": false,
+   "body": "$\\left\\lvert x \\right\\rvert$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": false,
+   "body": "$\\left/ x \\right\\backslash$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": false,
+   "body": "$\\left\\| x \\right\\|$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": false,
+   "body": "$\\left\\lfloor x \\right\\rfloor$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": false,
+   "body": "$\\left\\uparrow x \\right\\Downarrow$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": false,
+   "body": "$\\left\\lbrace x \\right\\rbrace$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": false,
+   "body": "$\\bigl( x \\bigr)$"
+  },
+  {
+   "rule": "missing-delimiter",
+   "refused": false,
+   "body": "$\\left\\lbrack x\\right\\rbrack$"
+  },
+  {
+   "rule": "script-without-argument",
+   "refused": true,
+   "body": "$x^$"
+  },
+  {
+   "rule": "script-without-argument",
+   "refused": true,
+   "body": "$x_$"
+  },
+  {
+   "rule": "script-without-argument",
+   "refused": true,
+   "body": "$x__b$"
+  },
+  {
+   "rule": "script-without-argument",
+   "refused": true,
+   "body": "$x^_b$"
+  },
+  {
+   "rule": "script-without-argument",
+   "refused": true,
+   "body": "${x^}$"
+  },
+  {
+   "rule": "script-without-argument",
+   "refused": true,
+   "body": "$x^ $"
+  },
+  {
+   "rule": "script-without-argument",
+   "refused": true,
+   "body": "\\begin{align} x^ & y \\end{align}"
+  },
+  {
+   "rule": "script-without-argument",
+   "refused": false,
+   "body": "$x^2$"
+  },
+  {
+   "rule": "script-without-argument",
+   "refused": false,
+   "body": "$x^{}$"
+  },
+  {
+   "rule": "script-without-argument",
+   "refused": false,
+   "body": "$x^\\alpha$"
+  },
+  {
+   "rule": "script-without-argument",
+   "refused": false,
+   "body": "$x^ 2$"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": true,
+   "body": "\\[\\begin{cases} a & b & c \\end{cases}\\]"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": true,
+   "body": "$\\begin{array}{cc} a & b & c \\end{array}$"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": true,
+   "body": "$\\begin{array}{c|c} a & b & c \\end{array}$"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": true,
+   "body": "$\\begin{array}{*{2}{c}} a & b & c \\end{array}$"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": true,
+   "body": "$\\begin{matrix} a&b&c&d&e&f&g&h&i&j&k \\end{matrix}$"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": true,
+   "body": "\\begin{tabular}{cc} a & b & c \\end{tabular}"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": true,
+   "body": "\\begin{tabular}{p{2cm}c} a & b & c \\end{tabular}"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": true,
+   "body": "\\begin{tabular}{@{}cc@{}} a & b & c \\end{tabular}"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": true,
+   "body": "\\begin{tabular}{cc} \\multicolumn{2}{c}{a} & b \\end{tabular}"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": true,
+   "body": "\\[\\begin{split} a &= b &= c \\end{split}\\]"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": true,
+   "body": "\\begin{eqnarray} a & b & c & d \\end{eqnarray}"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": true,
+   "body": "\\begin{alignat}{1} a & b & c \\end{alignat}"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": false,
+   "body": "$\\begin{array}{ccc} a & b & c \\end{array}$"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": false,
+   "body": "\\[\\begin{cases} a & b \\\\ c & d \\end{cases}\\]"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": false,
+   "body": "$\\begin{matrix} a&b&c&d&e&f&g&h&i&j \\end{matrix}$"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": false,
+   "body": "\\setcounter{MaxMatrixCols}{12}\n$\\begin{matrix} a&b&c&d&e&f&g&h&i&j&k \\end{matrix}$"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": false,
+   "body": "\\begin{align} a &= b & c &= d & e &= f \\end{align}"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": false,
+   "body": "\\begin{tabular}{|c|c|} a & b \\end{tabular}"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": false,
+   "body": "\\begin{tabular}{ccc} \\multicolumn{2}{c}{a} & b \\end{tabular}"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": false,
+   "body": "$\\begin{array}{cc} a & \\begin{array}{cc} b & c \\end{array} \\end{array}$"
+  },
+  {
+   "rule": "too-many-columns",
+   "refused": false,
+   "body": "\\begin{alignat}{2} a & b & c & d \\end{alignat}"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": true,
+   "body": "\\[ \\begin{align} a \\end{align} \\]"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": true,
+   "body": "\\begin{equation} \\begin{align} a \\end{align} \\end{equation}"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": true,
+   "body": "$ \\begin{equation} a \\end{equation} $"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": true,
+   "body": "$ \\begin{align} a \\end{align} $"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": true,
+   "body": "\\begin{equation} \\begin{equation} a \\end{equation} \\end{equation}"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": true,
+   "body": "\\[ \\begin{gather} a \\end{gather} \\]"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": true,
+   "body": "\\begin{align} \\begin{equation} a \\end{equation} \\end{align}"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": true,
+   "body": "\\[ \\begin{equation*} a \\end{equation*} \\]"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": true,
+   "body": "\\[ \\begin{multline} a \\\\ b \\end{multline} \\]"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": false,
+   "body": "\\[ \\begin{aligned} a \\end{aligned} \\]"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": false,
+   "body": "\\begin{equation} \\begin{split} a \\end{split} \\end{equation}"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": false,
+   "body": "$\\begin{array}{c} a \\end{array}$"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": false,
+   "body": "\\[ \\begin{cases} a \\end{cases} \\]"
+  },
+  {
+   "rule": "display-in-math",
+   "refused": false,
+   "body": "\\[ \\begin{gathered} a \\end{gathered} \\]"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": true,
+   "body": "\\begin{align} a \\\\[x,y] \\end{align}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": true,
+   "body": "$\\begin{array}{c} a \\\\ [0,1] \\end{array}$"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": true,
+   "body": "\\begin{tabular}{c} a \\\\ [0,1] \\end{tabular}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": true,
+   "body": "\\hspace{2}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": true,
+   "body": "\\vspace{}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": true,
+   "body": "\\vspace{abc}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": true,
+   "body": "\\rule{1cm}{x}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": true,
+   "body": "a\\\\[x] b"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "\\begin{align} a \\\\ [x,y] \\end{align}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "a\\\\[2pt] b"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "a\\\\[-1ex] b"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "a\\\\[0.5\\baselineskip] b"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "a\\\\[\\baselineskip] b"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "\\hspace{1cm}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "\\hspace{\\fill}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "\\hspace{0pt plus 1fill}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "\\vspace{-2mm}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "\\vspace{1 cm}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "\\hspace{.5em}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "\\hspace{3,5cm}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "\\vspace{\\stretch{1}}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "\\hspace{2\\parindent}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "\\vspace*{1cm}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "\\rule{1pt}{2ex}"
+  },
+  {
+   "rule": "invalid-length",
+   "refused": false,
+   "body": "\\rule[-1ex]{1pt}{2ex}"
+  },
+  {
+   "rule": "blank-line-in-math",
+   "refused": true,
+   "body": "\\begin{equation}\na\n\nb\n\\end{equation}"
+  },
+  {
+   "rule": "blank-line-in-math",
+   "refused": true,
+   "body": "\\begin{align}\na\n\nb\n\\end{align}"
+  },
+  {
+   "rule": "blank-line-in-math",
+   "refused": true,
+   "body": "\\begin{equation*}\na\n\nb\n\\end{equation*}"
+  },
+  {
+   "rule": "blank-line-in-math",
+   "refused": true,
+   "body": "\\begin{gather}\na\n\nb\n\\end{gather}"
+  },
+  {
+   "rule": "blank-line-in-math",
+   "refused": true,
+   "body": "\\begin{displaymath}\na\n\nb\n\\end{displaymath}"
+  },
+  {
+   "rule": "unclosed-math",
+   "refused": false,
+   "body": "\\begin{equation}\na\n%\nb\n\\end{equation}"
+  },
+  {
+   "rule": "math-command-in-text",
+   "refused": true,
+   "body": "\\begin{cases} a \\\\ b \\end{cases}"
+  },
+  {
+   "rule": "math-command-in-text",
+   "refused": true,
+   "body": "\\begin{aligned} a \\end{aligned}"
+  },
+  {
+   "rule": "math-command-in-text",
+   "refused": true,
+   "body": "\\begin{matrix} a \\end{matrix}"
+  },
+  {
+   "rule": "math-command-in-text",
+   "refused": true,
+   "body": "\\begin{pmatrix} a \\end{pmatrix}"
+  },
+  {
+   "rule": "math-command-in-text",
+   "refused": true,
+   "body": "\\begin{array}{c} a \\end{array}"
+  },
+  {
+   "rule": "math-command-in-text",
+   "refused": true,
+   "body": "\\begin{split} a \\end{split}"
+  },
+  {
+   "rule": "math-command-in-text",
+   "refused": true,
+   "body": "\\begin{gathered} a \\end{gathered}"
+  },
+  {
+   "rule": "math-command-in-text",
+   "refused": false,
+   "body": "\\begin{tabular}{c} a \\end{tabular}"
+  },
+  {
+   "rule": "multiple-labels",
+   "refused": true,
+   "body": "\\begin{equation} a \\label{x}\\label{y} \\end{equation}"
+  },
+  {
+   "rule": "multiple-labels",
+   "refused": true,
+   "body": "\\begin{align} a \\label{x} \\label{y} \\\\ b \\end{align}"
+  },
+  {
+   "rule": "multiple-labels",
+   "refused": true,
+   "body": "\\begin{equation} \\begin{split} a \\label{x} \\\\ b \\label{y} \\end{split} \\end{equation}"
+  },
+  {
+   "rule": "multiple-tags",
+   "refused": true,
+   "body": "\\begin{equation} a \\tag{1}\\tag{2} \\end{equation}"
+  },
+  {
+   "rule": "multiple-tags",
+   "refused": true,
+   "body": "\\begin{align} a \\tag{1} \\tag{2} \\end{align}"
+  },
+  {
+   "rule": "tag-not-allowed",
+   "refused": true,
+   "body": "$x \\tag{1}$"
+  },
+  {
+   "rule": "tag-not-allowed",
+   "refused": false,
+   "body": "\\begin{align} a \\label{x} \\\\ b \\label{y} \\end{align}"
+  },
+  {
+   "rule": "tag-not-allowed",
+   "refused": false,
+   "body": "\\begin{equation*} a \\tag{1} \\end{equation*}"
+  },
+  {
+   "rule": "tag-not-allowed",
+   "refused": false,
+   "body": "\\[ a \\tag{1} \\]"
+  },
+  {
+   "rule": "tag-not-allowed",
+   "refused": false,
+   "body": "\\begin{align} a \\tag{1} \\\\ b \\tag{2} \\end{align}"
+  },
+  {
+   "rule": "tag-not-allowed",
+   "refused": false,
+   "body": "\\begin{gather} a \\label{x} \\\\ b \\label{y} \\end{gather}"
+  },
+  {
+   "rule": "tag-not-allowed",
+   "refused": false,
+   "body": "\\begin{equation} a \\label{x} \\end{equation}"
+  },
+  {
+   "rule": "middle-without-left",
+   "refused": true,
+   "body": "$a \\middle| b$"
+  },
+  {
+   "rule": "middle-without-left",
+   "refused": true,
+   "body": "$\\left( a \\right) \\middle| b$"
+  },
+  {
+   "rule": "limits-without-operator",
+   "refused": true,
+   "body": "$x\\limits_a$"
+  },
+  {
+   "rule": "limits-without-operator",
+   "refused": true,
+   "body": "${x}\\limits_a$"
+  },
+  {
+   "rule": "limits-without-operator",
+   "refused": true,
+   "body": "$\\alpha\\limits_a$"
+  },
+  {
+   "rule": "ambiguous-fraction",
+   "refused": true,
+   "body": "${a \\over b \\over c}$"
+  },
+  {
+   "rule": "ambiguous-fraction",
+   "refused": true,
+   "body": "$a \\over b \\choose c$"
+  },
+  {
+   "rule": "ambiguous-fraction",
+   "refused": true,
+   "body": "$a \\atop b \\over c$"
+  },
+  {
+   "rule": "ambiguous-fraction",
+   "refused": false,
+   "body": "$\\left( a \\middle| b \\right)$"
+  },
+  {
+   "rule": "ambiguous-fraction",
+   "refused": false,
+   "body": "$\\sum\\limits_a$"
+  },
+  {
+   "rule": "ambiguous-fraction",
+   "refused": false,
+   "body": "$\\lim\\limits_{x}$"
+  },
+  {
+   "rule": "ambiguous-fraction",
+   "refused": false,
+   "body": "$\\mathop{x}\\limits_a$"
+  },
+  {
+   "rule": "ambiguous-fraction",
+   "refused": false,
+   "body": "$\\operatorname*{x}\\limits_a$"
+  },
+  {
+   "rule": "ambiguous-fraction",
+   "refused": false,
+   "body": "${a \\over b} \\over c$"
+  },
+  {
+   "rule": "ambiguous-fraction",
+   "refused": false,
+   "body": "$\\frac{a}{b} \\over c$"
+  },
+  {
+   "rule": "text-before-item",
+   "refused": true,
+   "body": "\\begin{itemize} texte \\item a \\end{itemize}"
+  },
+  {
+   "rule": "text-before-item",
+   "refused": true,
+   "body": "\\begin{enumerate} texte \\item a \\end{enumerate}"
+  },
+  {
+   "rule": "text-before-item",
+   "refused": true,
+   "body": "\\begin{description} x \\item[a] b \\end{description}"
+  },
+  {
+   "rule": "text-before-item",
+   "refused": true,
+   "body": "\\begin{itemize} \\textbf{x} \\item a \\end{itemize}"
+  },
+  {
+   "rule": "text-before-item",
+   "refused": false,
+   "body": "\\begin{itemize} \\small \\item a \\end{itemize}"
+  },
+  {
+   "rule": "text-before-item",
+   "refused": false,
+   "body": "\\begin{itemize} \\setlength{\\itemsep}{0pt} \\item a \\end{itemize}"
+  },
+  {
+   "rule": "text-before-item",
+   "refused": false,
+   "body": "\\begin{itemize} % c\n \\item a \\end{itemize}"
+  },
+  {
+   "rule": "text-before-item",
+   "refused": false,
+   "body": "\\begin{itemize} \\label{x} \\item a \\end{itemize}"
+  },
+  {
+   "rule": "text-before-item",
+   "refused": false,
+   "body": "\\begin{center} texte \\end{center}"
+  },
+  {
+   "rule": "preamble-only",
+   "refused": true,
+   "body": "\\usepackage{amssymb}"
+  },
+  {
+   "rule": "preamble-only",
+   "refused": true,
+   "body": "\\RequirePackage{amssymb}"
+  },
+  {
+   "rule": "preamble-only",
+   "refused": true,
+   "body": "\\documentclass{article}"
+  },
+  {
+   "rule": "preamble-only",
+   "refused": true,
+   "body": "\\PassOptionsToPackage{x}{y}"
+  },
+  {
+   "rule": "preamble-only",
+   "refused": true,
+   "body": "\\makeindex"
+  },
+  {
+   "rule": "text-in-preamble",
+   "refused": true,
+   "full": "\\documentclass{article}\nBonjour\n\\begin{document}\nx\n\\end{document}\n"
+  },
+  {
+   "rule": "text-in-preamble",
+   "refused": false,
+   "full": "\\documentclass{article}\n\\title{Bonjour}\n\\author{A}\n\\date{}\n\\begin{document}\nx\n\\end{document}\n"
+  },
+  {
+   "rule": "text-in-preamble",
+   "refused": false,
+   "full": "\\documentclass{article}\n\\newcommand\\x{Bonjour}\n\\def\\y{z}\n\\begin{document}\nx\n\\end{document}\n"
+  },
+  {
+   "rule": "text-in-preamble",
+   "refused": false,
+   "full": "\\documentclass{article}\n\\makeatletter\n\\def\\@x{y}\n\\makeatother\n\\setlength{\\parindent}{0pt}\n\\begin{document}\nx\n\\end{document}\n"
+  },
+  {
+   "rule": "illegal-parameter",
+   "refused": true,
+   "body": "\\newcommand\\foo[1]{#2}"
+  },
+  {
+   "rule": "illegal-parameter",
+   "refused": true,
+   "body": "\\newcommand\\foo{#1}"
+  },
+  {
+   "rule": "illegal-parameter",
+   "refused": true,
+   "body": "\\renewcommand\\vec[1]{#2}"
+  },
+  {
+   "rule": "illegal-parameter",
+   "refused": true,
+   "body": "\\def\\foo#1{#2}"
+  },
+  {
+   "rule": "illegal-parameter",
+   "refused": true,
+   "body": "\\newenvironment{bloc}[1]{#1}{#1}"
+  },
+  {
+   "rule": "illegal-parameter",
+   "refused": true,
+   "body": "\\NewDocumentCommand\\foo{m}{#2}"
+  },
+  {
+   "rule": "illegal-parameter",
+   "refused": true,
+   "body": "\\newcommand\\foo[2][a]{#3}"
+  },
+  {
+   "rule": "illegal-parameter",
+   "refused": false,
+   "body": "\\newcommand\\foo[2]{#1#2}"
+  },
+  {
+   "rule": "illegal-parameter",
+   "refused": false,
+   "body": "\\newcommand\\foo[1]{\\def\\bar##1{##1#1}}"
+  },
+  {
+   "rule": "illegal-parameter",
+   "refused": false,
+   "body": "\\def\\foo#1#2{#2}"
+  },
+  {
+   "rule": "illegal-parameter",
+   "refused": false,
+   "body": "\\newenvironment{bloc}[1]{#1}{}"
+  },
+  {
+   "rule": "illegal-parameter",
+   "refused": false,
+   "body": "\\NewDocumentCommand\\foo{O{a}m}{#1#2}"
+  },
+  {
+   "rule": "illegal-parameter",
+   "refused": false,
+   "body": "\\newcommand\\foo[1]{\\#1}"
+  },
+  {
+   "rule": "already-defined",
+   "refused": true,
+   "body": "\\newcommand\\vec{x}"
+  },
+  {
+   "rule": "already-defined",
+   "refused": true,
+   "body": "\\newcommand\\c{x}"
+  },
+  {
+   "rule": "already-defined",
+   "refused": true,
+   "body": "\\newcommand\\foo{x}\\newcommand\\foo{y}"
+  },
+  {
+   "rule": "already-defined",
+   "refused": true,
+   "body": "\\newenvironment{center}{}{}"
+  },
+  {
+   "rule": "already-defined",
+   "refused": false,
+   "body": "\\renewcommand\\vec{x}"
+  },
+  {
+   "rule": "already-defined",
+   "refused": false,
+   "body": "\\providecommand\\vec{x}"
+  },
+  {
+   "rule": "already-defined",
+   "refused": false,
+   "body": "\\newcommand\\chapter{x}"
+  },
+  {
+   "rule": "already-defined",
+   "refused": false,
+   "body": "\\newcommand\\foo{x}"
+  },
+  {
+   "rule": "already-defined",
+   "refused": false,
+   "body": "\\DeclareRobustCommand\\vec{x}"
+  },
+  {
+   "rule": "already-defined",
+   "refused": false,
+   "body": "\\def\\vec{x}"
+  },
+  {
+   "rule": "not-a-command-name",
+   "refused": true,
+   "body": "\\newcommand{foo}{x}"
+  },
+  {
+   "rule": "not-a-command-name",
+   "refused": true,
+   "body": "\\renewcommand{vec}{x}"
+  },
+  {
+   "rule": "not-a-command-name",
+   "refused": true,
+   "body": "\\providecommand{foo}{x}"
+  },
+  {
+   "rule": "not-a-command-name",
+   "refused": false,
+   "body": "\\newcommand{\\foo}{x}"
+  },
+  {
+   "rule": "misplaced-rule",
+   "refused": true,
+   "body": "\\begin{tabular}{c} a \\hline \\end{tabular}"
+  },
+  {
+   "rule": "misplaced-rule",
+   "refused": true,
+   "body": "\\begin{tabular}{cc} a & \\hline b \\end{tabular}"
+  },
+  {
+   "rule": "misplaced-rule",
+   "refused": true,
+   "body": "\\begin{tabular}{c} a \\cline{1-1} \\end{tabular}"
+  },
+  {
+   "rule": "misplaced-rule",
+   "refused": true,
+   "body": "$\\begin{array}{c} a \\hline b \\end{array}$"
+  },
+  {
+   "rule": "misplaced-rule",
+   "refused": false,
+   "body": "\\begin{tabular}{c} \\hline a \\\\ \\hline \\end{tabular}"
+  },
+  {
+   "rule": "misplaced-rule",
+   "refused": false,
+   "body": "\\begin{tabular}{c} a \\\\ \\hline\\hline b \\end{tabular}"
+  },
+  {
+   "rule": "misplaced-rule",
+   "refused": false,
+   "body": "\\begin{tabular}{c} a \\\\ % c\n \\hline \\end{tabular}"
+  },
+  {
+   "rule": "misplaced-rule",
+   "refused": false,
+   "body": "\\begin{tabular}{c} a \\\\[2pt] \\hline \\end{tabular}"
+  },
+  {
+   "rule": "misplaced-multicolumn",
+   "refused": true,
+   "body": "\\begin{tabular}{cc} a \\multicolumn{1}{c}{b} \\end{tabular}"
+  },
+  {
+   "rule": "misplaced-multicolumn",
+   "refused": true,
+   "body": "\\begin{tabular}{ccc} a & b \\multicolumn{1}{c}{c} \\end{tabular}"
+  },
+  {
+   "rule": "misplaced-multicolumn",
+   "refused": false,
+   "body": "\\begin{tabular}{cc} \\multicolumn{2}{c}{a} \\\\ a & b \\end{tabular}"
+  },
+  {
+   "rule": "misplaced-multicolumn",
+   "refused": false,
+   "body": "\\begin{tabular}{cc} a & \\multicolumn{1}{c}{b} \\end{tabular}"
+  },
+  {
+   "rule": "misplaced-multicolumn",
+   "refused": false,
+   "body": "\\begin{tabular}{cc} \\hline \\multicolumn{2}{c}{a} \\end{tabular}"
+  },
+  {
+   "rule": "unknown-column",
+   "refused": true,
+   "body": "\\begin{tabular}{cx} a & b \\end{tabular}"
+  },
+  {
+   "rule": "unknown-column",
+   "refused": true,
+   "body": "\\begin{tabular}{X} a \\end{tabular}"
+  },
+  {
+   "rule": "unknown-column",
+   "refused": true,
+   "body": "$\\begin{array}{cq} a & b \\end{array}$"
+  },
+  {
+   "rule": "unknown-column",
+   "refused": true,
+   "body": "\\begin{tabular}{m{1cm}} a \\end{tabular}"
+  },
+  {
+   "rule": "unknown-column",
+   "refused": false,
+   "body": "\\begin{tabular}{lcr|p{1cm}} a & b & c & d \\end{tabular}"
+  },
+  {
+   "rule": "unknown-column",
+   "refused": false,
+   "body": "\\begin{tabular}{@{}l@{}} a \\end{tabular}"
+  },
+  {
+   "rule": "unknown-column",
+   "refused": false,
+   "body": "\\begin{tabular}{*{3}{c}} a & b & c \\end{tabular}"
+  },
+  {
+   "rule": "unknown-column",
+   "refused": false,
+   "preamble": "\\usepackage{array}\n",
+   "body": "\\begin{tabular}{m{1cm}} a \\end{tabular}"
+  },
+  {
+   "rule": "unknown-column",
+   "refused": false,
+   "preamble": "\\usepackage{tabularx}\n",
+   "body": "\\begin{tabularx}{\\linewidth}{X} a \\end{tabularx}"
+  },
+  {
+   "rule": "unknown-column",
+   "refused": false,
+   "preamble": "\\usepackage{array}\n\\newcolumntype{Y}{c}\n",
+   "body": "\\begin{tabular}{Y} a \\end{tabular}"
+  },
+  {
+   "rule": "blank-line-in-argument",
+   "refused": true,
+   "body": "\\section{a\n\nb}"
+  },
+  {
+   "rule": "blank-line-in-argument",
+   "refused": true,
+   "body": "\\subsection{a\n\nb}"
+  },
+  {
+   "rule": "blank-line-in-argument",
+   "refused": true,
+   "body": "\\label{a\n\nb}"
+  },
+  {
+   "rule": "blank-line-in-argument",
+   "refused": true,
+   "body": "\\caption{a\n\nb}"
+  },
+  {
+   "rule": "blank-line-in-argument",
+   "refused": true,
+   "body": "\\textbf{a\n\nb}"
+  },
+  {
+   "rule": "blank-line-in-argument",
+   "refused": false,
+   "body": "\\footnote{a\n\nb}"
+  },
+  {
+   "rule": "blank-line-in-argument",
+   "refused": false,
+   "body": "\\parbox{2cm}{a\n\nb}"
+  },
+  {
+   "rule": "blank-line-in-argument",
+   "refused": false,
+   "body": "\\fbox{a\n\nb}"
+  },
+  {
+   "rule": "verb-in-argument",
+   "refused": true,
+   "body": "\\textbf{\\verb|x|}"
+  },
+  {
+   "rule": "verb-in-argument",
+   "refused": true,
+   "body": "\\section{\\verb|x|}"
+  },
+  {
+   "rule": "verb-in-argument",
+   "refused": true,
+   "body": "\\footnote{\\verb|x|}"
+  },
+  {
+   "rule": "verb-in-argument",
+   "refused": true,
+   "body": "\\mbox{\\verb|x|}"
+  },
+  {
+   "rule": "verb-in-argument",
+   "refused": true,
+   "body": "\\emph{\\verb|x|}"
+  },
+  {
+   "rule": "verb-in-argument",
+   "refused": false,
+   "body": "{\\bfseries \\verb|x|}"
+  },
+  {
+   "rule": "verb-in-argument",
+   "refused": false,
+   "body": "\\verb|x|"
+  },
+  {
+   "rule": "verb-in-argument",
+   "refused": false,
+   "body": "\\begin{center}\\verb|x|\\end{center}"
+  },
+  {
+   "rule": "float-in-box",
+   "refused": true,
+   "body": "\\begin{minipage}{3cm}\\begin{figure}x\\end{figure}\\end{minipage}"
+  },
+  {
+   "rule": "float-in-box",
+   "refused": true,
+   "body": "\\fbox{\\begin{figure}x\\end{figure}}"
+  },
+  {
+   "rule": "float-in-box",
+   "refused": true,
+   "body": "\\begin{figure}\\begin{table}x\\end{table}\\end{figure}"
+  },
+  {
+   "rule": "float-in-box",
+   "refused": true,
+   "body": "\\begin{tabular}{c}\\begin{figure}x\\end{figure}\\end{tabular}"
+  },
+  {
+   "rule": "float-in-box",
+   "refused": true,
+   "body": "\\parbox{3cm}{\\begin{figure}x\\end{figure}}"
+  },
+  {
+   "rule": "float-in-box",
+   "refused": true,
+   "body": "\\footnote{\\begin{figure}x\\end{figure}}"
+  },
+  {
+   "rule": "float-in-box",
+   "refused": false,
+   "body": "\\begin{figure}x\\end{figure}"
+  },
+  {
+   "rule": "float-in-box",
+   "refused": false,
+   "body": "\\begin{figure}\\begin{minipage}{3cm}x\\end{minipage}\\end{figure}"
+  },
+  {
+   "rule": "float-in-box",
+   "refused": false,
+   "preamble": "\\usepackage{float}\n",
+   "body": "\\begin{minipage}{3cm}\\begin{figure}[H]x\\end{figure}\\end{minipage}"
+  },
+  {
+   "rule": "caption-outside-float",
+   "refused": true,
+   "body": "\\caption{x}"
+  },
+  {
+   "rule": "caption-outside-float",
+   "refused": true,
+   "body": "\\begin{center}\\caption{x}\\end{center}"
+  },
+  {
+   "rule": "caption-outside-float",
+   "refused": true,
+   "body": "\\begin{minipage}{3cm}\\caption{x}\\end{minipage}"
+  },
+  {
+   "rule": "caption-outside-float",
+   "refused": false,
+   "body": "\\begin{figure}\\caption{x}\\end{figure}"
+  },
+  {
+   "rule": "caption-outside-float",
+   "refused": false,
+   "body": "\\begin{table}\\begin{center}\\caption{x}\\end{center}\\end{table}"
+  },
+  {
+   "rule": "caption-outside-float",
+   "refused": false,
+   "body": "\\begin{figure}\\begin{minipage}{3cm}\\caption{x}\\end{minipage}\\end{figure}"
+  },
+  {
+   "rule": "caption-outside-float",
+   "refused": false,
+   "preamble": "\\usepackage{capt-of}\n",
+   "body": "\\captionof{figure}{x}"
+  },
+  {
+   "rule": "too-deeply-nested",
+   "refused": true,
+   "body": "\\begin{enumerate}\\item \\begin{enumerate}\\item \\begin{enumerate}\\item \\begin{enumerate}\\item \\begin{enumerate}\\item a\\end{enumerate}\\end{enumerate}\\end{enumerate}\\end{enumerate}\\end{enumerate}"
+  },
+  {
+   "rule": "too-deeply-nested",
+   "refused": true,
+   "body": "\\begin{itemize}\\item \\begin{itemize}\\item \\begin{itemize}\\item \\begin{itemize}\\item \\begin{itemize}\\item a\\end{itemize}\\end{itemize}\\end{itemize}\\end{itemize}\\end{itemize}"
+  },
+  {
+   "rule": "too-deeply-nested",
+   "refused": false,
+   "body": "\\begin{enumerate}\\item \\begin{enumerate}\\item \\begin{enumerate}\\item \\begin{enumerate}\\item a\\end{enumerate}\\end{enumerate}\\end{enumerate}\\end{enumerate}"
+  },
+  {
+   "rule": "misplaced-rule",
+   "refused": false,
+   "body": "\\begin{tabular}{c} a \\\\ \\noalign{\\vskip 2pt}\\hline b \\end{tabular}"
+  },
+  {
+   "rule": "misplaced-multicolumn",
+   "refused": false,
+   "body": "\\begin{tabular}{cc} a & b \\\\ \\noalign{\\vskip 2pt}\\multicolumn{2}{c}{x} \\end{tabular}"
+  },
+  {
+   "rule": "misplaced-rule",
+   "refused": true,
+   "body": "\\begin{tabular}{c} a \\noalign{\\vskip 2pt} \\end{tabular}"
+  },
+  {
+   "rule": "tag-not-allowed",
+   "refused": true,
+   "body": "\\begin{equation} \\begin{aligned} a \\tag{1} \\end{aligned} \\end{equation}"
+  },
+  {
+   "rule": "tag-not-allowed",
+   "refused": false,
+   "body": "\\begin{equation} \\begin{aligned} a \\end{aligned} \\tag{1} \\end{equation}"
+  },
+  {
+   "rule": "already-defined",
+   "refused": true,
+   "full": "\\documentclass{minimal}\n\\begin{document}\n\\newenvironment{center}{}{}\n\\end{document}\n"
+  },
+  {
+   "rule": "already-defined",
+   "refused": false,
+   "full": "\\documentclass{minimal}\n\\begin{document}\n\\newenvironment{figure}{}{}\n\\end{document}\n"
+  }
+ ]
+}

@@ -89,6 +89,76 @@ double-superscript                              two superscripts in a row on the
 double-superscript.related                      its first superscript
 double-superscript.fix                          “x^{ab}”, “x^{a^b}” or “{x^a}^b”
 double-superscript.fix.prime                    the prime first, being a superscript itself: “f'^2”
+script-without-argument                         “{script}” with nothing to take
+script-without-argument.fix                     “x{script}2”, or “x{script}{}” for an empty one
+missing-delimiter                               “\{command}” followed by “{written}”, which is no delimiter
+missing-delimiter.fix                           a delimiter — “(”, “[”, “\{”, “|”… — or “\{command}.” for none
+missing-delimiter.fix.brace                     “\{command}\{written}”: a brace is written “\{” or “\}” there
+middle-without-left                             “\middle” without “\left” in the same group
+middle-without-left.fix                         “\left. … \middle| … \right.”, or “\mid” for a bar of fixed size
+limits-without-operator                         “\{command}” after “{atom}”, which is no operator
+limits-without-operator.start                   “\{command}” with nothing before it
+limits-without-operator.fix                     “\mathop{…}\{command}”, or no “\{command}”
+ambiguous-fraction                              a second “\{command}” in the same group as “\{first}”
+ambiguous-fraction.related                      the first one
+ambiguous-fraction.fix                          “\frac{…}{…}”, or braces around one of them: “{a \over b} \over c”
+too-many-columns                                “&” beyond the {count} columns of “{name}”
+too-many-columns.related                        “{name}” sets its columns here
+too-many-columns.fix                            a column more in the specification, or “\\” to end the row first
+too-many-columns.fix.matrix                     “\setcounter{MaxMatrixCols}{{needed}}” for more columns
+display-in-math                                 “\begin{{name}}” inside math: it opens a display of its own
+display-in-math.related                         the math opened by “{opening}”
+display-in-math.fix                             “aligned”, “gathered” or “split” inside the display, or the math closed before
+blank-line-in-math                              a blank line inside “{name}”, where TeX ends the math
+blank-line-in-math.related                      “{name}” opens the math here
+blank-line-in-math.fix                          remove it, or put a “%” on it
+multiple-labels                                 a second “\label” on the same equation
+multiple-labels.related                         its first label
+multiple-labels.fix                             one label per equation; “\\” starts another one
+multiple-tags                                   a second “\tag” on the same equation
+multiple-tags.related                           its first tag
+multiple-tags.fix                               one tag per equation
+tag-not-allowed                                 “\tag” inside “{place}”, which numbers nothing
+tag-not-allowed.fix                             a numbered display (“equation”, “align”), the tag at the level of its rows
+invalid-length                                  “{text}” is not a length
+invalid-length.fix                              a number and its unit: “2pt”, “1.5em”, “0.5\linewidth”
+invalid-length.fix.row                          after “\\”, “[” opens its spacing: “\\{}[0,1]” for a bracket that starts the next row
+misplaced-rule                                  “\{command}” in the middle of a row: it can only start one
+misplaced-rule.fix                              “\\” before it, to end the row
+misplaced-multicolumn                           “\{command}” after the start of its cell
+misplaced-multicolumn.fix                       first in the cell, the rest inside its last argument
+unknown-column                                  “{letter}” is no column type
+unknown-column.fix                              “l”, “c”, “r” or “p{width}”; another type comes from a package (“array”, “tabularx”) or “\newcolumntype”
+text-before-item                                text before the first “\item” of “{name}”
+text-before-item.fix                            an “\item” before it, or the text before “\begin{{name}}”
+too-deeply-nested                               “{name}” nested {depth} deep: LaTeX stops at {limit}
+too-deeply-nested.fix                           fewer levels, or enumitem’s “\setlistdepth” and “\renewlist”
+preamble-only                                   “\{command}” after “\begin{document}”: LaTeX only takes it in the preamble
+preamble-only.fix                               move it before “\begin{document}”
+text-in-preamble                                text before “\begin{document}”
+text-in-preamble.fix                            after “\begin{document}”, or behind a “%”
+illegal-parameter                               “#{digit}” in “\{command}”, whose definition takes {count}
+illegal-parameter.count.none                    no argument
+illegal-parameter.count.one                     one argument
+illegal-parameter.count.many                    {count} arguments
+illegal-parameter.fix                           “[{digit}]” after the name, or “##{digit}” for a definition inside this one
+already-defined                                 “{name}” is already defined
+already-defined.related                         defined here first
+already-defined.fix                             “\renewcommand”, or another name
+already-defined.fix.environment                 “\renewenvironment”, or another name
+not-a-command-name                              “{text}” is not a command name
+not-a-command-name.fix                          “\{text}”
+verb-in-argument                                “\verb” inside the argument of “\{command}”
+verb-in-argument.related                        “\{command}” reads it
+verb-in-argument.fix                            “\texttt{…}”, with “\textbackslash” or “\{” for the special characters
+float-in-box                                    “\begin{{name}}” inside “{box}”, where a float cannot open
+float-in-box.related                            “{box}” opened here
+float-in-box.fix                                the float outside it, or “\captionof” inside it (packages caption, capt-of)
+caption-outside-float                           “\caption” outside a float
+caption-outside-float.fix                       a “figure” or “table” around it, or “\captionof{figure}{…}” (packages caption, capt-of)
+blank-line-in-argument                          a blank line in the argument of “\{command}”, which cannot hold one
+blank-line-in-argument.related                  “\{command}” reads it
+blank-line-in-argument.fix                      remove it, or put a “%” on it
 math-command-in-text                            “{command}” outside math
 math-command-in-text.fix                        “{math}”
 invalid-in-math                                 “{command}” inside math, where LaTeX refuses it

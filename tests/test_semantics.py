@@ -1,9 +1,15 @@
 """Meaning: what is properly matched but has no business where it is written."""
 
+import json
+from pathlib import Path
+
 import pytest
 
-from latexdetok import TexFile, expand
+from latexdetok import Severity, TexFile, expand
 from latexdetok.semantics import read_meaning
+
+# What LaTeX refuses, case by case, each one compiled by LuaLaTeX (`scripts/oracle.py`).
+TABLE = json.loads((Path(__file__).parent / "fixtures" / "refused.json").read_text(encoding="utf-8"))
 
 
 def document(body):
@@ -123,8 +129,9 @@ class TestModes:
             "\\label{eq_1} \\ce{H_2O}\n",
             "\\def\\deg{^\\circ}\n",
             "\\begin{tabular}{>{$}c<{$}}x^2\\end{tabular}\n",
-            # Found in the corpus: a column type defined in a package.
-            "\\begin{tabular}{lC}a & x_1\\end{tabular}\n",
+            # Found in the corpus: a column type defined in a package (here, in the document:
+            # loading nothing, the document would have `C` refused, see `TestTables`).
+            "\\newcolumntype{C}{>{$}c<{$}}\\begin{tabular}{lC}a & x_1\\end{tabular}\n",
             # beamer's `\alert`, redefined for other documents: in math, we do not know.
             "$\\textbf{\\varphi}$\n",
             "\\begin{tikzpicture}\\draw (0,0) -- (1,1)^2;\\end{tikzpicture}\n",
@@ -147,8 +154,8 @@ class TestPackages:
             "\\begin{proof}[Démonstration]\\item a\\end{proof}\n",
             # tabularray sets its columns by key-value pairs: their mode stays unknown.
             "\\begin{tblr}{cc}a & x^2\\end{tblr}\n",
-            # A column type defined elsewhere (`\\newcolumntype{C}{>{$}c<{$}}`).
-            "\\begin{longtable}{lC}a & x_1\\end{longtable}\n",
+            # A column type defined elsewhere.
+            "\\newcolumntype{C}{>{$}c<{$}}\\begin{longtable}{lC}a & x_1\\end{longtable}\n",
         ],
     )
     def test_what_packages_make_possible(self, meaning, body):
@@ -444,6 +451,86 @@ class TestWhatCloudsAList:
         (diagnostic,) = meaning(document(f"20{symbol}\n\\item a\n"))
         assert diagnostic.code == "item-outside-list"
 
+    @pytest.mark.parametrize(
+        "command", ["\\relax", "\\hskip 1em", "\\kern 2pt", "\\penalty10000", "\\leavevmode", "\\strut"]
+    )
+    def test_a_primitive_or_a_kernel_command_opens_nothing(self, meaning, command):
+        # They were unknown: every one of them stopped the check for the rest of its group.
+        assert [d.code for d in meaning(document(f"{command}\n\\item x\n"))] == ["item-outside-list"]
+
     def test_a_command_nobody_defined_still_clouds_it(self, meaning):
         # The guard is kept: `\vrbitem` of the corpus really does open a list.
         assert meaning(document("\\vrbitem\n\\item a\n")) == []
+
+
+def table_source(case):
+    if "full" in case:
+        return case["full"]
+    template = TABLE["template"]
+    return template.replace("{preamble}", case.get("preamble", "")).replace("{body}", case.get("body", ""))
+
+
+def table_cases(refused):
+    return [
+        pytest.param(case["rule"], table_source(case), id=f"{case['rule']}-{index}")
+        for index, case in enumerate(TABLE["cases"])
+        if case["refused"] is refused
+    ]
+
+
+class TestWhatLatexRefuses:
+    """The cases of `fixtures/refused.json`: the refused ones reported, the others left alone."""
+
+    @pytest.mark.parametrize(("rule", "source"), table_cases(True))
+    def test_refused_by_tex_is_reported(self, meaning, rule, source):
+        assert rule in [diagnostic.code for diagnostic in meaning(source)]
+
+    @pytest.mark.parametrize(("rule", "source"), table_cases(False))
+    def test_accepted_by_tex_is_left_alone(self, meaning, rule, source):
+        assert [d.code for d in meaning(source) if d.severity is Severity.ERROR] == []
+
+    def test_a_brace_after_left_is_one_mistake(self, meaning):
+        # Not three: the brace opens a group, which takes `\\right` away from its `\\left`.
+        codes = [d.code for d in meaning(document("$\\left{ x \\right}$\n"))]
+        assert codes == ["missing-delimiter", "missing-delimiter"]
+
+    def test_a_size_passed_to_another_command_is_no_delimiter(self, meaning):
+        # Found in the corpus: `\\pare[\\big]{x}`, expanded by etoolbox's test of its size.
+        body = "$\\ifstrempty{\\big}{\\left(}{\\big(}x\\ifstrempty{\\big}{\\right)}{\\big)}$\n"
+        assert meaning(document(body), developed=True) == []
+
+    def test_url_may_sit_in_an_argument(self, meaning):
+        assert meaning(document("\\footnote{\\url{http://example.org/a_b}}\n")) == []
+
+    def test_an_unknown_command_before_the_first_item_may_be_one(self, meaning):
+        assert meaning(document("\\begin{itemize}\\itemdef texte\\end{itemize}\n")) == []
+
+    def test_futurelet_peeks_at_the_end_of_the_row(self, meaning):
+        # Found in the corpus: a `\\footnote` redefined to end on `\\futurelet\\nextToken\\isFootnote`.
+        body = "\\begin{tabular}{ll}a & b\\futurelet\\n\\t\\\\\nc & d\\\\\n\\end{tabular}\n"
+        assert meaning(document(body)) == []
+
+    def test_a_preamble_read_elsewhere_hides_its_column_types(self, meaning):
+        source = "\\documentclass{article}\n\\input{definitions}\n\\begin{document}\n\\begin{tabular}{S}1\\end{tabular}\n\\end{document}\n"
+        assert meaning(source) == []
+
+    def test_text_a_test_leaves_in_the_preamble_is_not_typeset(self, meaning):
+        source = "\\documentclass{article}\n\\def\\O2couple{x}\n\\begin{document}\nx\n\\end{document}\n"
+        assert meaning(source) == []
+
+    def test_two_labels_in_equation_without_amsmath(self, meaning):
+        # The kernel's `equation` takes both: only amsmath refuses the second.
+        assert meaning(document("\\begin{equation} a \\label{x}\\label{y} \\end{equation}\n")) == []
+
+    def test_a_class_of_its_own_may_define_a_column_type(self, meaning):
+        source = "\\documentclass{macours}\n\\begin{document}\n\\begin{tabular}{Y}1\\end{tabular}\n\\end{document}\n"
+        assert meaning(source) == []
+
+    def test_the_second_label_points_at_the_first(self, meaning):
+        source = "\\documentclass{article}\n\\usepackage{amsmath}\n\\begin{document}\n\\begin{equation} a \\label{x}\\label{y} \\end{equation}\n\\end{document}\n"
+        (diagnostic,) = meaning(source)
+        assert (diagnostic.code, diagnostic.start, related(diagnostic)) == (
+            "multiple-labels",
+            (4, 28),
+            [((4, 19), "its first label")],
+        )

@@ -76,13 +76,17 @@ intro.tex:8:1: error [crossed-environment] “\begin{itemize}” closed by “\e
   wrong, better than TeX does: the cause rather than the place where TeX gave
   up, the opening facing the closing, the fix, and every independent mistake at
   once. Structure and meaning (`\item` outside a list, `&` outside a table, `^`
-  outside math, two subscripts on one symbol, a missing argument…), macros
-  expanded, and nothing that may be valid is an error. What follows an opening
+  outside math, two subscripts on one symbol, `\left{`, a cell too many,
+  `align` inside `\[ \]`, a missing argument…), macros expanded, and nothing
+  that may be valid is an error: each refusal rests on cases compiled by
+  LuaLaTeX, the refused ones and the accepted ones (`scripts/oracle.py`). What follows an opening
   that never closes is not judged until that opening is settled: inside a `$`
   left open, an `\item` is math, not an `\item` out of place — reporting it
   would be reporting the same mistake twice.
 - **Signatures**: the commands of the LaTeX2e kernel bind their arguments
-  (`\section`: `s o m`), and a hand-written table covers the common packages
+  (`\section`: `s o m`), the 825 primitives of TeX, e-TeX, pdfTeX and LuaTeX
+  are known — asked of the engines themselves, `\relax` as much as `\hskip` —,
+  and a hand-written table covers the common packages
   (amsmath, graphicx, siunitx, gensymb, beamer, booktabs, enumitem…); the definitions of
   the file (`\newcommand`, `\def`, `\NewDocumentCommand`, `\newenvironment`…)
   are learned while reading, and end with their group, as in TeX.
@@ -493,7 +497,7 @@ python3 scripts/fingerprints.py path/to/corpus --inputs --expand -o before.json
 | --- | --- |
 | `analyse.py` | `TexFile`: reading, analysis, queries |
 | `checks.py`, `__main__.py` | `check`: the diagnostics of a document; the command line |
-| `diagnostics.py`, `semantics.py` | structure diagnostics and renderings; meaning diagnostics |
+| `diagnostics.py`, `semantics.py`, `refusals.py` | structure diagnostics and renderings; meaning diagnostics; what LaTeX refuses wherever it stands (lengths, column types, parameters) |
 | `classes.py` | the nodes of the tree |
 | `parser.py`, `binding.py` | tokeniser, binding of the arguments |
 | `catcodes.py`, `characters.py` | character categories, names |

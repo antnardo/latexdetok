@@ -389,3 +389,30 @@ class TestKernelTables:
 
     def test_an_environment_with_a_verbatim_signature(self):
         assert EnvironmentSignature.from_spec("x", "verbatim").verbatim is True
+
+
+class TestPrimitives:
+    """Asked of LuaTeX and pdfTeX (`scripts/primitives.py`), read before the kernel's tables."""
+
+    @pytest.mark.parametrize(
+        "name", ["relax", "hskip", "kern", "penalty", "hbox", "leavevmode", "strut", "bgroup"]
+    )
+    def test_known(self, name):
+        assert SignatureRegistry.kernel().command(name) is not None
+
+    @pytest.mark.parametrize("name", ["over", "limits", "displaystyle", "mskip"])
+    def test_refused_outside_math(self, name):
+        signature = SignatureRegistry.kernel().command(name)
+        assert signature is not None and signature.mode is Mode.MATH
+
+    @pytest.mark.parametrize("name", ["write", "toks", "csname", "halign", "ifx"])
+    def test_left_unknown_on_purpose(self, name):
+        # Their braces come after other tokens, or `conditions` reads them.
+        assert SignatureRegistry.kernel().command(name) is None
+
+    def test_latex_keeps_what_it_redefines(self):
+        assert SignatureRegistry.kernel().command("input").spec == "m"
+
+    def test_a_scratch_macro_of_the_kernel_is_no_command(self):
+        # latex.ltx uses `\\x` while it loads, and undefines it after.
+        assert SignatureRegistry.kernel().command("x") is None

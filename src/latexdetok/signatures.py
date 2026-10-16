@@ -73,7 +73,8 @@ __all__ = [
 
 # Through the package, not through `__file__`: compiled, this module lives in `_mypyc/` (see `compilation`).
 DATA = Path(str(files("latexdetok"))) / "data"
-TABLES = ("kernel-harvested.txt", "kernel.txt", "packages.txt", "verbatim.txt")
+# The last definition wins: the primitives first, which LaTeX redefines (`\input`, `\end`).
+TABLES = ("primitives.txt", "kernel-harvested.txt", "kernel.txt", "packages.txt", "verbatim.txt")
 
 # Types whose binding is understood; the others stop it.
 BOUND_KINDS = frozenset("mOotvrRdDl")

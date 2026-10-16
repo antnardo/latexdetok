@@ -15,6 +15,7 @@
 \:                                 any   -
 \;                                 any   -
 \=                                 text  m
+\AA                                any   -
 \AE                                text  -
 \ActivateGenericHook               any   m
 \AddToHook                         any   m o +m
@@ -22,11 +23,14 @@
 \AddToHookNextWithArguments        any   m +m
 \AddToHookWithArguments            any   m o +m
 \AfterEndEnvironment               any   o m
+\Alph                              any   m
 \Arrowvert                         math  -
 \AtBeginDocument                   any   -
 \AtBeginEnvironment                any   o m
 \AtEndDocument                     any   -
 \AtEndEnvironment                  any   o m
+\AtEndOfClass                      any   -
+\AtEndOfPackage                    any   -
 \BCPdata                           any   m
 \BeforeBeginEnvironment            any   o m
 \Big                               any   m
@@ -37,19 +41,77 @@
 \Bigl                              any   -
 \Bigm                              math  -
 \Bigr                              any   -
+\Box                               any   -
+\CheckCommand                      any   -
+\CheckEncodingSubset               any   m m m m m
+\ClassError                        any   m m m
+\ClassInfo                         any   m m
+\ClassNote                         any   m m
+\ClassNoteNoLine                   any   m m
+\ClassWarning                      any   m m
+\ClassWarningNoLine                any   m m
 \ClearHookNext                     any   m
 \ClearHookRule                     any   m m m
+\CurrentFile                       any   -
+\CurrentFilePath                   any   -
+\CurrentOption                     any   -
+\DebugTablesOff                    any   -
+\DebugTablesOn                     any   -
+\DeclareCommandCopy                any   -
+\DeclareCurrentRelease             any   m m
 \DeclareDefaultHookRule            any   m m m
+\DeclareEmphSequence               any   m
+\DeclareEncodingSubset             any   m m
+\DeclareEnvironmentCopy            any   -
+\DeclareErrorFont                  any   m m m m m
+\DeclareFixedFont                  any   m m m m m m
+\DeclareFontEncoding               any   -
+\DeclareFontEncodingDefaults       any   m m
+\DeclareFontFamily                 any   m m m
+\DeclareFontFamilySubstitution     any   m m m
+\DeclareFontSeriesChangeRule       any   m m m m
 \DeclareFontSeriesDefault          any   o m m
+\DeclareFontShape                  any   -
+\DeclareFontShapeChangeRule        any   m m m m
+\DeclareFontSubstitution           any   m m m m
 \DeclareHookRule                   any   m m m m
 \DeclareKeys                       any   O { \@currname } +m
 \DeclareLowercaseMapping           any   o m m
+\DeclareMathAccent                 any   m m m m
+\DeclareMathAlphabet               any   m m m m m
+\DeclareMathDelimiter              any   m
+\DeclareMathRadical                any   m m m m m
+\DeclareMathSizes                  any   -
+\DeclareMathSymbol                 any   m m m m
+\DeclareMathVersion                any   m
+\DeclareOldFontCommand             any   m m m
+\DeclareOption                     any   -
+\DeclarePreloadSizes               any   m m m m m
+\DeclareRelease                    any   m m m
+\DeclareRobustCommand              any   -
+\DeclareSizeFunction               any   m m
+\DeclareSymbolFont                 any   m m m m m
+\DeclareSymbolFontAlphabet         any   m m
+\DeclareTextAccent                 any   m m m
+\DeclareTextAccentDefault          any   m m
+\DeclareTextCommand                any   -
+\DeclareTextCommandDefault         any   m
+\DeclareTextComposite              any   m m m m
+\DeclareTextCompositeCommand       any   m m m m
+\DeclareTextFontCommand            any   m m
+\DeclareTextSymbol                 any   m m m
+\DeclareTextSymbolDefault          any   m m
 \DeclareTitlecaseMapping           any   o m m
 \DeclareUnknownKeyHandler          any   O { \@currname } +m
 \DeclareUppercaseMapping           any   o m m
 \Delta                             math  -
+\Diamond                           any   -
 \DisableGenericHook                any   m
+\DocumentMetadata                  any   -
 \Downarrow                         math  -
+\EndIncludeInRelease               any   -
+\EndModuleRelease                  any   -
+\ExecuteOptions                    any   m
 \FirstMark                         any   O{page} m
 \Gamma                             math  -
 \GenericError                      any   m m m m
@@ -57,40 +119,108 @@
 \GenericWarning                    any   m m
 \H                                 text  m
 \IJ                                text  -
+\IfClassAtLeastF                   any   m m
+\IfClassAtLeastT                   any   m m
+\IfClassAtLeastTF                  any   -
+\IfClassLoadedF                    any   m
+\IfClassLoadedT                    any   m
+\IfClassLoadedTF                   any   -
+\IfClassLoadedWithOptionsF         any   m m
+\IfClassLoadedWithOptionsT         any   m m
+\IfClassLoadedWithOptionsTF        any   -
+\IfDocumentMetadataF               any   -
+\IfDocumentMetadataT               any   -
+\IfDocumentMetadataTF              any   -
+\IfExplAtLeastF                    any   m
+\IfExplAtLeastT                    any   m m
+\IfExplAtLeastTF                   any   -
+\IfFileAtLeastF                    any   m m
+\IfFileAtLeastT                    any   m m
+\IfFileAtLeastTF                   any   m
 \IfFileExists                      any   m
+\IfFileLoadedF                     any   m
+\IfFileLoadedT                     any   m
+\IfFileLoadedTF                    any   m
+\IfFontSeriesContextF              any   -
+\IfFontSeriesContextT              any   m
 \IfFontSeriesContextTF             any   m
+\IfFormatAtLeastF                  any   m
+\IfFormatAtLeastT                  any   m
+\IfFormatAtLeastTF                 any   -
 \IfMarksEqualF                     any   O{page}mmm
 \IfMarksEqualT                     any   O{page}mmm
 \IfMarksEqualTF                    any   O{page}mmm
+\IfPDFManagementActiveF            any   -
+\IfPDFManagementActiveT            any   m
+\IfPDFManagementActiveTF           any   -
+\IfPackageAtLeastF                 any   m m
+\IfPackageAtLeastT                 any   m m
+\IfPackageAtLeastTF                any   -
+\IfPackageLoadedF                  any   m
+\IfPackageLoadedT                  any   m
+\IfPackageLoadedTF                 any   -
+\IfPackageLoadedWithOptionsF       any   m m
+\IfPackageLoadedWithOptionsT       any   m m
+\IfPackageLoadedWithOptionsTF      any   -
 \IfTargetDateBefore                any   m
 \Im                                math  -
+\IncludeInRelease                  any   m
 \InputIfFileExists                 any   m m
+\Join                              any   -
 \L                                 text  -
 \LaTeX                             any   -
+\LaTeXReleaseInfo                  any   -
 \LaTeXe                            math  -
 \Lambda                            math  -
+\LastDeclaredEncoding              any   -
 \LastMark                          any   O{page} m
 \Leftarrow                         math  -
 \Leftrightarrow                    math  -
 \LinkTargetOff                     any   -
 \LinkTargetOn                      any   -
+\LoadClass                         any   -
+\LoadClassWithOptions              any   -
+\LoadFontDefinitionFile            any   m m
 \MakeLinkTarget                    any   sO{}m
+\MakeRobust                        any   m
+\MessageBreak                      any   -
+\NeedsDocumentMetadata             any   -
+\NeedsTeXFormat                    any   m
+\NewCommandCopy                    any   -
+\NewEnvironmentCopy                any   -
 \NewHook                           any   m
 \NewHookWithArguments              any   mm
 \NewMirroredHookPair               any   mm
 \NewMirroredHookPairWithArguments  any   mmm
+\NewModuleRelease                  any   m m m
 \NewReversedHook                   any   m
 \NewReversedHookWithArguments      any   mm
 \NextLinkTarget                    any   m
 \O                                 text  -
 \OE                                text  -
 \Omega                             math  -
+\OptionNotUsed                     any   -
 \P                                 any   -
+\PackageError                      any   m m m
+\PackageInfo                       any   m m
+\PackageNote                       any   m m
+\PackageNoteNoLine                 any   m m
+\PackageWarning                    any   m m
+\PackageWarningNoLine              any   m m
+\PassOptionsToClass                any   -
+\PassOptionsToPackage              any   -
 \Phi                               math  -
 \Pi                                math  -
 \PopDefaultHookLabel               any   -
 \Pr                                math  -
+\PreviousTotalPages                any   -
 \ProcessKeyOptions                 any   O { \@currname }
+\ProcessOptions                    any   -
+\ProvideTextCommand                any   -
+\ProvideTextCommandDefault         any   m
+\ProvidesClass                     any   -
+\ProvidesFile                      any   m
+\ProvidesPackage                   any   m
 \Psi                               math  -
 \PushDefaultHookLabel              any   m
 \Re                                math  -
@@ -98,20 +228,34 @@
 \Ref                               any   s
 \RefProperty                       any   o m m
 \RemoveFromHook                    any   m o
+\RenewCommandCopy                  any   -
+\RenewEnvironmentCopy              any   -
+\RequirePackage                    any   -
+\RequirePackageWithOptions         any   -
 \Rightarrow                        math  -
+\Roman                             any   m
 \S                                 any   -
 \SS                                text  -
 \SetDefaultHookLabel               any   m
 \SetKeys                           any   O { \@currname } +m
+\SetMathAlphabet                   any   m m m m m m
+\SetSymbolFont                     any   m m m m m m
+\ShowCommand                       any   m
+\ShowEnvironment                   any   m
+\ShowFloat                         any   m
 \ShowMarksAt                       any   m O{4}
 \Sigma                             math  -
 \TeX                               any   -
 \TextOrMath                        any   -
+\TextSymbolUnavailable             any   m
 \Theta                             math  -
 \TopMark                           any   O{page} m
+\UndeclareTextCommand              any   m m
 \Uparrow                           math  -
 \Updownarrow                       math  -
 \Upsilon                           math  -
+\UseLegacyTextSymbols              any   -
+\UseRawInputEncoding               any   -
 \UseTextAccent                     any   m m m
 \UseTextSymbol                     any   m m
 \Vert                              math  -
@@ -121,18 +265,35 @@
 \^                                 text  m
 \_                                 any   -
 \`                                 text  m
+\a                                 any   -
+\aa                                any   -
+\active                            any   -
 \acute                             math  m
+\addcontentsline                   any   m m m
+\addpenalty                        any   m
+\addtocontents                     any   m m
+\addtocounter                      any   m m
+\addtolength                       any   m m
+\addvspace                         any   m
 \ae                                text  -
 \aleph                             math  -
+\allocationnumber                  any   -
+\allowbreak                        any   -
+\alph                              any   m
 \alpha                             math  -
 \amalg                             math  -
 \and                               any   -
 \angle                             math  -
 \approx                            math  -
+\arabic                            any   m
 \arccos                            math  -
 \arcsin                            math  -
 \arctan                            math  -
 \arg                               math  -
+\array                             any   -
+\arraycolsep                       any   -
+\arrayrulewidth                    any   -
+\arraystretch                      any   -
 \arrowvert                         math  -
 \asciispace                        any   -
 \ast                               math  -
@@ -141,9 +302,19 @@
 \b                                 text  m
 \backslash                         math  -
 \bar                               math  m
+\baselinestretch                   any   -
+\begin                             any   m
 \beta                              math  -
 \bfseries                          any   -
+\bgroup                            any   -
+\bibcite                           any   -
+\bibdata                           any   -
+\bibitem                           any   -
+\bibliography                      any   m
+\bibliographystyle                 any   m
+\bibstyle                          any   -
 \big                               any   m
+\bigbreak                          any   -
 \bigcap                            math  -
 \bigcirc                           math  -
 \bigcup                            math  -
@@ -157,6 +328,8 @@
 \bigoplus                          math  -
 \bigotimes                         math  -
 \bigr                              any   -
+\bigskip                           any   -
+\bigskipamount                     any   -
 \bigsqcup                          math  -
 \bigtriangledown                   math  -
 \bigtriangleup                     math  -
@@ -165,13 +338,18 @@
 \bigwedge                          math  -
 \bmod                              any   -
 \boldmath                          any   -
+\bordermatrix                      math  m
 \bot                               math  -
+\botfigrule                        any   -
 \bottomfraction                    any   -
+\brace                             any   -
 \braceld                           math  -
 \bracelu                           math  -
 \bracerd                           math  -
 \braceru                           math  -
 \bracevert                         math  -
+\brack                             any   -
+\break                             any   -
 \breve                             math  m
 \bullet                            math  -
 \c                                 text  m
@@ -191,18 +369,30 @@
 \capitalring                       text  -
 \capitaltie                        text  -
 \capitaltilde                      text  -
+\caption                           any   -
 \cases                             math  m
 \cdot                              math  -
 \cdotp                             math  -
+\center                            any   -
 \centering                         any   -
 \centerline                        any   m
 \check                             math  m
 \chi                               math  -
+\choose                            any   -
 \circ                              math  -
+\circle                            any   -
+\citation                          any   -
 \cite                              any   -
 \clap                              any   m
+\cleardoublepage                   any   -
+\clearpage                         any   -
+\cline                             any   m
 \clubsuit                          math  -
 \colon                             math  -
+\columnsep                         any   -
+\columnseprule                     any   -
+\columnwidth                       any   -
+\contentsline                      any   m m m m
 \coprod                            math  -
 \copyright                         any   -
 \cos                               math  -
@@ -218,37 +408,97 @@
 \dagger                            math  -
 \dashv                             math  -
 \date                              any   m
+\dblfigrule                        any   -
 \dblfloatpagefraction              any   -
+\dblfloatsep                       any   -
+\dbltextfloatsep                   any   -
 \dbltopfraction                    any   -
 \ddag                              any   -
 \ddagger                           math  -
 \ddot                              math  m
+\defaultscriptratio                any   -
+\defaultscriptscriptratio          any   -
 \deg                               math  -
 \delta                             math  -
 \det                               math  -
 \diamond                           math  -
 \diamondsuit                       math  -
 \dim                               math  -
+\displaylines                      any   m
+\displaymath                       any   -
 \div                               math  -
+\do                                any   -
+\document                          any   -
+\documentclass                     any   -
+\documentstyle                     any   -
+\dospecials                        any   -
 \dot                               math  m
+\dotfill                           any   -
 \dots                              any   -
+\doublerulesep                     any   -
 \downarrow                         math  -
 \downbracefill                     math  -
+\egroup                            any   -
+\eject                             any   -
 \ell                               math  -
 \em                                any   -
+\emforce                           any   -
+\eminnershape                      any   -
+\empty                             any   -
 \emptyset                          math  -
 \emreset                           any   -
+\endarray                          any   -
+\endcenter                         any   -
+\enddisplaymath                    any   -
+\enddocument                       any   -
+\endenumerate                      any   -
+\endeqnarray                       any   -
+\endequation                       any   -
+\endfilecontents                   any   -
+\endflushleft                      any   -
+\endflushright                     any   -
+\endgraf                           any   -
+\enditemize                        any   -
+\endline                           any   -
+\endlist                           any   -
+\endlrbox                          any   -
+\endmath                           any   -
+\endminipage                       any   -
+\endpicture                        any   -
+\endsloppypar                      any   -
+\endtabbing                        any   -
+\endtabular                        any   -
+\endtrivlist                       any   -
+\endverbatim                       any   -
+\enlargethispage                   any   -
+\enskip                            any   -
 \enspace                           any   -
 \ensuremath                        any   -
+\enumerate                         any   -
 \epsilon                           math  -
+\eqnarray                          any   -
+\equation                          any   -
 \equiv                             math  -
 \eta                               math  -
+\evensidemargin                    any   -
 \exists                            math  -
 \exp                               math  -
+\extracolsep                       any   m
+\extrafloats                       any   m
 \fbox                              any   m
+\fboxrule                          any   -
+\fboxsep                           any   -
+\filbreak                          any   -
+\filecontents                      any   -
+\fill                              any   -
 \flat                              math  -
 \floatpagefraction                 any   -
+\floatsep                          any   -
 \flushbottom                       any   -
+\flushleft                         any   -
+\flushright                        any   -
+\fmtname                           any   -
+\fnsymbol                          any   m
 \fontencoding                      any   m
 \fontfamily                        any   m
 \fontseries                        any   m
@@ -256,10 +506,19 @@
 \fontshape                         any   m
 \fontshapeforce                    any   m
 \fontsize                          any   m m
+\fontsubfuzz                       any   -
+\footnote                          any   -
+\footnotemark                      any   -
+\footnoterule                      any   -
+\footnotesep                       any   -
+\footnotetext                      any   -
+\footref                           any   m
+\footskip                          any   -
 \forall                            math  -
 \frac                              any   m m
 \frame                             any   m
 \framebox                          any   -
+\frenchspacing                     any   -
 \frown                             math  -
 \fussy                             any   -
 \gamma                             math  -
@@ -268,49 +527,90 @@
 \geq                               math  -
 \gets                              math  -
 \gg                                math  -
+\glossary                          any   -
+\goodbreak                         any   -
 \grave                             math  m
 \hat                               math  m
 \hbar                              math  -
+\headheight                        any   -
+\headsep                           any   -
 \heartsuit                         math  -
+\hglue                             any   -
+\hideoutput                        any   -
+\hideskip                          any   -
+\hidewidth                         any   -
+\hline                             any   -
 \hom                               math  -
 \hookleftarrow                     any   -
 \hookrightarrow                    any   -
 \hphantom                          any   -
+\hrulefill                         any   -
 \hspace                            any   -
 \i                                 text  -
+\ialign                            any   -
+\ignorespacesafterend              any   -
 \ij                                text  -
 \imath                             math  -
 \in                                math  -
+\include                           any   m
+\includeonly                       any   m
+\index                             any   -
 \inf                               math  -
 \infty                             math  -
 \int                               any   -
+\interdisplaylinepenalty           any   -
+\interfootnotelinepenalty          any   -
+\intextsep                         any   -
 \intop                             math  -
 \iota                              math  -
+\item                              any   -
+\itemindent                        any   -
+\itemize                           any   -
+\itemsep                           any   -
+\iterate                           any   -
 \itshape                           any   -
 \j                                 text  -
 \jmath                             math  -
+\jot                               any   -
 \kappa                             math  -
 \ker                               math  -
 \kill                              any   -
 \l                                 text  -
+\label                             any   m
+\labelformat                       any   m
+\labelsep                          any   -
+\labelwidth                        any   -
 \lambda                            math  -
 \land                              math  -
 \langle                            math  -
 \lbrace                            math  -
+\lbrack                            any   -
 \lceil                             math  -
 \ldotp                             math  -
+\ldots                             any   -
 \le                                math  -
+\leadsto                           any   -
+\leavevmode                        any   -
 \leftarrow                         math  -
 \leftarrowfill                     math  -
+\lefteqn                           any   m
 \leftharpoondown                   math  -
 \leftharpoonup                     math  -
 \leftline                          any   m
+\leftmargin                        any   -
+\leftmargini                       any   -
+\leftmarginii                      any   -
+\leftmarginiii                     any   -
+\leftmarginiv                      any   -
+\leftmarginv                       any   -
+\leftmarginvi                      any   -
 \leftrightarrow                    math  -
 \legacyoldstylenums                any   m
 \leq                               math  -
 \lfloor                            math  -
 \lg                                math  -
 \lgroup                            math  -
+\lhd                               any   -
 \lhook                             math  -
 \lim                               math  -
 \liminf                            math  -
@@ -318,25 +618,48 @@
 \linebreak                         any   -
 \linespread                        any   m
 \linethickness                     any   m
+\linewidth                         any   -
+\list                              any   m m
 \listfiles                         any   O{}
+\listparindent                     any   -
 \ll                                math  -
 \llap                              any   m
 \lmoustache                        math  -
 \ln                                math  -
 \lnot                              math  -
 \log                               math  -
+\loggingall                        any   -
+\loggingoutput                     any   -
 \longleftarrow                     any   -
 \longrightarrow                    any   -
 \lor                               math  -
+\lq                                any   -
+\lrbox                             any   m
+\ltcmddate                         any   -
+\ltcmdversion                      any   -
+\magstep                           any   m
+\magstephalf                       any   -
 \makeatletter                      any   -
 \makeatother                       any   -
 \makebox                           any   -
+\makeglossary                      any   -
+\makeindex                         any   -
+\makelabel                         any   -
 \mapsto                            any   -
 \mapstochar                        math  -
+\marginpar                         any   -
+\marginparpush                     any   -
+\marginparsep                      any   -
+\marginparwidth                    any   -
 \markboth                          any   m m
 \markright                         any   m
+\math                              any   -
+\mathalpha                         any   -
 \mathdollar                        math  -
 \mathellipsis                      math  -
+\mathgroup                         any   -
+\mathhexbox                        math  m m m
+\mathpalette                       any   m m
 \mathparagraph                     math  -
 \mathring                          math  m
 \mathsection                       math  -
@@ -346,40 +669,110 @@
 \mathversion                       any   m
 \matrix                            math  m
 \max                               math  -
+\maxdimen                          any   -
 \mbox                              any   m
 \mdseries                          any   -
+\medbreak                          any   -
+\medskip                           any   -
+\medskipamount                     any   -
+\medspace                          any   -
+\mho                               any   -
 \mid                               math  -
 \min                               math  -
+\minipage                          any   -
 \mp                                math  -
 \mu                                math  -
+\multicolumn                       any   m m m
+\multispan                         any   -
 \nabla                             math  -
+\narrower                          any   -
 \natural                           math  -
 \ne                                any   -
 \nearrow                           math  -
 \neg                               math  -
 \negmedspace                       any   -
 \negthickspace                     any   -
+\negthinspace                      any   -
 \neq                               any   -
+\newattribute                      any   m
+\newbox                            any   -
+\newcatcodetable                   any   m
+\newcommand                        any   -
+\newcount                          any   -
+\newcounter                        any   m
+\newdimen                          any   -
+\newenvironment                    any   -
+\newfam                            any   -
+\newfont                           any   m m
+\newhelp                           any   m m
+\newif                             any   m
+\newinsert                         any   m
+\newlabel                          any   -
+\newlanguage                       any   -
+\newlength                         any   m
 \newline                           any   -
+\newluabytecode                    any   m
+\newluachunkname                   any   m
+\newluacmd                         any   -
+\newluafunction                    any   -
+\newmarks                          any   -
+\newpage                           any   -
+\newprotectedluacmd                any   -
+\newread                           any   -
+\newsavebox                        any   m
+\newskip                           any   -
+\newtheorem                        any   m
 \newtie                            text  -
+\newtoks                           any   -
+\newwhatsit                        any   m
+\newwrite                          any   -
 \ni                                math  -
+\nobreak                           any   -
 \nobreakdashes                     any   -
 \nobreakspace                      any   -
+\nocite                            any   m
+\nocorr                            any   -
+\nocorrlist                        any   -
+\nofiles                           any   -
+\nointerlineskip                   any   -
 \nolinebreak                       any   -
+\nonfrenchspacing                  any   -
+\nonumber                          any   -
 \nopagebreak                       any   -
 \noprotrusion                      any   -
+\normalbaselines                   any   -
+\normalbaselineskip                any   -
+\normalcolor                       any   -
 \normalfont                        any   -
+\normallineskip                    any   -
+\normallineskiplimit               any   -
+\normalmarginpar                   any   -
+\normalsfcodes                     any   -
+\normalsize                        any   -
 \not                               math  -
 \nu                                math  -
+\null                              any   -
+\numberline                        any   m
 \nwarrow                           math  -
 \o                                 text  -
+\oalign                            any   m
+\obeycr                            any   -
+\obeyedline                        any   -
+\obeyedspace                       any   -
+\obeylines                         any   -
+\obeyspaces                        any   -
+\oddsidemargin                     any   -
 \odot                              math  -
 \oe                                text  -
+\offinterlineskip                  any   -
 \oint                              any   -
 \ointop                            math  -
 \oldstylenums                      any   m
 \omega                             math  -
 \ominus                            math  -
+\onecolumn                         any   -
+\ooalign                           any   -
+\openup                            any   -
 \oplus                             math  -
 \oslash                            math  -
 \otimes                            math  -
@@ -388,14 +781,22 @@
 \overrightarrow                    math  m
 \owns                              math  -
 \pagebreak                         any   -
+\pagenumbering                     any   m
 \pageref                           any   s
+\pagestyle                         any   m
+\paperheight                       any   -
+\paperwidth                        any   -
+\paragraphmark                     any   -
 \parallel                          math  -
 \parbox                            any   -
+\parsep                            any   -
 \partial                           math  -
+\partopsep                         any   -
 \perp                              math  -
 \phantom                           any   -
 \phi                               math  -
 \pi                                math  -
+\picture                           any   m
 \pm                                math  -
 \pmatrix                           any   m
 \pmod                              any   m
@@ -406,9 +807,14 @@
 \prime                             math  -
 \prod                              math  -
 \propto                            math  -
+\protect                           any   -
+\providecommand                    any   -
 \psi                               math  -
 \pushtabs                          any   -
 \qbezier                           any   o m
+\qbeziermax                        any   -
+\qquad                             any   -
+\quad                              any   -
 \r                                 text  m
 \raggedbottom                      any   -
 \raggedleft                        any   -
@@ -416,10 +822,20 @@
 \raisebox                          any   m
 \rangle                            math  -
 \rbrace                            math  -
+\rbrack                            any   -
 \rceil                             math  -
 \ref                               any   s
+\refstepcounter                    any   m
+\removelastskip                    any   -
+\renewcommand                      any   -
+\renewenvironment                  any   -
+\repeat                            any   -
+\requestedLaTeXdate                any   -
+\restorecr                         any   -
+\reversemarginpar                  any   -
 \rfloor                            math  -
 \rgroup                            math  -
+\rhd                               any   -
 \rho                               math  -
 \rhook                             math  -
 \rightarrow                        math  -
@@ -427,53 +843,87 @@
 \rightharpoondown                  math  -
 \rightharpoonup                    math  -
 \rightline                         any   m
+\rightmargin                       any   -
 \rlap                              any   m
 \rmfamily                          any   -
 \rmoustache                        math  -
+\roman                             any   m
+\rootbox                           any   -
+\rq                                any   -
 \rule                              any   -
 \samepage                          any   -
 \savebox                           any   m
+\sb                                any   -
 \sbox                              any   m m
 \scshape                           any   -
 \searrow                           math  -
 \sec                               math  -
+\secdef                            any   m m
+\sectionmark                       any   -
 \selectfont                        any   -
+\seriesdefault                     any   -
+\setattribute                      any   m m
+\setcounter                        any   m m
+\setlength                         any   m m
 \setminus                          math  -
 \settodepth                        any   -
 \settoheight                       any   -
 \settowidth                        any   -
 \sffamily                          any   -
 \sharp                             math  -
+\shortstack                        any   -
 \showhyphens                       any   m
+\showoutput                        any   -
+\showoverfull                      any   -
 \sigma                             math  -
 \sim                               math  -
 \simeq                             math  -
 \sin                               math  -
 \sinh                              math  -
 \skew                              any   m m m
+\slash                             any   -
 \sloppy                            any   -
+\sloppypar                         any   -
 \slshape                           any   -
+\smallbreak                        any   -
 \smallint                          math  -
+\smallskip                         any   -
+\smallskipamount                   any   -
 \smash                             any   -
 \smile                             math  -
+\sp                                any   -
+\space                             any   -
 \spadesuit                         math  -
 \sqcap                             math  -
 \sqcup                             math  -
 \sqrt                              any   -
 \sqrtsign                          math  m
+\sqsubset                          any   -
 \sqsubseteq                        math  -
+\sqsupset                          any   -
 \sqsupseteq                        math  -
 \ss                                text  -
 \sscdefault                        any   -
 \sscshape                          any   -
 \stackrel                          math  m m
 \star                              math  -
+\stepcounter                       any   m
+\stockheight                       any   -
+\stockwidth                        any   -
+\stop                              any   -
+\stretch                           any   m
+\strut                             any   -
+\strutbox                          any   -
+\subparagraphmark                  any   -
+\subsectionmark                    any   -
 \subset                            math  -
 \subseteq                          math  -
+\subsubsectionmark                 any   -
 \succ                              math  -
 \succeq                            math  -
 \sum                               math  -
 \sup                               math  -
+\suppressfloats                    any   -
 \supset                            math  -
 \supseteq                          math  -
 \surd                              math  -
@@ -482,6 +932,11 @@
 \swshape                           any   -
 \symbol                            any   m
 \t                                 text  m
+\tabbing                           any   -
+\tabbingsep                        any   -
+\tabcolsep                         any   -
+\tabular                           any   -
+\tabularnewline                    any   -
 \tan                               math  -
 \tanh                              math  -
 \tau                               math  -
@@ -516,6 +971,7 @@
 \textcolonmonetary                 text  -
 \textcommaabove                    text  -
 \textcommabelow                    text  -
+\textcompsubstdefault              any   -
 \textcompwordmark                  text  -
 \textcopyleft                      text  -
 \textcopyright                     text  -
@@ -541,6 +997,7 @@
 \texteuro                          text  -
 \textexclamdown                    text  -
 \textfiveoldstyle                  text  -
+\textfloatsep                      any   -
 \textflorin                        text  -
 \textfouroldstyle                  text  -
 \textfraction                      any   -
@@ -548,6 +1005,7 @@
 \textgravedbl                      text  -
 \textgreater                       text  -
 \textguarani                       text  -
+\textheight                        any   -
 \textinterrobang                   text  -
 \textinterrobangdown               text  -
 \textlangle                        text  -
@@ -625,30 +1083,53 @@
 \textunderscore                    text  -
 \textuparrow                       text  -
 \textvisiblespace                  text  -
+\textwidth                         any   -
 \textwon                           text  -
 \textyen                           text  -
 \textzerooldstyle                  text  -
 \thanks                            any   m
+\thefootnote                       any   -
+\thempfn                           any   -
+\thempfootnote                     any   -
+\thepage                           any   -
 \theta                             math  -
 \thicklines                        any   -
+\thickspace                        any   -
 \thinlines                         any   -
+\thinspace                         any   -
+\thispagestyle                     any   m
 \tilde                             math  m
 \times                             math  -
 \title                             any   m
 \tmspace                           any   m m m
 \to                                math  -
+\today                             any   -
 \top                               math  -
+\topfigrule                        any   -
 \topfraction                       any   -
+\topmargin                         any   -
+\topsep                            any   -
+\tracingall                        any   -
+\tracingnone                       any   -
 \triangle                          math  -
 \triangleleft                      math  -
 \triangleright                     math  -
+\trivlist                          any   -
 \ttfamily                          any   -
+\twocolumn                         any   -
+\typein                            any   -
+\typeout                           any   -
 \u                                 text  m
 \ulcdefault                        any   -
 \ulcshape                          any   -
 \unboldmath                        any   -
+\underbar                          any   m
 \underbrace                        math  m
 \underline                         any   m
+\unitlength                        any   -
+\unlhd                             any   -
+\unrhd                             any   -
+\unsetattribute                    any   m
 \uparrow                           math  -
 \upbracefill                       math  -
 \updownarrow                       math  -
@@ -656,8 +1137,11 @@
 \upshape                           any   -
 \upsilon                           math  -
 \usebox                            any   m
+\usecounter                        any   m
 \usefont                           any   m m m m
+\usepackage                        any   -
 \v                                 text  m
+\value                             any   m
 \varbigtriangledown                math  -
 \varbigtriangleup                  math  -
 \varepsilon                        math  -
@@ -669,13 +1153,18 @@
 \vdash                             math  -
 \vec                               math  m
 \vee                               math  -
+\verb                              any   -
+\verbatim                          any   -
 \verbvisiblespace                  any   -
 \vert                              math  -
+\vglue                             any   -
+\vline                             any   -
 \vphantom                          any   -
 \vspace                            any   -
 \wedge                             math  -
 \widehat                           math  m
 \widetilde                         math  m
+\wlog                              any   -
 \wp                                math  -
 \wr                                math  -
 \xi                                math  -

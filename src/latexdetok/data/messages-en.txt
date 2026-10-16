@@ -82,6 +82,13 @@ ampersand-outside-alignment.fix.text            “\&” for the character
 ampersand-outside-alignment.related             inside “{opening}”, which aligns nothing
 script-outside-math                             “{character}” outside math
 script-outside-math.fix                         math (“$x{character}2$”), or “{written}” for the character
+double-subscript                                two subscripts in a row on the same symbol
+double-subscript.related                        its first subscript
+double-subscript.fix                            “x_{a,b}”, “x_{a_b}” or “{x_a}_b”
+double-superscript                              two superscripts in a row on the same symbol
+double-superscript.related                      its first superscript
+double-superscript.fix                          “x^{ab}”, “x^{a^b}” or “{x^a}^b”
+double-superscript.fix.prime                    the prime first, being a superscript itself: “f'^2”
 math-command-in-text                            “{command}” outside math
 math-command-in-text.fix                        “{math}”
 invalid-in-math                                 “{command}” inside math, where LaTeX refuses it

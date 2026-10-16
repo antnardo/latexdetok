@@ -5,6 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Added
+
+- `double-subscript` and `double-superscript`: two scripts of the same kind on
+  one symbol, which TeX refuses with “Double subscript” without saying where —
+  `\Sigma_G_1`, `x^a^b`, `f^2'` (a prime is a superscript), `\int\limits_{S}_{T}`
+  (`\limits` starts no new nucleus). The error points at the second script, the
+  first one comes as the related place, and the fix gives the three ways to
+  write it (`x_{a,b}`, `x_{a_b}`, `{x_a}_b`). Read the way TeX hangs scripts:
+  a group, even empty, or a command starts a new nucleus, `f'^2` takes the
+  superscript in but `f' ^2` does not. Checked against LuaLaTeX on 62 cases,
+  each one agreeing.
+
 ## [0.6.4] — 2026-09-30
 
 ### Fixed

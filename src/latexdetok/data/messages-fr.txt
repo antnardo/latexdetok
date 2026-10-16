@@ -82,6 +82,13 @@ ampersand-outside-alignment.fix.text            « \& » pour le caractère
 ampersand-outside-alignment.related             dans « {opening} », qui n'aligne rien
 script-outside-math                             « {character} » hors des maths
 script-outside-math.fix                         des maths (« $x{character}2$ »), ou « {written} » pour le caractère
+double-subscript                                deux indices de suite sur le même symbole
+double-subscript.related                        son premier indice
+double-subscript.fix                            « x_{a,b} », « x_{a_b} » ou « {x_a}_b »
+double-superscript                              deux exposants de suite sur le même symbole
+double-superscript.related                      son premier exposant
+double-superscript.fix                          « x^{ab} », « x^{a^b} » ou « {x^a}^b »
+double-superscript.fix.prime                    le prime d'abord, qui est lui-même un exposant : « f'^2 »
 math-command-in-text                            « {command} » hors des maths
 math-command-in-text.fix                        « {math} »
 invalid-in-math                                 « {command} » dans des maths, où LaTeX le refuse

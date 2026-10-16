@@ -76,11 +76,11 @@ intro.tex:8:1: error [crossed-environment] “\begin{itemize}” closed by “\e
   wrong, better than TeX does: the cause rather than the place where TeX gave
   up, the opening facing the closing, the fix, and every independent mistake at
   once. Structure and meaning (`\item` outside a list, `&` outside a table, `^`
-  outside math, a missing argument…), macros expanded, and nothing that may be
-  valid is an error. What follows an opening that never closes is not judged
-  until that opening is settled: inside a `$` left open, an `\item` is math, not
-  an `\item` out of place — reporting it would be reporting the same mistake
-  twice.
+  outside math, two subscripts on one symbol, a missing argument…), macros
+  expanded, and nothing that may be valid is an error. What follows an opening
+  that never closes is not judged until that opening is settled: inside a `$`
+  left open, an `\item` is math, not an `\item` out of place — reporting it
+  would be reporting the same mistake twice.
 - **Signatures**: the commands of the LaTeX2e kernel bind their arguments
   (`\section`: `s o m`), and a hand-written table covers the common packages
   (amsmath, graphicx, siunitx, gensymb, beamer, booktabs, enumitem…); the definitions of

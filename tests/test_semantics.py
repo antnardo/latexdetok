@@ -314,6 +314,118 @@ class TestInvalidInMath:
         assert diagnostic.code == "invalid-in-math"
 
 
+class TestDoubleScripts:
+    """Each case compiled with LuaLaTeX: the refused ones stop on “Double subscript” or “superscript”."""
+
+    @pytest.mark.parametrize(
+        ("formula", "code"),
+        [
+            ("$x_a_b$", "double-subscript"),
+            ("$\\Sigma_G_1$", "double-subscript"),
+            ("$\\vec{u}_z_0$", "double-subscript"),
+            ("$x_a^b_c$", "double-subscript"),
+            ("$x^a^b$", "double-superscript"),
+            ("$x^a_b^c$", "double-superscript"),
+            ("$f^2'$", "double-superscript"),
+            ("$x^{\\prime}^2$", "double-superscript"),
+            ("$x^\\prime^2$", "double-superscript"),
+            ("$\\int\\limits_{S}_{T}$", "double-subscript"),
+            ("$\\int_a\\nolimits_b$", "double-subscript"),
+            ("$x_{a}_{b}$", "double-subscript"),
+            ("$x_\\mathrm{a}_b$", "double-subscript"),
+            ("$x_\\text{a}_b$", "double-subscript"),
+            ("$x'_1^2$", "double-superscript"),
+            ("$f' ^2$", "double-superscript"),
+            ("$x' '$", "double-superscript"),
+            ("$x_a _b$", "double-subscript"),
+            ("$x_a%\n_b$", "double-subscript"),
+            ("$_a_b$", "double-subscript"),
+            ("$x_a\\relax_b$", "double-subscript"),
+            ("$\\left(x\\right)_a_b$", "double-subscript"),
+            ("$\\frac{a}{b}_c_d$", "double-subscript"),
+            ("$\\sqrt[3]{x}_a_b$", "double-subscript"),
+            ("$\\frac{x_a_b}{c}$", "double-subscript"),
+            ("$x^a\\sp b$", "double-superscript"),
+            ("\\begin{equation} x_a_b \\end{equation}", "double-subscript"),
+        ],
+    )
+    def test_refused_by_tex(self, meaning, formula, code):
+        assert [diagnostic.code for diagnostic in meaning(document(formula + "\n"))] == [code]
+
+    @pytest.mark.parametrize(
+        "formula",
+        [
+            "$x_a^b$",
+            "$\\sum_{i}^{n}$",
+            "$\\int\\limits_a^b$",
+            "$\\sum\\nolimits_{i}^{n}$",
+            "$f'^2$",
+            "$x''^2$",
+            "$x'_1 + x_1'$",
+            "$x'%\n^2$",
+            "${x_a}_b$",
+            "$x_{a_b}$",
+            "$x_a {}_b$",
+            "$T^{a}{}_{b}$",
+            "${}^{14}_{6}C$",
+            "$x_a\\,_b$",
+            "$x_a\\quad_b$",
+            "$x_a~_b$",
+            "$x_a\\displaystyle_b$",
+            "$x_a\\alpha_b$",
+            "$x_a\\mathrm{b}_c$",
+            "$x_\\neq_b$",
+            "$x_\\mapsto_b$",
+            "\\begin{align} x_a & _b \\\\ _c \\end{align}",
+        ],
+    )
+    def test_accepted_by_tex(self, meaning, formula):
+        assert meaning(document(formula + "\n")) == []
+
+    def test_the_second_script_is_at_fault_and_the_first_is_shown(self, meaning):
+        (diagnostic,) = meaning(document("$\\iint\\limits_{\\Sigma_G_1} \\vec{E}\\cdot d\\vec{S}$\n"))
+        assert (
+            diagnostic.start,
+            diagnostic.end,
+            diagnostic.message,
+            related(diagnostic),
+            diagnostic.suggestion,
+        ) == (
+            (3, 23),
+            (3, 24),
+            "two subscripts in a row on the same symbol",
+            [((3, 21), "its first subscript")],
+            "“x_{a,b}”, “x_{a_b}” or “{x_a}_b”",
+        )
+
+    def test_a_prime_is_shown_first(self, meaning):
+        (diagnostic,) = meaning(document("$f^2'$\n"))
+        assert (diagnostic.start, diagnostic.suggestion) == (
+            (3, 4),
+            "the prime first, being a superscript itself: “f'^2”",
+        )
+
+    def test_each_extra_script_is_reported_as_tex_does(self, meaning):
+        assert [d.start for d in meaning(document("$x_a_b_c$\n"))] == [(3, 4), (3, 6)]
+
+    def test_an_unknown_command_as_argument_may_write_several_atoms(self, meaning):
+        assert meaning(document("$x_\\inconnue_b$\n")) == []
+
+    def test_a_redefined_sp_is_not_a_superscript(self, meaning):
+        assert meaning(document("\\renewcommand\\sp{s}\n$x^a\\sp b$\n")) == []
+
+    def test_an_underscore_that_is_no_longer_a_subscript(self, meaning):
+        assert meaning(document("\\catcode`\\_=12\n$x_a_b$\n")) == []
+
+    def test_text_in_math_is_not_a_math_list(self, meaning):
+        # Its mode is not known either (see `TestModes`): nothing is said of it.
+        assert meaning(document("$\\text{a_b_c}$\n")) == []
+
+    def test_a_macro_writes_what_it_writes(self, meaning):
+        source = document("\\newcommand\\SG{\\Sigma_G}\n$\\SG_1$\n")
+        assert [d.code for d in meaning(source, developed=True)] == ["double-subscript"]
+
+
 class TestWhatCloudsAList:
     """An unknown command may have opened a list (`\\vrbitem`), and then `\\item` is not judged.
 

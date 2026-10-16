@@ -353,9 +353,17 @@ unknown command or of one that does not typeset it, an unexpanded macro, the
 body of a definition, a discarded branch, after a dissolved opening. A fragment
 starts with no list and no alignment known.
 
+Every math list is also read the way TeX hangs scripts on a nucleus: one `_`
+and one `^` each, a prime counting as a superscript that takes in a `^` written
+right after it (`f'^2`, but not `f' ^2`). Anything TeX makes an atom of starts a
+new nucleus — a character, a group even empty, a command — except blanks,
+comments, `\limits`, `\nolimits` and `\relax`. What cannot be followed (an
+unknown command as an argument, a symbol written as several atoms like `\neq`)
+starts a new nucleus too, so that a doubt never becomes an error.
+
 | Name | Contents |
 | --- | --- |
-| `SEMANTIC_CATALOGUE` | code → description: `item-outside-list`, `ampersand-outside-alignment`, `script-outside-math`, `math-command-in-text`, `invalid-in-math`, `missing-argument`, `left-without-right`, `right-without-left`, `left-across-cells`, `line-break-without-line`, `file-not-found`, `unknown-command`, `unknown-environment` |
+| `SEMANTIC_CATALOGUE` | code → description: `item-outside-list`, `ampersand-outside-alignment`, `script-outside-math`, `double-subscript`, `double-superscript`, `math-command-in-text`, `invalid-in-math`, `missing-argument`, `left-without-right`, `right-without-left`, `left-across-cells`, `line-break-without-line`, `file-not-found`, `unknown-command`, `unknown-environment` |
 | `LIST_ENVIRONMENTS` | where `\item` is allowed: the kernel lists, and `center`, `quote`… built on `trivlist` |
 | `ALIGNMENT_ENVIRONMENTS` | where `&` separates cells: kernel and amsmath |
 | `NAME_ARGUMENTS` | commands whose arguments name something (`\label`, `\input`, `\setcounter`…): nothing is checked in them |

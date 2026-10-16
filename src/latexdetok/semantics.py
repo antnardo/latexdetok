@@ -2,11 +2,12 @@
 
 Structure says what opens and closes (see `diagnostics`); meaning says whether
 what we read belongs there: an `\\item` outside a list, an `&` outside an
-alignment, a `^` or an `\\alpha` outside math, a mandatory argument that is
-missing, a `\\left` without its `\\right`, a `\\\\` with no line to end. TeX
-refuses them with messages about its own machinery (“Missing $ inserted”,
-“Misplaced alignment tab character &”, “There's no line here to end”); here, we
-name what is written, and where.
+alignment, a `^` or an `\\alpha` outside math, two subscripts on one symbol, a
+mandatory argument that is missing, a `\\left` without its `\\right`, a `\\\\`
+with no line to end. TeX refuses them with messages about its own machinery
+(“Missing $ inserted”, “Misplaced alignment tab character &”, “Double
+subscript”, “There's no line here to end”); here, we name what is written, and
+where.
 
 Context. The tree is walked with, for every group, what we know of the place:
 the mode (text, math), whether we are in a list, in an alignment. Every answer
@@ -53,6 +54,8 @@ SEMANTIC_CATALOGUE: dict[str, str] = {
     "item-outside-list": "“\\item” outside any list",
     "ampersand-outside-alignment": "“&” outside a table or an alignment",
     "script-outside-math": "“^” or “_” outside math",
+    "double-subscript": "two subscripts on the same symbol (`x_a_b`)",
+    "double-superscript": "two superscripts on the same symbol (`x^a^b`, `f^2'`)",
     "math-command-in-text": "a command that only means something in math mode, written in text",
     "invalid-in-math": "a command LaTeX refuses in math mode",
     "missing-argument": "a mandatory argument is missing",
@@ -266,6 +269,34 @@ MATH_COLUMNS = re.compile(r"[$<>]|\\\(")
 # `\end{x}` is guarded there too, but a math that swallows an `\end` never closes,
 # and `unclosed-math` says so first.
 INVALID_IN_MATH = frozenset({"item", "circle"})
+# What leaves the nucleus as it is: `\limits` changes the atom already there, `\relax`
+# does nothing, and TeX skips it while looking for the argument of a script.
+SCRIPT_TRANSPARENT = frozenset({"limits", "nolimits", "displaylimits", "relax"})
+# The kernel's other names for `_` and `^` (`\let\sb=_`).
+SCRIPT_COMMANDS = {"sb": "_", "sp": "^"}
+# Written as several atoms, by fontmath.ltx and amsmath (`\neq` is `\not=`): a script
+# takes the first one only, and the last one is a new nucleus.
+COMPOSITE_SYMBOLS = frozenset(
+    {
+        "neq",
+        "ne",
+        "mapsto",
+        "longmapsto",
+        "hookrightarrow",
+        "hookleftarrow",
+        "longrightarrow",
+        "longleftarrow",
+        "longleftrightarrow",
+        "Longrightarrow",
+        "Longleftarrow",
+        "Longleftrightarrow",
+        "bowtie",
+        "models",
+        "iff",
+        "implies",
+        "impliedby",
+    }
+)
 # Tables whose columns are set by key-value pairs (tabularray, nicematrix).
 KEYVAL_TABLES = frozenset({"tblr", "longtblr", "talltblr", "NiceTabular"})
 BRACED = re.compile(r"\{[^{}]*\}")
@@ -351,6 +382,162 @@ class _Frame:
             object.__setattr__(self, "math", None)
 
 
+@dataclass(slots=True)
+class _Nucleus:
+    """The scripts the current nucleus carries: where each one is written, and by what."""
+
+    sub: tuple[Position, Position, str] | None = None
+    sup: tuple[Position, Position, str] | None = None
+
+
+class _Scripts:
+    """One math list read the way TeX hangs scripts: one `_` and one `^` per nucleus.
+
+    TeX refuses a second one (“Double subscript”) on the atom that already has
+    one. Whatever it makes an atom of starts a new nucleus: a character, a group
+    even empty (`x_a{}_b`), a command (`x_a\\,_b`). Blanks and comments do not,
+    nor `\\limits` or `\\relax`. A script takes the next atom as its argument,
+    which is no new nucleus. A prime is a superscript (`f'` is `f^{\\prime}`)
+    that takes in a `^` written right after it (`f'^2`), but not one after a
+    blank: `f' ^2` is refused.
+
+    What cannot be followed starts a new nucleus as well: an unknown command
+    given as an argument, which may write several atoms, a branch of a
+    conditional, a character whose category the document changes. That can make
+    an error go unseen, never report one TeX does not make.
+    """
+
+    def __init__(
+        self, lines: list[str], changed: set[str], commands: dict[str, str], found: list[TexDiagnostic]
+    ) -> None:
+        self._lines = lines
+        self._changed = changed
+        self._commands = commands
+        self._found = found
+        self._nucleus = _Nucleus()
+        # The script waiting for its argument: `_`, `^`, or "'" for the one a prime takes in.
+        self._pending: str | None = None
+        # Right after a prime: a `^` now joins it.
+        self._primes = False
+
+    def read(self, group: TexGroup) -> None:
+        # The arguments of an environment (`{cc}` of an array) are specifications, not atoms.
+        bound = {id(node) for node in group.arguments if node is not None}
+        for node in group.content:
+            if id(node) in bound or isinstance(node, TexComment):
+                continue
+            if isinstance(node, TexCommand):
+                # Its arguments are part of the atom it makes.
+                bound.update(id(argument) for argument in node.arguments or () if argument is not None)
+                self._command(node)
+            elif isinstance(node, TexBranch) or _dissolved_opening(node):
+                self._new()
+            elif isinstance(node, TexGroup):
+                # A group in braces is one atom; TeX reads `[` as a character, and takes only it.
+                self._atom(single=node.bracket)
+            elif node.is_pure_text() and not node.is_par():
+                self._characters(node)
+            else:
+                self._new()
+
+    def _new(self) -> None:
+        """A nucleus with no script yet; what was waiting for an argument is dropped."""
+        self._nucleus = _Nucleus()
+        self._pending = None
+        self._primes = False
+
+    def _atom(self, single: bool) -> None:
+        """The argument of the script waiting for one, or else a new nucleus.
+
+        `single`: certainly one atom. Otherwise the script takes the first one, and
+        the last one is a new nucleus.
+        """
+        self._primes = False
+        if self._pending is not None and single:
+            self._pending = None
+        else:
+            self._new()
+
+    def _command(self, command: TexCommand) -> None:
+        assert command.start_position is not None and command.end_position is not None
+        name = command.base_name
+        if name in self._commands and command.macro is None:
+            self._script(self._commands[name], command.start_position, command.end_position)
+        elif name in SCRIPT_TRANSPARENT:
+            self._primes = False
+            if self._pending is not None and name != "relax":
+                self._new()  # `x_\limits`: no argument, another error
+        else:
+            known = command.signature is not None and command.macro is None
+            self._atom(single=known and name not in COMPOSITE_SYMBOLS)
+
+    def _characters(self, node: TexContent) -> None:
+        assert node.start_position is not None and node.end_position is not None
+        (line, start), (_, end) = node.start_position, node.end_position
+        raw = self._lines[line - 1][start:end] if 1 <= line <= len(self._lines) else ""
+        for offset, character in enumerate(raw):
+            where, after = (line, start + offset), (line, start + offset + 1)
+            if character in self._changed:
+                self._new()  # its meaning is no longer sure
+            elif character in " \t":
+                self._primes = False  # TeX reads the blank after a prime
+            elif character in "_^":
+                self._script(character, where, after)
+            elif character == "'":
+                self._prime(where, after)
+            elif character in "&~":
+                self._new()  # a new cell; a space
+            else:
+                self._atom(single=True)
+
+    def _script(self, kind: str, start: Position, end: Position) -> None:
+        if self._pending is not None:
+            self._new()  # `x__b`: a script with no argument, another error
+            return
+        if self._primes and kind == "^":
+            self._primes = False
+            self._pending = "'"  # `f'^2`: the prime takes the superscript in
+            return
+        self._primes = False
+        self._hang(kind, start, end, kind)
+        self._pending = kind
+
+    def _prime(self, start: Position, end: Position) -> None:
+        if self._pending is not None:
+            self._new()  # `x^'`: not a superscript of its own
+        elif not self._primes:  # `f''`: one superscript, the primes in a row
+            self._hang("^", start, end, "'")
+            self._primes = True
+
+    def _hang(self, kind: str, start: Position, end: Position, written: str) -> None:
+        """Hang a script on the nucleus, or report the one already there."""
+        first = self._nucleus.sub if kind == "_" else self._nucleus.sup
+        if first is not None:
+            self._report(kind, first, start, end, written)
+            self._nucleus = _Nucleus()  # TeX gives the script an empty nucleus of its own
+        if kind == "_":
+            self._nucleus.sub = (start, end, written)
+        else:
+            self._nucleus.sup = (start, end, written)
+
+    def _report(
+        self, kind: str, first: tuple[Position, Position, str], start: Position, end: Position, written: str
+    ) -> None:
+        code = "double-subscript" if kind == "_" else "double-superscript"
+        prime = "'" in (written, first[2])
+        self._found.append(
+            TexDiagnostic(
+                code,
+                Severity.ERROR,
+                say(code),
+                start,
+                end,
+                (Related(first[0], first[1], say(f"{code}.related")),),
+                say(f"{code}.fix" + (".prime" if prime else "")),
+            )
+        )
+
+
 def read_meaning(tex: TexFile, files: FileFinder | None = None) -> list[TexDiagnostic]:
     """The meaning diagnostics of an analysed file, in its own positions.
 
@@ -372,6 +559,12 @@ class _Reader:
         self._uses: Counter[str] = Counter()
         self._unknown_commands: dict[str, list[TexCommand]] = defaultdict(list)
         self._unknown_environments: dict[str, list[TexGroup]] = defaultdict(list)
+        # `\sb` and `\sp`, unless the document gave them another meaning.
+        self._script_commands = {
+            name: character
+            for name, character in SCRIPT_COMMANDS.items()
+            if self._registry.command(name) == self._kernel.command(name)
+        }
 
     def read(self) -> list[TexDiagnostic]:
         unknown = self._tex.fragment
@@ -383,6 +576,8 @@ class _Reader:
     # The walk
 
     def _group(self, group: TexGroup, frame: _Frame, lefts: _Lefts | None = None) -> None:
+        if frame.trusted and frame.mode is Mode.MATH:
+            _Scripts(self._tex.lines, self._changed, self._script_commands, self._found).read(group)
         content = group.content
         bound: dict[int, TexCommand | TexGroup] = {
             id(node): group for node in group.arguments if node is not None

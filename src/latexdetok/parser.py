@@ -1,13 +1,9 @@
 """The tokeniser: from the lines of a LaTeX source to the tree of `latexdetok.classes`.
 
-The original principle is kept: a stack of open groups, whose top receives what
-is read; closing a group adds it to its parent.
+A stack of open groups, whose top receives what is read; closing a group adds it
+to its parent.
 
-Positions. The old loop recomputed the positions afterwards, through offsets
-(`decalage_pos`, `addcol - 1`, `spaces_skipped`) spread over a dozen branches
-with crossed counters; each one had its own one-column error (`\\\\` read back as
-`o\\`), and a line starting with `$` passed for empty. Here every element notes
-its position when it starts and when it ends: no position is derived.
+Positions. Every element notes its position when it starts and when it ends.
 
 Blanks. They are not nodes: `str()` finds them again in the gap between
 positions (see `classes`). The text of a line is one single node, inner spaces
@@ -60,16 +56,15 @@ command, it makes the value unknown. The branches an expanded view has decided
 are given to it (`branch_regions`): each one becomes a `TexBranch`, read apart
 if it is discarded, provisional if it is taken.
 
-Speed. The loop read one character per Python iteration, and a course is mostly
-text: 41,000 calls per course to add its letters one by one. A run of ordinary
-characters is now taken at once, through a regular expression, and a command
-name likewise. What counts as ordinary depends on the catcodes: the patterns are
-built for each table (`_patterns`), and a run stops where a forced table
-(`catcode_regions`) begins or ends. The binding is only consulted at the first
-character of a text, which keeps the character-by-character path; the result is
-identical, checked on the corpus by `scripts/fingerprints.py`. For the rest, no
-detours: nodes built without `**kwargs`, the rest of a line cut only for the
-commands that read it, debug traces computed only if they are shown.
+Speed. A run of ordinary characters is taken at once, through a regular
+expression, and a command name likewise. What counts as ordinary depends on the
+catcodes: the patterns are built for each table (`_patterns`), and a run stops
+where a forced table (`catcode_regions`) begins or ends. The binding is only
+consulted at the first character of a text, which keeps the
+character-by-character path; the result is identical, checked on the corpus by
+`scripts/fingerprints.py`. For the rest, no detours: nodes built without
+`**kwargs`, the rest of a line cut only for the commands that read it, debug
+traces computed only if they are shown.
 """
 
 import logging

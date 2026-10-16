@@ -10,6 +10,8 @@ build/
 .coverage
 htmlcov/
 .DS_Store
+VSCode.command
+*.code-workspace
 
 # The mypyc build: produced by scripts/compile.py, never committed.
 src/latexdetok/_mypyc/

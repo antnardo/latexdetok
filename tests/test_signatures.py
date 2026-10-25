@@ -135,6 +135,19 @@ class TestRegistry:
         assert registry.command("section") is None
 
 
+class TestLetOfANativeCommand:
+    def test_its_name_becomes_the_body(self):
+        registry = SignatureRegistry.kernel()
+        registry.copy_command("ldotsORIG", "ldots", CatcodeTable.latex())
+        macro = registry.macro("ldotsORIG")
+        assert (macro.body, macro.alias, registry.command("ldotsORIG").spec) == ("\\ldots", True, "")
+
+    def test_without_the_catcodes_of_the_let_only_the_signature(self):
+        registry = SignatureRegistry.kernel()
+        registry.copy_command("foo", "textbf")
+        assert (registry.macro("foo"), registry.command("foo").spec) == (None, "m")
+
+
 class TestDelegation:
     def test_the_journal_replays_the_delegation(self):
         from latexdetok.signatures import Delegation

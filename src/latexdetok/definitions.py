@@ -13,7 +13,8 @@ What is understood:
   stands;
 - `\\def\\x#1#2{…}` and `\\gdef`, `\\edef`, `\\xdef`: `m m`, if the parameters are
   not delimited; `\\def\\x#1.{…}` makes `\\x` forgotten;
-- `\\let\\x\\y`, `\\NewCommandCopy\\x\\y`: `\\x` takes the signature of `\\y`;
+- `\\let\\x\\y`, `\\NewCommandCopy\\x\\y`: `\\x` takes the signature of `\\y`, and its
+  body — or, `\\y` being a command known without one, `\\y` itself (`Macro.alias`);
 - `\\newif\\ifprof`: the boolean `prof`, false (its value is then followed by the
   tokeniser).
 
@@ -165,7 +166,7 @@ def learn(command: TexCommand, registry: SignatureRegistry, catcodes: CatcodeTab
         source = arguments[-1] if name == "let" else arguments[1]
         target, origin = _command_name(arguments[0]), _command_name(source)
         if target and origin:
-            registry.copy_command(target, origin)
+            registry.copy_command(target, origin, catcodes)
     elif name in INCLUDING_COMMANDS:
         return _inclusions(name, arguments)
     return []

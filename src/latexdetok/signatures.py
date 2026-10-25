@@ -296,6 +296,14 @@ class Macro:
     branches: `body` is `A`, taken with the star or the optional argument,
     `otherwise` is `B`. The use says which one, since its signature read the star
     or the bracket.
+
+    `alias`: `\\let\\A\\B` with `\\B` a command known without a body — the
+    kernel's, a primitive, a package's. TeX gives `\\A` the meaning `\\B` has at
+    that moment, which no later redefinition of `\\B` changes. The body is then
+    `\\B`, which replaces the name `\\A` alone, its arguments left where they are,
+    and is never expanded again: after `\\let\\ldotsORIG\\ldots`,
+    `\\renewcommand{\\ldots}{\\ldotsORIG\\xspace}` writes the kernel's `\\ldots`,
+    where expanding it once more would make the new one call itself.
     """
 
     name: str
@@ -304,6 +312,7 @@ class Macro:
     catcodes: CatcodeTable
     otherwise: str | None = None
     starred: bool = False
+    alias: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -488,8 +497,14 @@ class SignatureRegistry:
         self._macros.pop(name, None)
         self._note("forget", name)
 
-    def copy_command(self, target: str, source: str) -> None:
-        """`\\let\\target\\source`: the target takes the signature and body of the source, or forgets them."""
+    def copy_command(self, target: str, source: str, catcodes: CatcodeTable | None = None) -> None:
+        """`\\let\\target\\source`: the target takes the signature and body of the source, or forgets them.
+
+        A source known without a body gives its own name as the body (`Macro.alias`),
+        read under `catcodes`, those of the `\\let`. An unknown source makes the
+        target forgotten: TeX would make it undefined, or what a package we do not
+        read defines; the target is then left as it is written.
+        """
         signature = self._commands.get(source)
         delegation = self._delegations.get(source)
         macro = self._macros.get(source)
@@ -501,6 +516,8 @@ class SignatureRegistry:
             self.forget_command(target)
         if macro is not None and (signature is not None or delegation is not None):
             self.define(replace(macro, name=target))
+        elif signature is not None and catcodes is not None:
+            self.define(Macro(target, (), f"\\{source}", catcodes, alias=True))
 
     @contextmanager
     def record(self) -> Iterator[list[JournalEntry]]:

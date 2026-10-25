@@ -15,6 +15,10 @@ What expands, when the mandatory arguments are there:
 - a command whose body the registry keeps (`Macro`, see `definitions`). A
   missing `o` becomes `-NoValue-` there, a star or a `t` that was read becomes
   `\\BooleanTrue`, as ltcmd does it;
+- a command a `\\let` copied from one known without a body (`Macro.alias`):
+  its name alone is replaced by the source's, `\\let\\ldotsORIG\\ldots` writing the
+  kernel's `\\ldots` back, which is noted done and not expanded again — the
+  document may have redefined `\\ldots` since, in terms of `\\ldotsORIG`;
 - a user environment (`EnvironmentMacro`): its begin code is inserted after its
   arguments, its end code before `\\end`. The group of the environment stays, as
   in TeX where `\\begin` opens a group before running the begin code; so do its
@@ -715,6 +719,7 @@ class _Use:
     kept: tuple[tuple[int, int], ...] = ()
     line_end: bool = False
     space_after: bool = False
+    alias: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -930,6 +935,8 @@ def _collect(
                 token_arguments.update(id(arg) for arg in node.arguments if isinstance(arg, TexCommand))
             if node.macro is None or ("command", node.macro.name) in redefined:
                 continue
+            if node.start_position is not None and source_map.target.offset(node.start_position) in done:
+                continue  # given back by a `\let` as it was then (see `Macro.alias`)
             use = _use(
                 node,
                 id(node) in token_arguments,
@@ -1098,12 +1105,18 @@ def _use(
         return None
     if macro.name in keep or (writable and not _writable(macro)):
         return None
+    if macro.alias and writable:
+        return None  # written back, the `\let` is still there to give the name its meaning
     found = command.arguments or []
     present = [argument for argument in found if argument is not None]
     offsets = source_map.target
     start = offsets.offset(command.start_position)
     alternative, test, value = None, "", True
-    if macro.otherwise is not None:
+    values: tuple[Value, ...] = ()
+    if macro.alias:
+        # The name alone: the arguments stay where they are, for the command it gives back.
+        end = offsets.offset(command.end_position)
+    elif macro.otherwise is not None:
         # The branches replace the command alone: its arguments are the ones the branch will read.
         taken = _star_or_option(command)
         if taken is None:
@@ -1111,7 +1124,6 @@ def _use(
         alternative, value = macro.otherwise, taken
         test = "@ifstar" if command.signature is not None and command.signature.starred else "@ifnextchar"
         end = offsets.offset(command.end_position)
-        values: tuple[Value, ...] = ()
     else:
         if not _complete(macro.parameters, found):
             return None
@@ -1126,13 +1138,16 @@ def _use(
     text = offsets.text
     # The use ends on a control word (its own name, or an argument taken without braces): TeX skips
     # the blanks and the line ending after it. Otherwise, a blank after it is a space already read.
-    last_token = present[-1] if present and alternative is None else command
+    alone = alternative is not None or macro.alias  # the name is replaced, not the arguments
+    last_token = present[-1] if present and not alone else command
     after_word = isinstance(last_token, TexCommand) and is_control_word(last_token.content)
-    if after_word and (not present or alternative is None):
+    if after_word and (not present or not alone):
         while end < len(text) and text[end] in BLANKS:
             end += 1
     following = text[end : end + 1]
-    between = content[index + 1 : _last_argument(content, index, found)] if present else []
+    between = (
+        content[index + 1 : _last_argument(content, index, found)] if present and not macro.alias else []
+    )
     kept = tuple(
         _inner(node, source_map) for node in between if isinstance(node, TexBranch) and not node.taken
     )
@@ -1150,6 +1165,7 @@ def _use(
         kept=kept,
         line_end=after_word and following == "\n",
         space_after=not after_word and alternative is None and following in (" ", "\t", "\n"),
+        alias=macro.alias,
     )
 
 
@@ -1397,7 +1413,7 @@ def _reads_nothing_after(name: str, registry: SignatureRegistry, depth: int = 0)
     ends on a control word that does not. An unknown command may do anything.
     """
     macro = registry.macro(name)
-    if macro is not None:
+    if macro is not None and not macro.alias:  # an alias reads what its source read: its signature
         if macro.parameters or macro.otherwise is not None or macro.starred:
             return False
         tail = macro.body[-CONTROL_WORD_TAIL:].rstrip(BLANKS)
@@ -1546,6 +1562,9 @@ class _Writer:
             self._write("{", expansion)
         if use.alternative is None:
             self._write_body(use.body, use)
+            if use.alias:
+                # The command a `\let` gives back is the one it had then: never expanded again.
+                self.done.add(self._length - len(use.body))
         else:
             condition = Condition(use.test, use.value, expansion.start, expansion.end, expansion.parent)
             self.conditions.append(condition)

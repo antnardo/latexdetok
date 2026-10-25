@@ -916,7 +916,7 @@ own copy of the kernel.
 | `booleans()` | `frozenset` | the `(name, value)` pairs |
 | `define(definition)` | `None` | records a signature, a delegation, a body or a boolean; the last definition of a name wins, and a new signature forgets its body |
 | `forget_command(name)` | `None` | forgets signature, delegation and body |
-| `copy_command(target, source)` | `None` | `\let\target\source` |
+| `copy_command(target, source, catcodes=None)` | `None` | `\let\target\source`; a source known without a body gives its own name as the body (`Macro.alias`), read under `catcodes` |
 | `record()` | a context manager | returns the list where the `("define", definition, global)` and `("forget", name, global)` of the block are noted; not the local ones made in a group the block opened, which that group undoes |
 | `replay(journal)` | `None` | replays a journal where the stack stands now: local entries end with the group open, global ones outlive it |
 | `globally()` | a context manager | the definitions of the block outlive every group (`\gdef`, `\global\let`) |
@@ -959,7 +959,7 @@ tuple[str, str]`: `(name, extension)`.
 | `\NewDocumentCommand{\x}{s o m}{…}` and its relatives, `\NewDocumentEnvironment` | the signature as it stands; the body if its parameters are `m`, `o`, `O{…}`, `t` or the leading star |
 | `\def\x#1#2{…}`, `\gdef` | `m m` and the body, if the parameters are not delimited; otherwise `\x` is forgotten |
 | `\edef`, `\xdef` | the signature, without the body (expanded at definition time) |
-| `\let\x\y`, `\NewCommandCopy\x\y` and their relatives | `\x` takes the signature and the body of `\y` |
+| `\let\x\y`, `\NewCommandCopy\x\y` and their relatives | `\x` takes the signature and the body of `\y`; `\y` known without a body (kernel, primitive, package), `\x` expands to `\y` as it was then, never expanded again |
 | `\newif\ifprof` | the boolean `prof`, false |
 | `\input`, `\include`, `\usepackage`, `\RequirePackage`, `\documentclass`, `\LoadClass`, `\InputIfFileExists` | nothing: the file is returned, with its extension |
 

@@ -5,6 +5,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Fixed
+
+- `\let\A\B` with `\B` a command of the kernel, a primitive or a package's
+  left `\A` unexpanded: `\let\ldotsORIG\ldots` then
+  `\renewcommand{\ldots}{\ldotsORIG\xspace}` gave `\ldotsORIG\xspace`, a name
+  defined nowhere for whoever reads the expanded text. `\A` now expands to `\B`
+  as it was then — its name alone, its arguments left in place
+  (`\let\foo\textbf`, `\foo{x}` gives `\textbf{x}`) — and that `\B` is never
+  expanded again, where the new `\ldots` would call itself. The same for
+  `\NewCommandCopy`. A `\let` from a macro of the author still copies its body;
+  one from a name nobody defines leaves `\A` as it is written. Found by the
+  cahier de texte, whose section titles showed `\ldotsORIG`.
+
 ## [0.7.0] — 2026-10-16
 
 ### Added

@@ -662,6 +662,59 @@ class TestKeep:
         assert last_line(expand(tex, writable=True)) == "$\\mathbb{R}$"
 
 
+class TestLet:
+    """`\\let\\A\\B` gives `\\A` the meaning `\\B` has then. Found by the cahier de texte."""
+
+    LDOTS = "\\let\\ldotsORIG\\ldots\n\\renewcommand{\\ldots}{\\ldotsORIG\\xspace}\nNe pas\\ldots\n"
+
+    def test_a_native_command_is_given_back_as_itself(self, view):
+        assert last_line(view(self.LDOTS)) == "Ne pas\\ldots\\xspace"
+
+    def test_what_it_gives_back_is_not_expanded_again(self, view):
+        # The new `\\ldots`, then the `\\ldotsORIG` it writes; the kernel's `\\ldots` given back stays.
+        assert [expansion.name for expansion in view(self.LDOTS).expansions] == ["ldots", "ldotsORIG"]
+
+    @pytest.mark.parametrize("let", ["\\let\\vectORIG\\vect", "\\global\\let\\vectORIG=\\vect"])
+    def test_a_macro_of_the_author_is_copied(self, view, let):
+        source = (
+            f"\\newcommand{{\\vect}}[1]{{\\vec{{#1}}}}\n{let}\n"
+            "\\renewcommand{\\vect}[1]{\\boldsymbol{\\vectORIG{#1}}}\n$\\vect{u}$\n"
+        )
+        assert last_line(view(source)) == "$\\boldsymbol{\\vec{u}}$"
+
+    @pytest.mark.parametrize(
+        ("source", "expected"),
+        [
+            ("\\let\\foo\\textbf\n\\foo{x}\n", "\\textbf{x}"),
+            ("\\NewCommandCopy\\foo\\textbf\n\\foo{x}\n", "\\textbf{x}"),
+            ("\\let\\foo\\textbf\n\\foo {x}\n", "\\textbf {x}"),
+            ("\\let\\oldpar\\par\na\\oldpar b\n", "a\\par b"),
+            ("\\let\\x\\ldots\n\\let\\y\\x\nA\\y\n", "A\\ldots"),
+            ("\\let\\x\\LaTeX\n\\x suite\n", "\\LaTeX suite"),
+        ],
+        ids=["argument", "copy", "blank", "primitive", "twice", "letter"],
+    )
+    def test_the_name_alone_is_replaced(self, view, source, expected):
+        assert last_line(view(source)) == expected
+
+    def test_it_keeps_the_space_its_source_kept(self, view):
+        # The space after `\\z{a}` is read before the body runs: the kernel's `\\ldots` may not
+        # swallow it, whatever the new `\\ldots`, which ends on `\\xspace`, would do.
+        source = (
+            "\\let\\ldotsORIG\\ldots\n\\renewcommand{\\ldots}{\\ldotsORIG\\xspace}\n"
+            "\\newcommand{\\z}[1]{#1\\ldotsORIG}\n\\z{a} words\n"
+        )
+        assert last_line(view(source)) == "a\\ldots{} words"
+
+    def test_an_unknown_source_leaves_the_name_as_written(self, view):
+        # TeX makes `\\bar` undefined — or what a package we do not read defines it as.
+        assert last_line(view("\\let\\bar\\inconnue\n\\bar{x}\n")) == "\\bar{x}"
+
+    def test_written_back_the_let_is_there_to_give_the_name_its_meaning(self, parse):
+        written = expand(parse(self.LDOTS), writable=True).compilable().splitlines()[-1]
+        assert written == "Ne pas\\ldotsORIG\\xspace"
+
+
 class TestCompilable:
     """The view written back: what it keeps for the analysis goes, the rest is its text."""
 

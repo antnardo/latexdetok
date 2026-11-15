@@ -95,6 +95,49 @@ class TestCommands:
         assert tree("\\item   b\n") == ["\\item", "b"]
 
 
+class TestCarets:
+    """A character written `^^` plays the role of the one it stands for, as in TeX."""
+
+    @pytest.mark.parametrize(
+        ("source", "expected"),
+        [
+            ("\\wr^^69te18{ls}\n", ["\\write", "18", ("{", ["ls"])]),
+            ("\\^^69nput{a}\n", ["\\input", ("{", ["a"])]),
+            ("\\dir^^65ctlua{x}\n", ["\\directlua", ("{", ["x"])]),
+            ("\\textbf^^7bx^^7d\n", ["\\textbf", ("{", ["x"])]),
+            ("^^5cinput{a}\n", ["\\input", ("{", ["a"])]),
+            ("\\^^M\n", ["\\^^M"]),
+            ("\\^^25a\n", ["\\%", "a"]),
+            ("\\^{o}\n", ["\\^", ("{", ["o"])]),
+            ("a^^41b\n", ["aAb"]),
+            ("a^^20b\n", ["a b"]),
+            ("a^^25 b\n", ["a", "% b"]),
+            ("a^^M b\n", ["a b"]),
+            ("{\\obeylines \\gdef\\x{^^M}}\n", [("{", ["\\obeylines", "\\gdef", "\\x", ("{", [])])]),
+            ("^^24x^^24\n", [("$", ["x"])]),
+            ("^^24^^24x$$\n", [("$$", ["x"])]),
+            ("a^^é\n", ["a^^é"]),
+        ],
+    )
+    def test_the_character_it_stands_for(self, tree, source, expected):
+        assert tree(source) == expected
+
+    def test_a_name_written_with_carets_keeps_its_source(self, parse):
+        command = parse("x \\wr^^69te18\n").container[1]
+        assert (command.name, command.raw_text(), command.end_position) == ("write", "\\wr^^69te", (1, 11))
+
+    def test_a_text_ends_after_the_form(self, parse):
+        text = parse("a^^41\n").container[0]
+        assert (text.content, text.raw_text()) == ("aA", "a^^41")
+
+    def test_a_definition_and_its_use_name_the_same_command(self, parse):
+        tex = parse("\\def\\^^M{x}\n\\^^M\n")
+        assert tex.signatures.macro("\r") is not None
+
+    def test_a_superscript_made_other_is_no_caret(self, tree):
+        assert tree("\\catcode`\\^=12 a^^41\n")[-1] == "12 a^^41"
+
+
 class TestPackageSignatures:
     """`data/packages.txt`: what packages declare through code, written by hand."""
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from latexdetok import CatcodeChange, CatcodeTable, Category, TexFile
+from latexdetok import CatcodeChange, CatcodeTable, Category, TexCommand, TexFile
 from latexdetok.catcodes import interpret
 
 
@@ -15,7 +15,8 @@ class TestTable:
             ("}", Category.END_GROUP),
             ("$", Category.MATH_SHIFT),
             ("&", Category.ALIGNMENT),
-            ("\n", Category.END_OF_LINE),
+            ("\r", Category.END_OF_LINE),
+            ("\n", Category.OTHER),
             ("#", Category.PARAMETER),
             ("^", Category.SUPERSCRIPT),
             ("_", Category.SUBSCRIPT),
@@ -88,6 +89,31 @@ class TestInterpret:
         on, off = interpret("ExplSyntaxOn", ""), interpret("ExplSyntaxOff", "")
         table = CatcodeTable.latex().with_categories(on).with_categories(off)
         assert (on["_"], on[" "], table) == (Category.LETTER, Category.IGNORED, CatcodeTable.latex())
+
+
+class TestCaretAssignments:
+    @pytest.mark.parametrize(
+        ("following", "character"),
+        [
+            ("`\\^^M=13", "\r"),
+            ("`^^M=13", "\r"),
+            ("`\\^^e9=11", "é"),
+            ("`\\^^5c=12", "\\"),
+            ("`\\\xa0 12", "\xa0"),
+            ("`\\ =10", " "),
+            ("`\\^=12", "^"),
+        ],
+    )
+    def test_the_character_is_read_as_tex_reduces_it(self, following, character):
+        assert list(interpret("catcode", following) or {}) == [character]
+
+    def test_a_letter_written_with_carets_continues_a_name(self, parse):
+        tex = parse("\\catcode`\\^^e9=11 \\caf^^e9 x\n")
+        assert [node.name for node in tex.container.iter() if isinstance(node, TexCommand)][-1] == "café"
+
+    def test_the_line_end_made_active_leaves_blank_lines_alone(self, parse):
+        tex = parse("{\\catcode`\\^^M=13 }\n\na\n")
+        assert tex.container[1].is_par()
 
 
 class TestReading:
@@ -228,7 +254,7 @@ class TestImplicitExpl3:
     def test_the_change_is_noted_under_the_declaration(self, tmp_path):
         tex = self.package(tmp_path, "")
         assert {(change.command, change.character) for change in tex.catcode_changes} == {
-            ("ProvidesExplPackage", character) for character in "_: \t\r\n~"
+            ("ProvidesExplPackage", character) for character in "_: \t\r~"
         }
 
     def test_a_document_that_provides_nothing_reads_an_ordinary_underscore(self, tmp_path):

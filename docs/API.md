@@ -706,6 +706,14 @@ TeX: braces that are nobody's argument, an environment, math, `\begingroup`
 of another is not learned there: it is made where that other is used, which the
 expanded view reads.
 
+A character written in the `^^` notation (`^^69`, `^^M`, `^^e9`, LuaTeX's
+`^^^^00e9`) is read as the one it stands for, which TeX does before it looks at
+the category: in a name (`\wr^^69te` is `\write`), in a text (`a^^41` is `aA`),
+as a brace, a `$` or a comment. A `^^M` still taken for the line end is a
+blank: TeX would drop the rest of the line, but whoever writes it has made it
+active, which the tokeniser may not know (`\obeylines`). The positions and
+`raw_text()` keep the form as it is written.
+
 ### `unknown_command_before` and `UNTYPESET_ARGUMENTS`
 
 `unknown_command_before(content)` returns the unknown command whose arguments
@@ -780,6 +788,9 @@ A limit: a category can take its role away from `%`, `$`, `{`, `\` or make a
 character a letter, a blank or an ignored character, but it cannot give a
 special role to another character (`\catcode`\|=0`): those characters stay text.
 
+The line end is TeX's, `^^M` (`"\r"`); `"\n"`, which is `^^J`, is other, as in
+LaTeX.
+
 ### `CatcodeChange`
 
 A frozen dataclass: `position`, `character`, `old`, `new` (`Category`),
@@ -795,7 +806,7 @@ interpret(command: str, following: str) -> dict[str, Category] | None
 The categories `\command` changes, followed by the rest of its line; `None` if
 it changes none. Understands `\makeatletter`, `\makeatother`, `\ExplSyntaxOn`,
 `\ExplSyntaxOff`, `\@makeother\X` and `\catcode` in its numeric forms
-(`` `\@=11 ``, `64=11`, `"40`, `'100`, `` `\^^M ``, `\active`, `\@letter`,
+(`` `\@=11 ``, `64=11`, `"40`, `'100`, `` `\^^M ``, `` `\^^e9 ``, `\active`, `\@letter`,
 `\@other`). `CATCODE_COMMANDS` is the set of those commands.
 
 `EXPL_DECLARATIONS` holds the three others: `\ProvidesExplPackage`,
@@ -1354,9 +1365,11 @@ back to English.
 | `MATH_DELIMITERS` | opening → closing of math: `$`, `$$`, `\[`, `\(` |
 | `NOT_VERBATIM_DELIMITERS` | after a verbatim name, these characters make it a name being quoted, not a use |
 | `TEX_ROOT`, `TEX_ROOT_LINES` | the `% !TEX root = …` declaration, looked for in the first 20 lines |
+| `caret_notation(text)` | the text, its control characters written as TeX prints them (`^^M`, `^^?`) |
 | `collapse_spaces(text)` | blanks collapsed the way TeX does, the non-breaking space kept |
 | `index_in_line(line, column)` | the index of a column in a line; beyond the text of the line, the index after its line ending, whatever its width |
 | `is_control_word(name)` | does TeX skip the blanks after `\name`? After letters, yes; not after a control symbol (`\,`) nor a star |
+| `reduce_caret(text, col)` | the character TeX reads for the `^^` form at `col` and the columns it takes (`^^69` → `("i", 4)`, `^^M`, `^^^^00e9`), or `None` |
 | `valid_command_name(name)` | letters (ASCII, `@`, `_`, `:`) or a single character, a trailing star allowed |
 | `valid_group_start(c)` | does `c` open a group? |
 

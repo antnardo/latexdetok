@@ -26,7 +26,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from latexdetok import ExpandedFile, Severity, TexContent, TexFile, TexGroup, expand
-from latexdetok.characters import collapse_spaces
+from latexdetok.characters import caret_notation, collapse_spaces, reduce_caret
 from latexdetok.checks import diagnose
 
 IGNORED_PARTS = {"backup", ".sauvegardes"}
@@ -50,17 +50,38 @@ def walk(node):
             yield from walk(child)
 
 
+def reduced(raw: str) -> str:
+    """The source with its `^^` forms read as TeX reads them, one character each (see `characters`)."""
+    if "^^" not in raw:
+        return raw
+    characters, col = [], 0
+    while col < len(raw):
+        form = reduce_caret(raw, col) if raw.startswith("^^", col) else None
+        character, width = form or (raw[col], 1)
+        characters.append(character)
+        col += width
+    return "".join(characters)
+
+
 def rereads_source(node) -> bool:
     raw = LINE_ENDING.sub("\n", node.raw_text())
     if node.is_par():
         return not raw.strip()
     if node.is_pure_text():
-        return collapse_spaces(raw) == node.content
+        # A `^^J` read in a text is a character of its own, which `collapse_spaces` takes for a blank.
+        return collapse_spaces(reduced(raw)) == collapse_spaces(node.content)
     if isinstance(node, TexGroup):
         opening, closing = node.enclosures()
+        raw = reduced(raw)
         return re.sub(r"\s", "", raw).startswith(re.sub(r"\s", "", opening)) and raw.endswith(closing)
-    # `\` at the end of a line rewrites as the control space `\ `.
-    return raw == str(node) or (node.is_command(" ") and raw == "\\")
+    # A comment or a verbatim keeps its source, a command written `^^` is rewritten reduced,
+    # and `\` at the end of a line rewrites as the control space `\ `.
+    rewritten = str(node)
+    return (
+        raw == rewritten
+        or caret_notation(reduced(raw)) == rewritten
+        or (node.is_command(" ") and raw == "\\")
+    )
 
 
 def copied_text_matches(view: ExpandedFile, node) -> bool:

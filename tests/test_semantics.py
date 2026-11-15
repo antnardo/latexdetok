@@ -332,6 +332,7 @@ class TestDoubleScripts:
             ("$\\vec{u}_z_0$", "double-subscript"),
             ("$x_a^b_c$", "double-subscript"),
             ("$x^a^b$", "double-superscript"),
+            ("$x^a^^5eb$", "double-superscript"),
             ("$x^a_b^c$", "double-superscript"),
             ("$f^2'$", "double-superscript"),
             ("$x^{\\prime}^2$", "double-superscript"),

@@ -1201,6 +1201,31 @@
    "rule": "already-defined",
    "refused": false,
    "full": "\\documentclass{minimal}\n\\begin{document}\n\\newenvironment{figure}{}{}\n\\end{document}\n"
+  },
+  {
+   "rule": "script-without-argument",
+   "refused": false,
+   "body": "$x^^2$"
+  },
+  {
+   "rule": "script-without-argument",
+   "refused": false,
+   "body": "$x^^41 + y^^5e2$"
+  },
+  {
+   "rule": "script-outside-math",
+   "refused": true,
+   "body": "a^^5e b"
+  },
+  {
+   "rule": "script-outside-math",
+   "refused": false,
+   "body": "a^^41b {\\catcode`\\^^M=13 }c \\newlinechar=`\\^^J \\typeout{d^^Je}"
+  },
+  {
+   "rule": "script-outside-math",
+   "refused": false,
+   "body": "\\^^69mmediate\\wr^^69te16{f} ^^5ctextbf{g} h^^25 i"
   }
  ]
 }

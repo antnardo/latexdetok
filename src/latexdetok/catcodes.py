@@ -25,6 +25,8 @@ from dataclasses import dataclass
 from enum import IntEnum
 from string import ascii_letters
 
+from latexdetok.characters import reduce_caret
+
 __all__ = [
     "CATCODE_COMMANDS",
     "EXPL_DECLARATIONS",
@@ -59,7 +61,9 @@ class Category(IntEnum):
 
 # LaTeX's table for a document (latex.ltx). The form feed and the vertical tab are
 # active and superscript there; we read them as blanks, which course sources do not
-# use and which thereby leave the lines intact.
+# use and which thereby leave the lines intact. The line end is TeX's, `^^M`, the one
+# character `\endlinechar` puts at the end of every line: `^^J` stays other, as in
+# LaTeX, where `\typeout{a^^Jb}` writes two lines without breaking the source.
 _LATEX: dict[str, Category] = {
     "\\": Category.ESCAPE,
     "{": Category.BEGIN_GROUP,
@@ -67,7 +71,6 @@ _LATEX: dict[str, Category] = {
     "$": Category.MATH_SHIFT,
     "&": Category.ALIGNMENT,
     "\r": Category.END_OF_LINE,
-    "\n": Category.END_OF_LINE,
     "#": Category.PARAMETER,
     "^": Category.SUPERSCRIPT,
     "_": Category.SUBSCRIPT,
@@ -89,14 +92,14 @@ EXPL_SYNTAX: dict[str, Category] = {
     " ": Category.IGNORED,
     "\t": Category.IGNORED,
     "\r": Category.IGNORED,
-    "\n": Category.IGNORED,
     "~": Category.SPACE,
 }
 
 
 # `\catcode <character> [=] <category>`: `\@=11`, `` `@=11 ``, `64=11`, `"40=11`, `'100=11`, `` `\^^M=13 ``.
+# After `` `\ `` any character is the one meant, a blank too: `` `\ =10 `` is the space.
 CATCODE_ASSIGNMENT = re.compile(
-    r"""\s*(?:`\\?(?:\^\^(?P<caret>.)|(?P<character>\S))|(?P<decimal>\d+)|"(?P<hex>[0-9A-F]+)|'(?P<octal>[0-7]+))"""
+    r"""\s*(?:`(?:\\?\^\^(?P<caret>[0-9a-f]{2}|.)|\\(?P<escaped>.)|(?P<character>\S))|(?P<decimal>\d+)|"(?P<hex>[0-9A-F]+)|'(?P<octal>[0-7]+))"""
     r"""\s*=?\s*(?P<value>\d+|\\active|\\@letter|\\@other)"""
 )
 NAMED_CATEGORIES = {"\\active": Category.ACTIVE, "\\@letter": Category.LETTER, "\\@other": Category.OTHER}
@@ -237,8 +240,11 @@ def interpret(command: str, following: str) -> dict[str, Category] | None:
     if match is None:
         return None
     if match["caret"] is not None:
-        code = ord(match["caret"])
-        character = chr(code - 64 if code >= 64 else code + 64)
+        caret = match["caret"]
+        reduced = reduce_caret("^^" + caret, 0)
+        character = reduced[0] if reduced is not None else caret
+    elif match["escaped"] is not None:
+        character = match["escaped"]
     elif match["character"] is not None:
         character = match["character"]
     elif match["decimal"] is not None:

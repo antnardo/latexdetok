@@ -5,6 +5,36 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Fixed
+
+- A character written in TeX's `^^` notation was read as two superscripts and
+  what follows them, where TeX reduces the form to the one character it stands
+  for before it looks at its category, in a command name as in the text. Hence
+  valid LaTeX reported: `\catcode`\^^M=13` and `\newlinechar`\^^J` as
+  superscripts outside math, `$x^^2$` (TeX's `$xr$`) as a superscript with no
+  argument. And command names read wrong: `\wr^^69te18` was `\wr` followed by
+  text, `^^5cinput` no command at all, so that a filter on names let through a
+  `\write18` or an `\input`. Every form is now read as TeX reads it — `^^M`,
+  `^^e9`, and LuaTeX's `^^^^00e9` and `^^^^^^0000e9` — wherever the character
+  may be: a name (`\wr^^69te` is `\write`), a text (`a^^41` is `aA`), a brace,
+  a `$`, a comment (`^^25`), a superscript (`$x^a^^5eb$` is a double
+  superscript), and the character of a `\catcode`. The positions and
+  `raw_text()` keep the form as it is written; `str()` writes a control
+  character as TeX prints it (`\^^M`). One exception: a `^^M` still taken for
+  the line end is read as a blank, where TeX would drop the rest of the line,
+  for whoever writes it has made it active — by `\obeylines`, or a `\catcode`
+  the tokeniser does not follow — and a `}` lost with the line would be an
+  error TeX does not make. Found by the audit of texformules, which reads the
+  names of the commands a formula runs.
+- `` \catcode`\X `` takes any character after the backslash, a blank too:
+  `` `\ =10 `` changed the category of `\` itself, and `` `\<U+00A0> `` too.
+
+### Changed
+
+- The line end of the catcode tables is TeX's, `^^M` (`"\r"`): `"\n"`, which is
+  `^^J`, is now `OTHER`, as in LaTeX, in `CatcodeTable.latex()` and in
+  `EXPL_SYNTAX`. A `\catcode`\^^J` no longer changes how lines end.
+
 ## [0.7.1] — 2026-10-25
 
 ### Fixed

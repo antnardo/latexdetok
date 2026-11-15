@@ -40,6 +40,7 @@ from latexdetok.characters import (
     MATH_DELIMITERS,
     MATHS_MODE_CAR,
     ROOT_NAME,
+    caret_notation,
     valid_command_name,
     valid_group_start,
 )
@@ -773,7 +774,8 @@ class TexContent(TexContainer):
         return self.content
 
     def __str__(self) -> str:
-        return ("\\" if self.command else "") + self.content
+        # A character read from a `^^` form may be a control one (`\^^M`): written as TeX prints it.
+        return ("\\" if self.command else "") + caret_notation(self.content)
 
 
 class TexCommand(TexContent):

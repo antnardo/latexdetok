@@ -29,12 +29,13 @@ write what they write (see `checks`).
 
 import re
 from collections import Counter, defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, replace
 from functools import cache
 from typing import Protocol
 
 from latexdetok.analyse import TexFile
+from latexdetok.characters import reduce_caret
 from latexdetok.classes import (
     Position,
     TexBranch,
@@ -614,8 +615,8 @@ class _MathList:
         assert node.start_position is not None and node.end_position is not None
         (line, start), (_, end) = node.start_position, node.end_position
         raw = self._lines[line - 1][start:end] if 1 <= line <= len(self._lines) else ""
-        for offset, character in enumerate(raw):
-            where, after = (line, start + offset), (line, start + offset + 1)
+        for offset, character, width in _source_characters(raw, self._changed):
+            where, after = (line, start + offset), (line, start + offset + width)
             if character in self._changed:
                 self._new()  # its meaning is no longer sure
             elif character in " \t":
@@ -1089,7 +1090,7 @@ class _Reader:
         assert node.start_position is not None and node.end_position is not None
         (line, start), (_, end) = node.start_position, node.end_position
         raw = self._tex.lines[line - 1][start:end] if 1 <= line <= len(self._tex.lines) else ""
-        ampersand = raw.find("&")
+        ampersand, _ = _find(raw, "&", self._changed)
         if ampersand >= 0 and "&" not in self._changed:
             where = (line, start + ampersand)
             if frame.alignment and lefts.open:
@@ -1098,7 +1099,7 @@ class _Reader:
                 self._ampersand(where, frame)
         if frame.mode is Mode.TEXT:
             for character in "^_":
-                column = raw.find(character)
+                column, width = _find(raw, character, self._changed)
                 if column >= 0 and character not in self._changed:
                     where = (line, start + column)
                     written = "\\textasciicircum" if character == "^" else "\\_"
@@ -1108,7 +1109,7 @@ class _Reader:
                             Severity.ERROR,
                             say("script-outside-math", character=character),
                             where,
-                            (line, start + column + 1),
+                            (line, start + column + width),
                             suggestion=say("script-outside-math.fix", character=character, written=written),
                         )
                     )
@@ -1572,7 +1573,7 @@ class _Reader:
                 assert node.start_position is not None and node.end_position is not None
                 (line, start), (_, end) = node.start_position, node.end_position
                 raw = self._tex.lines[line - 1][start:end] if 1 <= line <= len(self._tex.lines) else ""
-                for offset, character in enumerate(raw):
+                for offset, character, _ in _source_characters(raw, self._changed):
                     if character == "&" and "&" not in self._changed:
                         position += span
                         span, cell_typeset = 1, False
@@ -2050,3 +2051,35 @@ def _reads_more(container: TexGroup) -> bool:
         if isinstance(node, TexCommand) and node.base_name in ("input", "include", "InputIfFileExists"):
             return True
     return False
+
+
+def _source_characters(raw: str, changed: set[str]) -> Iterator[tuple[int, str, int]]:
+    """The characters of a source text as TeX reads them: offset, character, columns taken.
+
+    A `^^` form is one character (see `characters`): `$x^^2$` is `$xr$`, with no
+    superscript. Not where the document changes what `^` is.
+    """
+    if "^^" not in raw or "^" in changed:
+        for offset, character in enumerate(raw):
+            yield offset, character, 1
+        return
+    offset = 0
+    while offset < len(raw):
+        character, width = raw[offset], 1
+        if character == "^" and raw.startswith("^", offset + 1):
+            reduced = reduce_caret(raw, offset)
+            if reduced is not None:
+                character, width = reduced
+        yield offset, character, width
+        offset += width
+
+
+def _find(raw: str, wanted: str, changed: set[str]) -> tuple[int, int]:
+    """Where TeX first reads `wanted` in a source text, and the columns it takes; `(-1, 0)` if nowhere."""
+    if "^^" not in raw or "^" in changed:
+        offset = raw.find(wanted)
+        return offset, 1 if offset >= 0 else 0
+    for offset, character, width in _source_characters(raw, changed):
+        if character == wanted:
+            return offset, width
+    return -1, 0

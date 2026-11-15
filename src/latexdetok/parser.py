@@ -56,6 +56,11 @@ command, it makes the value unknown. The branches an expanded view has decided
 are given to it (`branch_regions`): each one becomes a `TexBranch`, read apart
 if it is discarded, provisional if it is taken.
 
+Carets. A character may be written `^^` (see `characters`): it is reduced where
+it is read — by the loop, in the name of a command, as the second `$` of `$$` —
+and plays the role of the one it stands for, over every column of its form. A
+run of text stops before one.
+
 Speed. A run of ordinary characters is taken at once, through a regular
 expression, and a command name likewise. What counts as ordinary depends on the
 catcodes: the patterns are built for each table (`_patterns`), and a run stops
@@ -90,6 +95,7 @@ from latexdetok.characters import (
     ROOT_NAME,
     SPACE_CARS,
     collapse_spaces,
+    reduce_caret,
 )
 from latexdetok.classes import (
     Position,
@@ -312,7 +318,7 @@ class TexParser:
                 col = resumed
             elif not body.strip(SPACE_CARS):
                 # An ignored line ending (`\ExplSyntaxOn`) makes no paragraph.
-                if self._catcodes.category("\n") is Category.END_OF_LINE:
+                if self._catcodes.category("\r") is Category.END_OF_LINE:
                     self._blank_line(lineno, body, previous_blank)
                     previous_blank = True
                 continue
@@ -378,31 +384,47 @@ class TexParser:
             # plays it (see `catcodes`): a `|` made an escape would stay text.
             catcodes = self._imposed or self._pile[-1].catcodes
             category = catcodes.category(c)
+            # A character written `^^` (see `characters`) takes `width` columns and plays the
+            # role of the one it stands for: `^^5cinput` is `\input`, `^^25` a comment.
+            width = 1
+            if category is Category.SUPERSCRIPT and body.startswith(c, col + 1):
+                reduced = reduce_caret(body, col)
+                if reduced is not None:
+                    c, width = reduced
+                    category = catcodes.category(c)
             if category in BLANK_CATEGORIES:
                 self._pending_space = bool(self._text)
+                if width > 1:
+                    # Written `^^M`, the line end would end the line, and TeX drops what follows.
+                    # But whoever writes `^^M` has made it active or other, by `\obeylines` or a
+                    # `\catcode` we do not follow: it is a blank, which may hide a mistake
+                    # but never makes one up — a `}` lost with the rest of the line would.
+                    col += width
+                    continue
                 limit = len(body) if regions is None else _region_boundary(regions, col, len(body))
                 blanks = _patterns(catcodes).blank_run.match(body, col, limit)
                 col = col + 1 if blanks is None else max(blanks.end(), col + 1)
             elif category is Category.IGNORED:
-                col += 1
+                col += width
             elif category is Category.COMMENT and c == "%":
                 if self._text:
                     self._flush_text()
-                self._add(TexComment(body[col + 1 :], (lineno, col), (lineno, len(body)), self._rootfile))
+                comment = TexComment(body[col + width :], (lineno, col), (lineno, len(body)), self._rootfile)
+                self._add(comment)
                 return
             elif category is Category.ESCAPE and c == "\\":
-                col = self._command(lineno, body, col)
+                col = self._command(lineno, body, col, col + width)
             elif category is Category.MATH_SHIFT and c == MATHS_MODE_CAR:
-                col = self._dollar(lineno, body, col)
+                col = self._dollar(lineno, body, col, width)
             elif (category is Category.BEGIN_GROUP and c == "{") or (
                 c == "[" and category is Category.OTHER and self._opens_option()
             ):
                 if self._text:
                     self._flush_text()
                 group = TexGroup(c, position=(lineno, col), rootfile=self._rootfile)
-                token = TexContent(c, (lineno, col), (lineno, col + 1), self._rootfile)
-                self._open(group, (lineno, col + 1), [token])
-                col += 1
+                token = TexContent(c, (lineno, col), (lineno, col + width), self._rootfile)
+                self._open(group, (lineno, col + width), [token])
+                col += width
             elif (
                 category is Category.END_GROUP
                 and c == "}"
@@ -410,26 +432,31 @@ class TexParser:
             ):
                 if self._text:
                     self._flush_text()
-                self._dissolve_until(_is_brace, True, Cause.BRACE, "}", ((lineno, col), (lineno, col + 1)))
-                self._close_top(lineno, col, width=1)
-                col += 1
+                at = ((lineno, col), (lineno, col + width))
+                self._dissolve_until(_is_brace, True, Cause.BRACE, "}", at)
+                self._close_top(lineno, col, width=width)
+                col += width
             elif c == "]" and category is Category.OTHER and self._top.option:
                 if self._text:
                     self._flush_text()
-                self._close_top(lineno, col, width=1)
-                col += 1
-            elif c in SPECIAL_CHARACTERS or (self._pile[-1].binding is not None and not self._text):
-                col = self._character(lineno, body, col)
+                self._close_top(lineno, col, width=width)
+                col += width
+            elif (
+                width > 1
+                or c in SPECIAL_CHARACTERS
+                or (self._pile[-1].binding is not None and not self._text)
+            ):
+                col = self._character(lineno, body, col, c, width)
             else:
                 limit = len(body) if regions is None else _region_boundary(regions, col, len(body))
                 col = self._text_run(lineno, body, col, limit)
 
-    def _character(self, lineno: int, body: str, col: int) -> int:
-        c = body[col]
+    def _character(self, lineno: int, body: str, col: int, c: str, width: int) -> int:
+        """Add the character `c`, which takes `width` columns at `col` (see `_parse_line`)."""
         binding = self._pile[-1].binding
         wanted = binding.wants_character(c) if binding is not None and not self._text else None
         if wanted == "delimited":
-            closing = _closing_delimiter(body, col, c, _CLOSERS.get(c, c))
+            closing = _closing_delimiter(body, col + width - 1, c, _CLOSERS.get(c, c))
             if closing is not None:
                 text = collapse_spaces(body[col : closing + 1])
                 self._add(TexContent(text, (lineno, col), (lineno, closing + 1), self._rootfile))
@@ -438,11 +465,11 @@ class TexParser:
             context = self._context()
             if context is not None:
                 self._report.extra_brace((lineno, col), _last_brace(self._pile[-1].group), context)
-        self._add_text(lineno, col, c)
+        self._add_text(lineno, col, c, width)
         if wanted == "token":
             # An argument without braces is only one character: `\frac12`.
             self._flush_text()
-        return col + 1
+        return col + width
 
     def _text_run(self, lineno: int, body: str, col: int, limit: int) -> int:
         """Add at once the ordinary characters that follow, inner blanks collapsed.
@@ -456,6 +483,16 @@ class TexParser:
         match = patterns.run.match(body, col, limit)
         assert match is not None  # the first character is ordinary
         end = match.end()
+        for pair in patterns.caret_pairs:
+            # A `^^` form is one character, of its own category: the run stops before it.
+            # Not at `col`, which `_parse_line` would have reduced.
+            at = body.find(pair, col + 1, end)
+            while at != -1 and reduce_caret(body, at) is None:
+                at = body.find(pair, at + 1, end)
+            if at != -1:
+                match = patterns.run.match(body, col, at)
+                assert match is not None
+                end = match.end()
         text = match.group()
         if patterns.blanks is not None:
             text = patterns.blanks.sub(" ", text)
@@ -476,14 +513,14 @@ class TexParser:
         if not previous_blank:
             self._add(TexContent("", (lineno, 0), (lineno, len(body)), self._rootfile))
 
-    def _add_text(self, lineno: int, col: int, c: str) -> None:
+    def _add_text(self, lineno: int, col: int, c: str, width: int = 1) -> None:
         if not self._text:
             self._text_start = (lineno, col)
         elif self._pending_space:
             self._text += " "
         self._text += c
         self._pending_space = False
-        self._text_end = (lineno, col + 1)
+        self._text_end = (lineno, col + width)
 
     def _flush_text(self) -> None:
         if self._text:
@@ -493,22 +530,19 @@ class TexParser:
 
     # Commands
 
-    def _command(self, lineno: int, body: str, col: int) -> int:
+    def _command(self, lineno: int, body: str, col: int, start: int) -> int:
+        """Read the command whose escape character is at `col`, and its name from `start`."""
         if self._text:
             self._flush_text()
         self._settle_binding(command=True)
-        start = col + 1
         if start >= len(body):
             # `\` at the end of a line: TeX reads a control space there.
             name, end = " ", start
         else:
-            catcodes = self._catcodes
-            letters = _patterns(catcodes).letters
-            match = letters.match(body, start) if letters is not None else None
-            end = start + 1 if match is None else match.end()
+            name, end = _control_name(body, start, self._catcodes)
             if end < len(body) and body[end] == "*":
+                name += "*"
                 end += 1
-            name = body[start:end]
 
         star = len(name) > 1 and name.endswith("*")
         signature = self._command_signature(name[:-1] if star else name)
@@ -543,7 +577,7 @@ class TexParser:
                 return self._end_environment(lineno, col, end, *argument)
         control = "\\" + name
         if control in ("\\[", "\\(") and not self._in_math():
-            self._open_math(control, lineno, col)
+            self._open_math(control, lineno, col, end)
             return end
         if control in ("\\]", "\\)"):
 
@@ -552,7 +586,7 @@ class TexParser:
 
             if self._find_open(is_math, through_braces=False) is not None:
                 self._dissolve_until(is_math, False, Cause.MATH, control, ((lineno, col), (lineno, end)))
-                self._close_top(lineno, col, width=len(control))
+                self._close_top(lineno, col, width=end - col)
                 return end
             context = self._context()
             if context is not None and macro is None:
@@ -867,35 +901,39 @@ class TexParser:
             return None
         return signature
 
-    def _dollar(self, lineno: int, body: str, col: int) -> int:
-        double = body.startswith("$$", col)
+    def _dollar(self, lineno: int, body: str, col: int, width: int) -> int:
+        """Read the `$` that takes `width` columns at `col`, and the one after it if it is doubled."""
+        second, second_width = _read_character(body, col + width, self._catcodes)
+        double = second == MATHS_MODE_CAR
+        size = width + second_width if double else width
         top = self._top
         if not top.math:
             self._flush_text()
-            delimiter = "$$" if double else "$"
-            self._open_math(delimiter, lineno, col)
-            return col + len(delimiter)
+            self._open_math("$$" if double else "$", lineno, col, col + size)
+            return col + size
         closing = MATH_DELIMITERS[top.delimiter or ""]
         # Inside `$` math, a `$` closes: `$a$$b$` makes two formulas.
         if closing == "$" or (closing == "$$" and double):
             self._flush_text()
-            self._close_top(lineno, col, width=len(closing))
-            return col + len(closing)
+            if closing == "$":
+                size = width
+            self._close_top(lineno, col, width=size)
+            return col + size
         # A lone `$` inside `$$`, `\[` or `\(`: TeX refuses it, we keep it as text.
-        width = 2 if double else 1
         context = self._context()
         if context is not None and id(top) not in self._dollars:
             # Only one per math: `\[ x = $y$ \]` is one mistake, not two.
             self._dollars.add(id(top))
-            self._report.dollar_in_math((lineno, col), width, top, context)
-        self._add_text(lineno, col, "$")
+            self._report.dollar_in_math((lineno, col), size, top, context)
+        self._add_text(lineno, col, "$", width)
         if double:
-            self._add_text(lineno, col + 1, "$")
-        return col + width
+            self._add_text(lineno, col + width, "$", second_width)
+        return col + size
 
-    def _open_math(self, delimiter: str, lineno: int, col: int) -> None:
+    def _open_math(self, delimiter: str, lineno: int, col: int, end_col: int) -> None:
+        """Open the math whose `delimiter` is written from `col` to `end_col`."""
         self._settle_binding()
-        end = (lineno, col + len(delimiter))
+        end = (lineno, end_col)
         group = TexGroup(
             MATHS_MODE_CAR, env=True, delimiter=delimiter, position=(lineno, col), rootfile=self._rootfile
         )
@@ -1557,13 +1595,15 @@ class _TablePatterns:
     characters, so that the run ends on the last character written. `blanks`:
     those blanks, to be collapsed. `blank_run`: blanks and ignored characters,
     which change nothing in the text under way but a space to come. `letters`: a
-    command name.
+    command name. `caret_pairs`: each superscript character twice, where a `^^`
+    form may start (see `characters`).
     """
 
     run: re.Pattern[str]
     blanks: re.Pattern[str] | None
     blank_run: re.Pattern[str]
     letters: re.Pattern[str] | None
+    caret_pairs: tuple[str, ...]
 
 
 _PATTERNS: dict[CatcodeTable, _TablePatterns] = {}
@@ -1582,8 +1622,56 @@ def _patterns(catcodes: CatcodeTable) -> _TablePatterns:
             # With no blank and no ignored character, never used (no character is blank).
             blank_run=re.compile(f"[{re.escape(blank + ignored)}]*" if blank or ignored else ""),
             letters=re.compile(f"[{re.escape(letters)}]+") if letters else None,
+            caret_pairs=tuple(sorted(c * 2 for c, kind in catcodes.items() if kind is Category.SUPERSCRIPT)),
         )
     return patterns
+
+
+def _read_character(body: str, col: int, catcodes: CatcodeTable) -> tuple[str, int]:
+    """The character at `col` and its width: one column, or a whole `^^` form; `("", 0)` past the end."""
+    if col >= len(body):
+        return "", 0
+    c = body[col]
+    if catcodes.category(c) is Category.SUPERSCRIPT and body.startswith(c, col + 1):
+        reduced = reduce_caret(body, col)
+        if reduced is not None:
+            return reduced
+    return c, 1
+
+
+def _control_name(body: str, start: int, catcodes: CatcodeTable) -> tuple[str, int]:
+    """The name of a control sequence that starts at `start`, and the column where it ends.
+
+    A run of letters, or a single character that is not one. Each may be written
+    `^^`, which TeX reduces before it looks at the category: `\\wr^^69te` is
+    `\\write`, `\\^^M` the control symbol of the line end; `\\^` followed by `{` is
+    the accent.
+    """
+    patterns = _patterns(catcodes)
+    letters = patterns.letters
+    match = letters.match(body, start) if letters is not None else None
+    end = start + 1 if match is None else match.end()
+    for pair in patterns.caret_pairs:
+        if body.startswith(pair, start) or body.startswith(pair, end):
+            break
+    else:
+        # No `^^` where the name starts or where its letters stop: `\alpha^2` is read at once.
+        return body[start:end], end
+    first, width = _read_character(body, start, catcodes)
+    end = start + width
+    if letters is None or catcodes.category(first) is not Category.LETTER:
+        return first, end
+    name = first
+    while True:
+        match = letters.match(body, end)
+        if match is not None:
+            name += match.group()
+            end = match.end()
+        following, width = _read_character(body, end, catcodes)
+        if width < 2 or catcodes.category(following) is not Category.LETTER:
+            return name, end
+        name += following
+        end += width
 
 
 def _region_boundary(regions: Sequence[tuple[int, int, CatcodeTable]], col: int, length: int) -> int:

@@ -88,7 +88,7 @@ from latexdetok.signatures import CommandSignature, EnvironmentSignature, Macro,
 from latexdetok.text import TexText, to_text
 
 # One source for the version: the publication workflow compares it with the tag.
-__version__ = "0.7.1"
+__version__ = "0.7.2"
 
 __all__ = [
     "COMPILED",

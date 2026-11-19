@@ -53,7 +53,6 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from functools import cache
 from importlib.resources import files
-from pathlib import Path
 from typing import Self
 
 from latexdetok.catcodes import CatcodeTable
@@ -72,7 +71,7 @@ __all__ = [
 ]
 
 # Through the package, not through `__file__`: compiled, this module lives in `_mypyc/` (see `compilation`).
-DATA = Path(str(files("latexdetok"))) / "data"
+DATA = files("latexdetok") / "data"  # a Traversable: in a zip archive, the files are not on disk
 # The last definition wins: the primitives first, which LaTeX redefines (`\input`, `\end`).
 TABLES = ("primitives.txt", "kernel-harvested.txt", "kernel.txt", "packages.txt", "verbatim.txt")
 

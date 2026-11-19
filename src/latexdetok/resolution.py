@@ -62,6 +62,7 @@ import os
 import select
 import shutil
 import subprocess
+import sys
 import threading
 from collections.abc import Sequence
 from io import StringIO
@@ -199,7 +200,12 @@ def _kpsewhich(*arguments: str) -> str | None:
 
 
 # A path that exists and that no document asks for: its answer closes the one for the name asked.
-SENTINEL = str(Path(__file__).resolve())
+# This module first; but loaded from a zip archive (a zipapp) it is not on disk, kpsewhich would
+# never answer and every lookup would wait for the timeout. The interpreter is.
+SENTINEL = next(
+    (str(path) for path in (Path(__file__).resolve(), Path(sys.executable).resolve()) if path.is_file()),
+    str(Path(__file__).resolve()),
+)
 SESSION_TIMEOUT = 10.0
 
 

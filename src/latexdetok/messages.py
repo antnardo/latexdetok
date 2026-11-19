@@ -26,13 +26,14 @@ doubling the braces `format` would otherwise eat.
 
 import os
 from importlib.resources import files
-from pathlib import Path
+from importlib.resources.abc import Traversable
 
 from latexdetok.logger import logger
 
 __all__ = ["DEFAULT_LANGUAGE", "catalogue", "language", "languages", "say", "set_language"]
 
-DATA = Path(str(files("latexdetok"))) / "data"
+# Read through the package, never as a `Path`: in a zip archive (a zipapp) the files are not on disk.
+DATA = files("latexdetok") / "data"
 PREFIX = "messages-"
 DEFAULT_LANGUAGE = "en"
 ENVIRONMENT = "LATEXDETOK_LANG"
@@ -43,7 +44,12 @@ _language: str | None = None
 
 def languages() -> list[str]:
     """The languages shipped with the package, in alphabetical order."""
-    return sorted(path.stem[len(PREFIX) :] for path in DATA.glob(f"{PREFIX}*.txt"))
+    names = (entry.name for entry in DATA.iterdir())
+    return sorted(
+        name[len(PREFIX) : -len(".txt")]
+        for name in names
+        if name.startswith(PREFIX) and name.endswith(".txt")
+    )
 
 
 def language() -> str:
@@ -90,7 +96,7 @@ def say(key: str, **fields: object) -> str:
     return template
 
 
-def _read(path: Path) -> dict[str, str]:
+def _read(path: Traversable) -> dict[str, str]:
     entries: dict[str, str] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         text = line.strip()

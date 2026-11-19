@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Fixed
+
+- Loaded from a zip archive — a zipapp such as a `.pyz` that carries the
+  package — latexdetok could not read its own data: the signature tables and
+  the messages were opened as files on disk, which they are not there
+  (`NotADirectoryError` on the first analysis). They are now read through the
+  package. And `follow_inputs` waited ten seconds on every search in the
+  distribution: the path that closes each answer of `kpsewhich` was this
+  module's, which is not on disk either; it is now one that is.
+
 ## [0.7.2] — 2026-11-15
 
 ### Fixed

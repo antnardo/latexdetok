@@ -1,10 +1,33 @@
 """`TexFile`: reading files, reading the source back, queries on the examples."""
 
+import shutil
+import subprocess
+import sys
+import zipfile
 from pathlib import Path
 
 import pytest
 
+import latexdetok
 from latexdetok import TexContent, TexFile, read_lines
+
+# Run from the archive: the messages, the signature tables, and a search in the
+# distribution, which waited for its timeout when the module was not on disk.
+FROM_ARCHIVE = """
+import sys
+sys.path.insert(0, sys.argv[1])
+import latexdetok
+from latexdetok import TexFile, messages, resolution
+assert latexdetok.__file__.startswith(sys.argv[1]), latexdetok.__file__
+assert "en" in messages.languages(), messages.languages()
+tex = TexFile(["\\\\section{a}\\n"], name="x.tex")
+tex.analyse()
+assert tex.container.content[0].name == "section"
+if sys.argv[2] != "-":
+    # The session itself, not the plain call it falls back on once it has waited.
+    answered, found = resolution._session_find(sys.argv[2], "article.cls")
+    assert (answered and found) or resolution.pty is None, (answered, found)
+"""
 
 
 class TestReading:
@@ -312,3 +335,23 @@ class TestExamples:
         tex = TexFile(fixture_path("course.tex"))
         tex.analyse()
         assert [group.delimiter for group in tex.get_envs("$")].count("\\[") == 1
+
+
+def test_from_a_zip_archive_reads_its_data(tmp_path):
+    """A zipapp (`.pyz`) carries the package in an archive: nothing in it is a file on disk."""
+    package = Path(latexdetok.__file__).parent
+    archive = tmp_path / "app.pyz"
+    with zipfile.ZipFile(archive, "w") as written:
+        for path in package.rglob("*"):
+            relative = path.relative_to(package.parent)
+            if path.is_file() and not {"_mypyc", "__pycache__"} & set(relative.parts):
+                written.write(path, relative.as_posix())
+    texmf = shutil.which("kpsewhich") or "-"
+    result = subprocess.run(
+        [sys.executable, "-I", "-c", FROM_ARCHIVE, str(archive), texmf],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
